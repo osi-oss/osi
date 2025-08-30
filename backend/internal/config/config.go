@@ -8,12 +8,18 @@ import (
 )
 
 type Config struct {
-	AppPort string
+	AppPort    string
+	PgHost     string
+	PgDb       string
+	PgUser     string
+	PgPassword string
+	PgPort     string
 }
 
 func Load(paths ...string) Config {
 	if len(paths) == 0 {
-		paths = []string{"../.env"}
+		// Сначала пытаемся загрузить из папки backend, потом из корня
+		paths = []string{".env", "../.env"}
 	}
 
 	for _, path := range paths {
@@ -24,6 +30,11 @@ func Load(paths ...string) Config {
 
 	cfg := Config{}
 	cfg.AppPort = getEnv("BACKEND_PORT", "8080")
+	cfg.PgHost = mustEnv("POSTGRES_HOST")
+	cfg.PgDb = mustEnv("POSTGRES_DB")
+	cfg.PgUser = mustEnv("POSTGRES_USER")
+	cfg.PgPassword = mustEnv("POSTGRES_PASSWORD")
+	cfg.PgPort = mustEnv("POSTGRES_PORT")
 	return cfg
 }
 

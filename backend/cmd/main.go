@@ -4,10 +4,13 @@ import (
 	"fmt"
 
 	"github.com/osi-oss/osi/internal/config"
+	"github.com/osi-oss/osi/internal/db"
 )
 
 func main() {
 	cfg := config.Load()
 
-	fmt.Println(cfg)
+	pgDb := db.Connect(&cfg)
+
+	fmt.Println(pgDb.Stats())
 }
