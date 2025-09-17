@@ -16,7 +16,7 @@ type Config struct {
 	PgPort     string
 }
 
-func Load(paths ...string) Config {
+func LoadFromEnv(paths ...string) Config {
 	if len(paths) == 0 {
 		// Сначала пытаемся загрузить из папки backend, потом из корня
 		paths = []string{".env", "../.env"}

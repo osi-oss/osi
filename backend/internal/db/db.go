@@ -1,35 +1,42 @@
 package db
 
 import (
-	"database/sql"
 	"fmt"
-	"log"
 
-	_ "github.com/lib/pq"
 	"github.com/osi-oss/osi/internal/config"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
 )
 
-func Connect(cfg *config.Config) *sql.DB {
-	dsn := fmt.Sprintf("user=%s password=%s dbname=%s host=%s port=%s sslmode=disable",
+// Format connection string
+func Connect(cfg *config.Config) (*gorm.DB, error) {
+	dsn := fmt.Sprintf("host=localhost user=%s password=%s dbname=%s host=%s port=%s sslmode=disable",
 		cfg.PgUser, cfg.PgPassword, cfg.PgDb, cfg.PgHost, cfg.PgPort)
 	return openConnection(dsn)
 }
 
-func ConnectWithParams(user, password, dbname, host, port string) *sql.DB {
-	dsn := fmt.Sprintf("user=%s password=%s dbname=%s host=%s port=%s sslmode=disable",
-		user, password, dbname, host, port)
-	return openConnection(dsn)
+// Format connection string
+func ConnectWithParams(user, password, dbname, host, port string) (*gorm.DB, error) {
+	// dsn := fmt.Sprintf("host=localhost user=%s password=%s dbname=%s host=%s port=%s sslmode=disable",
+	// 	user, password, dbname, host, port)
+	// return openConnection(dsn)
+
+	return Connect(
+		&config.Config{
+			PgUser:     user,
+			PgPassword: password,
+			PgHost:     host,
+			PgPort:     port,
+			PgDb:       dbname,
+		})
 }
 
-func openConnection(dsn string) *sql.DB {
-	db, err := sql.Open("postgres", dsn)
+// Open connection with db
+func openConnection(dsn string) (*gorm.DB, error) {
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
-		log.Fatal("failed to connect to db:", err)
+		return nil, fmt.Errorf("failed to connect to db: %w", err)
 	}
 
-	if err := db.Ping(); err != nil {
-		log.Fatal("cannot ping db:", err)
-	}
-
-	return db
+	return db, nil
 }

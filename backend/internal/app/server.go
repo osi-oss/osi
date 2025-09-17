@@ -1,9 +1,24 @@
-// package mian
+package server
 
-// import "github.com/gin-gonic/gin"
+import (
+	"github.com/gin-gonic/gin"
+	"github.com/osi-oss/osi/internal/config"
+	"github.com/osi-oss/osi/internal/db"
+)
 
-// func main() {
-// 	server := gin.Default()
-// 	server.
-// 	server.Run("127.0.0.1:8080")
-// }
+func Start(cfg *config.Config) {
+
+	DB := db.Connect(cfg)
+	db.SyncDb(DB)
+
+	r := gin.Default()
+	r.GET("/ping", func(ctx *gin.Context) {
+		ctx.JSON(
+			200, gin.H{
+				"message": "pong",
+			})
+	})
+
+	r.Run()
+
+}

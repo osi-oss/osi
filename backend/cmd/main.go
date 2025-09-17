@@ -1,16 +1,12 @@
 package main
 
 import (
-	"fmt"
-
+	server "github.com/osi-oss/osi/internal/app"
 	"github.com/osi-oss/osi/internal/config"
-	"github.com/osi-oss/osi/internal/db"
 )
 
 func main() {
-	cfg := config.Load()
+	cfg := config.LoadFromEnv()
 
-	pgDb := db.Connect(&cfg)
-
-	fmt.Println(pgDb.Stats())
+	server.Start(&cfg)
 }

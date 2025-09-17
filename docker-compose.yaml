@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   postgres:
-    image: postgres:17-alpine
+    image: postgres:17
     container_name: osi_postgres
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
@@ -51,3 +51,6 @@ volumes:
 networks:
   osi_network:
     driver: bridge
+
+# Enter Postgress CLI
+# docker exec -it osi_postgres psql -U POSTGRES_USER -d POSTGRES_DB
