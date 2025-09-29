@@ -14,6 +14,7 @@ type Config struct {
 	PgUser     string
 	PgPassword string
 	PgPort     string
+	JWTSecret  string
 }
 
 func LoadFromEnv(paths ...string) Config {
@@ -35,6 +36,7 @@ func LoadFromEnv(paths ...string) Config {
 	cfg.PgUser = mustEnv("POSTGRES_USER")
 	cfg.PgPassword = mustEnv("POSTGRES_PASSWORD")
 	cfg.PgPort = mustEnv("POSTGRES_PORT")
+	cfg.JWTSecret = mustEnv("JWT_SECRET")
 	return cfg
 }
 
