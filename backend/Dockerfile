@@ -1,27 +1,37 @@
-# Build stage
-FROM golang:1.21-alpine AS builder
+# Многоэтапная сборка для оптимизации размера образа
+FROM golang:1.23-alpine AS builder
 
+# Установка ca-certificates
+RUN apk update && apk add --no-cache ca-certificates
+
+# Создание директории приложения
 WORKDIR /app
 
-# Copy go mod files
+# Копирование go.mod и go.sum для кэширования зависимостей
 COPY go.mod go.sum ./
+
+# Скачивание зависимостей
 RUN go mod download
 
-# Copy source code
+# Копирование исходного кода
 COPY . .
 
-# Build the application
-RUN CGO_ENABLED=0 GOOS=linux go build -o main ./cmd/api
+# Сборка приложения
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main ./cmd/main.go
 
-# Runtime stage
+# Финальный образ
 FROM alpine:latest
 
+# Установка ca-certificates для HTTPS запросов
 RUN apk --no-cache add ca-certificates
+
 WORKDIR /root/
 
-# Copy the binary from builder stage
+# Копирование бинарного файла из builder stage
 COPY --from=builder /app/main .
 
+# Открытие порта
 EXPOSE 8080
 
+# Запуск приложения
 CMD ["./main"]
