@@ -28,7 +28,6 @@ func AuthRequired(jwtSecret string) gin.HandlerFunc {
 			tokenString = strings.TrimPrefix(authHeader, "Bearer ")
 		}
 
-		fmt.Println(tokenString)
 
 		// Парсим и валидируем токен
 		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
