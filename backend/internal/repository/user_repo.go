@@ -28,3 +28,8 @@ func (r UserRepository) GetById(id uint) (*models.User, error) {
 	err := r.db.First(&user, id).Error
 	return &user, err
 }
+
+// Update обновляет пользователя
+func (r *UserRepository) Update(user *models.User) error {
+	return r.db.Save(user).Error
+}

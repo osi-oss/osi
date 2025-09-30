@@ -15,6 +15,15 @@ type Config struct {
 	PgPassword string
 	PgPort     string
 	JWTSecret  string
+
+	// Email настройки
+	SMTPHost     string
+	SMTPPort     string
+	SMTPUser     string
+	SMTPPassword string
+	FromEmail    string
+	FromName     string
+	BaseURL      string // URL фронтенда для ссылок в письмах
 }
 
 func LoadFromEnv(paths ...string) Config {
@@ -37,6 +46,16 @@ func LoadFromEnv(paths ...string) Config {
 	cfg.PgPassword = mustEnv("POSTGRES_PASSWORD")
 	cfg.PgPort = mustEnv("POSTGRES_PORT")
 	cfg.JWTSecret = mustEnv("JWT_SECRET")
+
+	// Email настройки
+	cfg.SMTPHost = getEnv("SMTP_HOST", "smtp.gmail.com")
+	cfg.SMTPPort = getEnv("SMTP_PORT", "587")
+	cfg.SMTPUser = getEnv("SMTP_USER", "")
+	cfg.SMTPPassword = getEnv("SMTP_PASSWORD", "")
+	cfg.FromEmail = getEnv("FROM_EMAIL", cfg.SMTPUser)
+	cfg.FromName = getEnv("FROM_NAME", "OSI Team")
+	cfg.BaseURL = getEnv("BASE_URL", "http://localhost:3000")
+
 	return cfg
 }
 

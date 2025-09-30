@@ -24,8 +24,29 @@ func Start(cfg *config.Config) {
 		log.Fatalf("DB migration error: %v", err)
 	}
 
+	// Создание репозиториев
 	userRepo := repository.NewUserRepository(dbConn)
-	userService := services.NewUserService(userRepo, cfg.JWTSecret)
+	resetRepo := repository.NewPasswordResetRepository(dbConn)
+
+	// Создание email сервиса
+	emailService := services.NewEmailService(
+		cfg.SMTPHost,
+		cfg.SMTPPort,
+		cfg.SMTPUser,
+		cfg.SMTPPassword,
+		cfg.FromEmail,
+		cfg.FromName,
+	)
+
+	// Создание пользовательского сервиса со всеми зависимостями
+	userService := services.NewUserService(
+		userRepo,
+		resetRepo,
+		emailService,
+		cfg.JWTSecret,
+		cfg.BaseURL,
+	)
+
 	userController := controllers.NewUserController(userService)
 
 	log.Printf("🚀 Server starting on port %s", cfg.AppPort)
@@ -41,13 +62,19 @@ func Start(cfg *config.Config) {
 		ctx.JSON(200, gin.H{"message": "pong"})
 	})
 
+	// В server.go добавить:
 	api := r.Group("/api")
 	{
-		// Открытые роуты (без аутентификации)
+		// Открытые роуты
 		api.POST("/signup", userController.SignUp)
 		api.POST("/login", userController.LogIn)
+		api.POST("/forgot-password", userController.RequestPasswordReset)
 
-		// Защищенные роуты (с аутентификацией)
+		// Сброс пароля
+		api.GET("/reset-password/validate", userController.ValidateResetToken) // Проверка токена
+		api.POST("/reset-password", userController.ResetPassword)              // Сброс пароля
+
+		// Защищенные роуты
 		protected := api.Group("/")
 		protected.Use(middleware.AuthRequired(cfg.JWTSecret))
 		{
@@ -58,5 +85,4 @@ func Start(cfg *config.Config) {
 
 	log.Printf("✅ Server ready at http://localhost:%s", cfg.AppPort)
 	r.Run(":" + cfg.AppPort)
-
 }

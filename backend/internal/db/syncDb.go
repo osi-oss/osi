@@ -6,5 +6,9 @@ import (
 )
 
 func SyncDb(db *gorm.DB) error {
-	return db.AutoMigrate(&models.User{}, &models.Organisation{})
+	return db.AutoMigrate(
+		&models.User{},
+		&models.Organisation{},
+		&models.PasswordResetToken{}, // Добавляем новую модель
+	)
 }
