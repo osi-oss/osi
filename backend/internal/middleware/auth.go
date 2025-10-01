@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -27,6 +28,7 @@ func AuthRequired(jwtSecret string) gin.HandlerFunc {
 			tokenString = strings.TrimPrefix(authHeader, "Bearer ")
 		}
 
+
 		// Парсим и валидируем токен
 		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 			// Проверяем метод подписи
@@ -37,6 +39,7 @@ func AuthRequired(jwtSecret string) gin.HandlerFunc {
 		})
 
 		if err != nil || !token.Valid {
+			fmt.Println("ERRROR HERE", !token.Valid, err.Error())
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid or expired token"})
 			c.Abort()
 			return
@@ -55,4 +58,3 @@ func AuthRequired(jwtSecret string) gin.HandlerFunc {
 		c.Next()
 	}
 }
-
