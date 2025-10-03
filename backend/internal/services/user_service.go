@@ -10,6 +10,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/osi-oss/osi/internal/models"
 	"github.com/osi-oss/osi/internal/repository"
+	"github.com/osi-oss/osi/internal/validators"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
@@ -76,11 +77,13 @@ func (s *UserService) SignUp(email, password string) (*models.User, error) {
 }
 
 func (s *UserService) LogIn(email, password string) (string, error) {
+	// Get user from db
 	user, err := s.userRepo.GetByEmail(email)
 	if err != nil {
 		return "", fmt.Errorf("user with this email does not exists")
 	}
 
+	// Compare password
 	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password))
 	if err != nil {
 		return "", ErrInvalidCredentials
@@ -156,8 +159,8 @@ func (s *UserService) RequestPasswordReset(email string) error {
 // ResetPassword сбрасывает пароль по токену
 func (s *UserService) ResetPassword(token, newPassword string) error {
 	// Валидация пароля
-	if len(newPassword) < 6 {
-		return ErrInvalidInput
+	if err := validators.Password.Validate(newPassword); err != nil {
+		return fmt.Errorf("password validation failed: %w", err)
 	}
 
 	// Находим токен

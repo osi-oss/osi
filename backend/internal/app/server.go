@@ -56,6 +56,7 @@ func Start(cfg *config.Config) {
 
 	// Добавляем middleware
 	r.Use(middleware.CORS())
+	r.Use(middleware.SecurityMiddleware())
 	r.Use(middleware.ValidateJSON())
 
 	r.GET("/ping", func(ctx *gin.Context) {
