@@ -28,15 +28,21 @@ var (
 type UserService struct {
 	userRepo     *repository.UserRepository
 	resetRepo    *repository.PasswordResetRepository
-	emailService *EmailService
-	jwtSecret    string
-	baseURL      string
+	emailService interface {
+		SendPasswordResetEmail(toEmail, token, baseURL string) error
+		SendWelcomeEmail(toEmail, userName string) error
+	}
+	jwtSecret string
+	baseURL   string
 }
 
 func NewUserService(
 	userRepo *repository.UserRepository,
 	resetRepo *repository.PasswordResetRepository,
-	emailService *EmailService,
+	emailService interface {
+		SendPasswordResetEmail(toEmail, token, baseURL string) error
+		SendWelcomeEmail(toEmail, userName string) error
+	},
 	jwtSecret string,
 	baseURL string,
 ) *UserService {

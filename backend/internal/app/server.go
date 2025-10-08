@@ -55,7 +55,7 @@ func Start(cfg *config.Config) {
 	r := gin.Default()
 
 	// Добавляем middleware
-	r.Use(middleware.CORS())
+	// r.Use(middleware.CORS())
 	r.Use(middleware.SecurityMiddleware())
 	r.Use(middleware.ValidateJSON())
 
