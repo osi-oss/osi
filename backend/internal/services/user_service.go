@@ -56,12 +56,26 @@ func NewUserService(
 }
 
 func (s *UserService) SignUp(email, password string) (*models.User, error) {
+	// validate password
+	if err := validators.Password.Validate(password); err != nil {
+		return nil, fmt.Errorf("password validation failed: %w", err)
+	}
+
+	// user already exists
 	_, err := s.userRepo.GetByEmail(email)
 	if err == nil {
 		return nil, ErrUserAlreadyExists
 	}
+
+	// another error from db
 	if !errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, fmt.Errorf("database error: %v", err)
+	}
+
+	// validate email
+	err = validators.Email.Validate(email)
+	if err != nil {
+		return nil, fmt.Errorf("email validation failed: %w", err)
 	}
 
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcryptCost)
