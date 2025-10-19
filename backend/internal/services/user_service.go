@@ -10,6 +10,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/osi-oss/osi/internal/models"
 	"github.com/osi-oss/osi/internal/repository"
+	"github.com/osi-oss/osi/internal/validators"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
@@ -27,15 +28,21 @@ var (
 type UserService struct {
 	userRepo     *repository.UserRepository
 	resetRepo    *repository.PasswordResetRepository
-	emailService *EmailService
-	jwtSecret    string
-	baseURL      string
+	emailService interface {
+		SendPasswordResetEmail(toEmail, token, baseURL string) error
+		SendWelcomeEmail(toEmail, userName string) error
+	}
+	jwtSecret string
+	baseURL   string
 }
 
 func NewUserService(
 	userRepo *repository.UserRepository,
 	resetRepo *repository.PasswordResetRepository,
-	emailService *EmailService,
+	emailService interface {
+		SendPasswordResetEmail(toEmail, token, baseURL string) error
+		SendWelcomeEmail(toEmail, userName string) error
+	},
 	jwtSecret string,
 	baseURL string,
 ) *UserService {
@@ -49,12 +56,26 @@ func NewUserService(
 }
 
 func (s *UserService) SignUp(email, password string) (*models.User, error) {
+	// validate password
+	if err := validators.Password.Validate(password); err != nil {
+		return nil, fmt.Errorf("password validation failed: %w", err)
+	}
+
+	// user already exists
 	_, err := s.userRepo.GetByEmail(email)
 	if err == nil {
 		return nil, ErrUserAlreadyExists
 	}
+
+	// another error from db
 	if !errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, fmt.Errorf("database error: %v", err)
+	}
+
+	// validate email
+	err = validators.Email.Validate(email)
+	if err != nil {
+		return nil, fmt.Errorf("email validation failed: %w", err)
 	}
 
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcryptCost)
@@ -76,11 +97,13 @@ func (s *UserService) SignUp(email, password string) (*models.User, error) {
 }
 
 func (s *UserService) LogIn(email, password string) (string, error) {
+	// Get user from db
 	user, err := s.userRepo.GetByEmail(email)
 	if err != nil {
 		return "", fmt.Errorf("user with this email does not exists")
 	}
 
+	// Compare password
 	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password))
 	if err != nil {
 		return "", ErrInvalidCredentials
@@ -156,8 +179,8 @@ func (s *UserService) RequestPasswordReset(email string) error {
 // ResetPassword сбрасывает пароль по токену
 func (s *UserService) ResetPassword(token, newPassword string) error {
 	// Валидация пароля
-	if len(newPassword) < 6 {
-		return ErrInvalidInput
+	if err := validators.Password.Validate(newPassword); err != nil {
+		return fmt.Errorf("password validation failed: %w", err)
 	}
 
 	// Находим токен
