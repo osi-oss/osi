@@ -25,7 +25,7 @@ FROM alpine:latest
 # Установка ca-certificates для HTTPS запросов
 RUN apk --no-cache add ca-certificates
 
-WORKDIR /root/
+WORKDIR /root
 
 # Копирование бинарного файла из builder stage
 COPY --from=builder /app/main .

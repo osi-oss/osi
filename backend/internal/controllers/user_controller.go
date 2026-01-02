@@ -43,10 +43,10 @@ func (ctrl *UserController) SignUp(c *gin.Context) {
 	}
 
 	response := gin.H{
-		"id":         user.ID,
-		"email":      user.Email,
-		"verified":   user.Verified,
-		"created_at": user.CreatedAt,
+		"id":             user.ID,
+		"email":          user.Email,
+		"email_verified": user.IsEmailVerified,
+		"created_at":     user.CreatedAt,
 	}
 
 	c.JSON(http.StatusCreated, gin.H{
@@ -75,12 +75,12 @@ func (ctrl *UserController) GetProfile(c *gin.Context) {
 
 	// Возвращаем профиль без пароля
 	response := gin.H{
-		"id":         user.ID,
-		"email":      user.Email,
-		"first_name": user.FirstName,
-		"last_name":  user.LastName,
-		"verified":   user.Verified,
-		"created_at": user.CreatedAt,
+		"id":             user.ID,
+		"email":          user.Email,
+		"first_name":     user.FirstName,
+		"last_name":      user.LastName,
+		"email_verified": user.IsEmailVerified,
+		"created_at":     user.CreatedAt,
 	}
 
 	c.JSON(http.StatusOK, gin.H{

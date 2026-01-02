@@ -44,7 +44,14 @@ func AuthRequired(jwtSecret string) gin.HandlerFunc {
 
 		// Извлекаем данные из токена
 		if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
-			c.Set("userID", claims["sub"])
+			// JWT хранит числа как float64, конвертируем в int64
+			if sub, ok := claims["sub"].(float64); ok {
+				c.Set("userID", int64(sub))
+			} else {
+				c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid user ID in token"})
+				c.Abort()
+				return
+			}
 			c.Set("email", claims["email"])
 		} else {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token claims"})

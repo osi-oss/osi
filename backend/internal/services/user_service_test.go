@@ -52,13 +52,13 @@ func Test_SignUp_Simple(t *testing.T) {
 
 	user, err := svc.SignUp("test@example.com", "abcD1234")
 	assert.NoError(t, err)
-	assert.Equal(t, "test@example.com", user.Email)
+	assert.Equal(t, "test@example.com", *user.Email)
 }
 func Test_SignUp(t *testing.T) {
 	_, svc := setupTestEnv(t)
 	user, err := svc.SignUp("test@example.com", "Abcd1234")
 	require.NoError(t, err)
-	require.Equal(t, "test@example.com", user.Email)
+	require.Equal(t, "test@example.com", *user.Email)
 
 	// повторная регистрация должна выдать ошибку
 	_, err = svc.SignUp("test@example.com", "Abcd1234")
@@ -105,7 +105,7 @@ func TestUserService_SignUp_And_LogIn(t *testing.T) {
 	// Sign up
 	user, err := svc.SignUp("test@example.com", "Abcd1234")
 	require.NoError(t, err)
-	require.Equal(t, "test@example.com", user.Email)
+	require.Equal(t, "test@example.com", *user.Email)
 
 	// Log in should return a token
 	token, err := svc.LogIn("test@example.com", "Abcd1234")
@@ -122,7 +122,7 @@ func TestUserService_SignUp_And_LogIn(t *testing.T) {
 	// Create a manual token to test ResetPassword
 	tokenStr := "manualtoken123"
 	reset := &models.PasswordResetToken{
-		UserID:    user.ID,
+		UserID:    uint(user.BaseModel.ID),
 		Token:     tokenStr,
 		ExpiresAt: time.Now().Add(time.Hour),
 		Used:      false,

@@ -84,9 +84,9 @@ func (s *UserService) SignUp(email, password string) (*models.User, error) {
 	}
 
 	user := &models.User{
-		Email:    email,
-		Password: string(hashedPassword),
-		Verified: false,
+		Email:           &email,
+		PasswordHash:    string(hashedPassword),
+		IsEmailVerified: true,
 	}
 
 	if err := s.userRepo.Create(user); err != nil {
@@ -104,7 +104,7 @@ func (s *UserService) LogIn(email, password string) (string, error) {
 	}
 
 	// Compare password
-	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password))
+	err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password))
 	if err != nil {
 		return "", ErrInvalidCredentials
 	}
@@ -158,7 +158,7 @@ func (s *UserService) RequestPasswordReset(email string) error {
 
 	// Создаем запись токена в БД
 	resetToken := &models.PasswordResetToken{
-		UserID:    user.ID,
+		UserID:    uint(user.BaseModel.ID),
 		Token:     token,
 		ExpiresAt: time.Now().Add(time.Hour), // Токен действует 1 час
 		Used:      false,
@@ -205,7 +205,7 @@ func (s *UserService) ResetPassword(token, newPassword string) error {
 	}
 
 	// Обновляем пароль пользователя
-	user.Password = string(hashedPassword)
+	user.PasswordHash = string(hashedPassword)
 	if err := s.userRepo.Update(user); err != nil {
 		return fmt.Errorf("failed to update password: %w", err)
 	}
@@ -216,7 +216,7 @@ func (s *UserService) ResetPassword(token, newPassword string) error {
 	}
 
 	// Удаляем все остальные токены пользователя
-	if err := s.resetRepo.DeleteByUserID(user.ID); err != nil {
+	if err := s.resetRepo.DeleteByUserID(uint(user.BaseModel.ID)); err != nil {
 		// Логируем, но не прерываем процесс
 		fmt.Printf("Warning: failed to cleanup reset tokens for user %d: %v\n", user.ID, err)
 	}
