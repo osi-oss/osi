@@ -8,7 +8,11 @@ import (
 func SyncDb(db *gorm.DB) error {
 	return db.AutoMigrate(
 		&models.User{},
-		&models.Organisation{},
-		&models.PasswordResetToken{}, // Добавляем новую модель
+		&models.Organization{},
+		&models.PasswordResetToken{},
+		&models.Department{},
+		&models.Employee{},
+		&models.OrganizationFounder{},
+		&models.OrganizationFounder{},
 	)
 }

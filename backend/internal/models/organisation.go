@@ -1,13 +1,17 @@
 package models
 
-import "time"
+type Organization struct {
+	BaseModel
 
-type Organisation struct {
-	ID        uint   `gorm:"primaryKey"`
-	Name      string `gorm:"size:255"`
-	LegalName string `gorm:"size:255"`
-	INN       string `gorm:"size:20"`
-	Status    string `gorm:"size:50"` // "pending", "approved", "rejected"
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	Name         string `gorm:"not null"`
+	LegalName    *string
+	INN          *string
+	OGRN         *string
+	KPP          *string
+	LegalAddress *string
+
+	Status OrgStatus `gorm:"type:org_status;not null;default:'draft'"`
+
+	Founders []OrganizationFounder
+	Members  []OrganizationMember
 }

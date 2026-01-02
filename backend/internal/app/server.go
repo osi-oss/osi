@@ -19,10 +19,10 @@ func Start(cfg *config.Config) {
 		log.Fatalf("DB connection error: %v", err)
 	}
 
-	// Migrations
-	if err := db.SyncDb(dbConn); err != nil {
-		log.Fatalf("DB migration error: %v", err)
-	}
+	// // Migrations
+	// if err := db.SyncDb(dbConn); err != nil {
+	// 	log.Fatalf("DB migration error: %v", err)
+	// }
 
 	// Создание репозиториев
 	userRepo := repository.NewUserRepository(dbConn)
