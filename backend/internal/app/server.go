@@ -27,6 +27,7 @@ func Start(cfg *config.Config) {
 	// Создание репозиториев
 	userRepo := repository.NewUserRepository(dbConn)
 	resetRepo := repository.NewPasswordResetRepository(dbConn)
+	orgRepo := repository.NewOrganizationRepository(dbConn)
 
 	// Создание email сервиса
 	emailService := services.NewEmailService(
@@ -47,7 +48,11 @@ func Start(cfg *config.Config) {
 		cfg.BaseURL,
 	)
 
+	// Создание сервиса организаций
+	orgService := services.NewOrganizationService(orgRepo)
+
 	userController := controllers.NewUserController(userService)
+	orgController := controllers.NewOrganizationController(orgService)
 
 	log.Printf("🚀 Server starting on port %s", cfg.AppPort)
 	log.Printf("📊 Database: %s@%s:%s/%s", cfg.PgUser, cfg.PgHost, cfg.PgPort, cfg.PgDb)
@@ -81,6 +86,13 @@ func Start(cfg *config.Config) {
 		{
 			protected.GET("/profile", userController.GetProfile)
 			protected.POST("/logout", userController.Logout)
+
+			// Роуты организаций
+			protected.POST("/organizations", orgController.CreateOrganization)
+			protected.GET("/organizations", orgController.GetUserOrganizations)
+			protected.GET("/organizations/:id", orgController.GetOrganization)
+			protected.PUT("/organizations/:id", orgController.UpdateOrganization)
+			protected.DELETE("/organizations/:id", orgController.DeleteOrganization)
 		}
 	}
 

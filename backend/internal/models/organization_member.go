@@ -10,5 +10,4 @@ type OrganizationMember struct {
 	Status         MemberStatus `gorm:"type:member_status;not null;default:'invited'"`
 	JoinedAt       *time.Time
 
-	Employees []Employee
-}
+	Employees []Employee `gorm:"foreignKey:MemberID;references:ID"`}
