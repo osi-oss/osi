@@ -144,3 +144,59 @@ func (s *OrganizationService) DeleteOrganization(orgID int64, userID int64) erro
 
 	return s.orgRepo.Delete(org.ID)
 }
+
+// Member methods
+
+type InviteMemberInput struct {
+	UserID int64 `json:"user_id" binding:"required"`
+}
+
+func (s *OrganizationService) InviteMember(orgID int64, userID int64, input InviteMemberInput) (*models.OrganizationMember, error) {
+	// Проверяем доступ
+	_, err := s.GetOrganization(orgID, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	member := &models.OrganizationMember{
+		OrganizationID: orgID,
+		UserID:         input.UserID,
+		Status:         models.MemberInvited,
+	}
+
+	if err := s.orgRepo.CreateMember(member); err != nil {
+		return nil, fmt.Errorf("failed to invite member: %w", err)
+	}
+
+	return s.orgRepo.GetMemberByID(member.ID)
+}
+
+func (s *OrganizationService) GetMembers(orgID int64, userID int64) ([]models.OrganizationMember, error) {
+	// Проверяем доступ
+	_, err := s.GetOrganization(orgID, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	return s.orgRepo.GetMembersByOrganizationID(orgID)
+}
+
+func (s *OrganizationService) UpdateMemberStatus(orgID int64, memberID int64, userID int64, status models.MemberStatus) error {
+	// Проверяем доступ
+	_, err := s.GetOrganization(orgID, userID)
+	if err != nil {
+		return err
+	}
+
+	return s.orgRepo.UpdateMemberStatus(memberID, status)
+}
+
+func (s *OrganizationService) RemoveMember(orgID int64, memberID int64, userID int64) error {
+	// Проверяем доступ
+	_, err := s.GetOrganization(orgID, userID)
+	if err != nil {
+		return err
+	}
+
+	return s.orgRepo.DeleteMember(memberID)
+}

@@ -12,6 +12,6 @@ type User struct {
 	LastName   string `gorm:"not null"`
 	MiddleName *string
 
-	IsEmailVerified bool
-	IsPhoneVerified bool
+	IsEmailVerified bool `gorm:"default:false"`
+	IsPhoneVerified bool `gorm:"default:false"`
 }

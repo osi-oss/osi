@@ -8,7 +8,7 @@ type Employee struct {
 	MemberID   int64 `gorm:"not null;index"`
 	PositionID int64 `gorm:"not null;index"`
 
-	IsIntern  bool
+	IsIntern  bool `gorm:"default:false"`
 	StartDate *time.Time
 	EndDate   *time.Time
 

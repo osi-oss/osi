@@ -7,7 +7,7 @@ type OrganizationFounder struct {
 	UserID         int64 `gorm:"not null;index"`
 
 	SharePercent *float64
-	IsMain       bool
+	IsMain       bool `gorm:"default:false"`
 
 	Organization Organization `gorm:"foreignKey:OrganizationID"`
 	User         User         `gorm:"foreignKey:UserID"`
