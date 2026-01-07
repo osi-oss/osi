@@ -5,7 +5,7 @@ CREATE TABLE locations (
     organization_id BIGINT NOT NULL REFERENCES organizations (id) ON DELETE CASCADE,
     name TEXT NOT NULL,
     address TEXT,
-    source TEXT NOT NULL,
+    source location_source_type NOT NULL DEFAULT 'manual',
     -- 'registry' | 'manual'
     is_verified BOOLEAN NOT NULL DEFAULT FALSE,
     is_active BOOLEAN DEFAULT TRUE,

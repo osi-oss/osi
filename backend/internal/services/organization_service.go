@@ -146,30 +146,29 @@ func (s *OrganizationService) DeleteOrganization(orgID int64, userID int64) erro
 }
 
 // Member methods
+// type InviteMemberInput struct {
+// 	UserID int64 `json:"user_id" binding:"required"`
+// }
 
-type InviteMemberInput struct {
-	UserID int64 `json:"user_id" binding:"required"`
-}
+// func (s *OrganizationService) InviteMember(orgID int64, userID int64, input InviteMemberInput) (*models.OrganizationMember, error) {
+// 	// Проверяем доступ
+// 	_, err := s.GetOrganization(orgID, userID)
+// 	if err != nil {
+// 		return nil, err
+// 	}
 
-func (s *OrganizationService) InviteMember(orgID int64, userID int64, input InviteMemberInput) (*models.OrganizationMember, error) {
-	// Проверяем доступ
-	_, err := s.GetOrganization(orgID, userID)
-	if err != nil {
-		return nil, err
-	}
+// 	member := &models.OrganizationMember{
+// 		OrganizationID: orgID,
+// 		UserID:         input.UserID,
+// 		Status:         models.MemberInvited,
+// 	}
 
-	member := &models.OrganizationMember{
-		OrganizationID: orgID,
-		UserID:         input.UserID,
-		Status:         models.MemberInvited,
-	}
+// 	if err := s.orgRepo.CreateMember(member); err != nil {
+// 		return nil, fmt.Errorf("failed to invite member: %w", err)
+// 	}
 
-	if err := s.orgRepo.CreateMember(member); err != nil {
-		return nil, fmt.Errorf("failed to invite member: %w", err)
-	}
-
-	return s.orgRepo.GetMemberByID(member.ID)
-}
+// 	return s.orgRepo.GetMemberByID(member.ID)
+// }
 
 func (s *OrganizationService) GetMembers(orgID int64, userID int64) ([]models.OrganizationMember, error) {
 	// Проверяем доступ
