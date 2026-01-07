@@ -1,10 +1,15 @@
 package services
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/osi-oss/osi/internal/models"
 	"github.com/osi-oss/osi/internal/repository"
+)
+
+var (
+	ErrLocationNotFound = errors.New("location not found")
 )
 
 type LocationService struct {
@@ -24,6 +29,14 @@ type CreateLocationInput struct {
 	Address    *string `json:"address"`
 	Source     string  `json:"source" binding:"required"` // 'registry' | 'manual'
 	IsVerified bool    `json:"is_verified"`
+}
+
+type UpdateLocationInput struct {
+	Name       string  `json:"name"`
+	Address    *string `json:"address"`
+	Source     string  `json:"source"`
+	IsVerified *bool   `json:"is_verified"`
+	IsActive   *bool   `json:"is_active"`
 }
 
 func (s *LocationService) CreateLocation(orgID int64, userID int64, input CreateLocationInput) (*models.Location, error) {
@@ -49,17 +62,22 @@ func (s *LocationService) CreateLocation(orgID int64, userID int64, input Create
 	return s.locationRepo.GetByID(location.ID)
 }
 
-func (s *LocationService) GetLocation(locationID int64, orgID int64, userID int64) (*models.Location, error) {
-	// Проверяем доступ к организации
-	_, err := s.orgService.GetOrganization(orgID, userID)
+func (s *LocationService) GetLocation(locationID int64, userID int64) (*models.Location, error) {
+	location, err := s.locationRepo.GetByID(locationID)
+	if err != nil {
+		return nil, ErrLocationNotFound
+	}
+
+	// Проверяем доступ к организации этой локации
+	_, err = s.orgService.GetOrganization(location.OrganizationID, userID)
 	if err != nil {
 		return nil, err
 	}
 
-	return s.locationRepo.GetByID(locationID)
+	return location, nil
 }
 
-func (s *LocationService) GetLocationsByOrganization(orgID int64, userID int64) ([]models.Location, error) {
+func (s *LocationService) GetOrganizationLocations(orgID int64, userID int64) ([]models.Location, error) {
 	// Проверяем доступ к организации
 	_, err := s.orgService.GetOrganization(orgID, userID)
 	if err != nil {
@@ -69,22 +87,34 @@ func (s *LocationService) GetLocationsByOrganization(orgID int64, userID int64) 
 	return s.locationRepo.GetByOrganizationID(orgID)
 }
 
-func (s *LocationService) UpdateLocation(locationID int64, orgID int64, userID int64, input CreateLocationInput) (*models.Location, error) {
-	// Проверяем доступ к организации
-	_, err := s.orgService.GetOrganization(orgID, userID)
+func (s *LocationService) UpdateLocation(locationID int64, userID int64, input UpdateLocationInput) (*models.Location, error) {
+	location, err := s.locationRepo.GetByID(locationID)
+	if err != nil {
+		return nil, ErrLocationNotFound
+	}
+
+	// Проверяем доступ к организации этой локации
+	_, err = s.orgService.GetOrganization(location.OrganizationID, userID)
 	if err != nil {
 		return nil, err
 	}
 
-	location, err := s.locationRepo.GetByID(locationID)
-	if err != nil {
-		return nil, fmt.Errorf("location not found: %w", err)
+	// Обновляем только переданные поля
+	if input.Name != "" {
+		location.Name = input.Name
 	}
-
-	location.Name = input.Name
-	location.Address = input.Address
-	location.Source = input.Source
-	location.IsVerified = input.IsVerified
+	if input.Address != nil {
+		location.Address = input.Address
+	}
+	if input.Source != "" {
+		location.Source = input.Source
+	}
+	if input.IsVerified != nil {
+		location.IsVerified = *input.IsVerified
+	}
+	if input.IsActive != nil {
+		location.IsActive = *input.IsActive
+	}
 
 	if err := s.locationRepo.Update(location); err != nil {
 		return nil, fmt.Errorf("failed to update location: %w", err)
@@ -93,9 +123,14 @@ func (s *LocationService) UpdateLocation(locationID int64, orgID int64, userID i
 	return s.locationRepo.GetByID(location.ID)
 }
 
-func (s *LocationService) DeleteLocation(locationID int64, orgID int64, userID int64) error {
-	// Проверяем доступ к организации
-	_, err := s.orgService.GetOrganization(orgID, userID)
+func (s *LocationService) DeleteLocation(locationID int64, userID int64) error {
+	location, err := s.locationRepo.GetByID(locationID)
+	if err != nil {
+		return ErrLocationNotFound
+	}
+
+	// Проверяем доступ к организации этой локации
+	_, err = s.orgService.GetOrganization(location.OrganizationID, userID)
 	if err != nil {
 		return err
 	}

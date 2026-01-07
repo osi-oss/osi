@@ -28,6 +28,7 @@ func Start(cfg *config.Config) {
 	userRepo := repository.NewUserRepository(dbConn)
 	resetRepo := repository.NewPasswordResetRepository(dbConn)
 	orgRepo := repository.NewOrganizationRepository(dbConn)
+	locationRepo := repository.NewLocationRepository(dbConn)
 
 	// Создание email сервиса
 	emailService := services.NewEmailService(
@@ -51,8 +52,12 @@ func Start(cfg *config.Config) {
 	// Создание сервиса организаций
 	orgService := services.NewOrganizationService(orgRepo)
 
+	// Создание сервиса локаций
+	locationService := services.NewLocationService(locationRepo, orgService)
+
 	userController := controllers.NewUserController(userService)
 	orgController := controllers.NewOrganizationController(orgService)
+	locationController := controllers.NewLocationController(locationService)
 
 	log.Printf("🚀 Server starting on port %s", cfg.AppPort)
 	log.Printf("📊 Database: %s@%s:%s/%s", cfg.PgUser, cfg.PgHost, cfg.PgPort, cfg.PgDb)
@@ -93,6 +98,13 @@ func Start(cfg *config.Config) {
 			protected.GET("/organizations/:id", orgController.GetOrganization)
 			protected.PUT("/organizations/:id", orgController.UpdateOrganization)
 			protected.DELETE("/organizations/:id", orgController.DeleteOrganization)
+
+			// Роуты локаций
+			protected.POST("/organizations/:id/locations", locationController.CreateLocation)
+			protected.GET("/organizations/:id/locations", locationController.GetOrganizationLocations)
+			protected.GET("/locations/:id", locationController.GetLocation)
+			protected.PUT("/locations/:id", locationController.UpdateLocation)
+			protected.DELETE("/locations/:id", locationController.DeleteLocation)
 		}
 	}
 
