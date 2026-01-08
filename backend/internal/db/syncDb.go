@@ -9,10 +9,13 @@ func SyncDb(db *gorm.DB) error {
 	return db.AutoMigrate(
 		&models.User{},
 		&models.Organization{},
-		&models.PasswordResetToken{},
+		&models.OrganizationFounder{},
+		&models.OrganizationMember{},
+		&models.Location{},
 		&models.Department{},
+		&models.Position{},
 		&models.Employee{},
-		&models.OrganizationFounder{},
-		&models.OrganizationFounder{},
+		&models.Permission{},
+		&models.PasswordResetToken{},
 	)
 }

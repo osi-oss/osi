@@ -51,3 +51,51 @@ func (r *OrganizationRepository) GetFoundersByOrganizationID(orgID int64) ([]mod
 	err := r.db.Where("organization_id = ?", orgID).Preload("User").Find(&founders).Error
 	return founders, err
 }
+
+// Member methods
+
+func (r *OrganizationRepository) CreateMember(member *models.OrganizationMember) error {
+	return r.db.Create(member).Error
+}
+
+func (r *OrganizationRepository) GetMembersByOrganizationID(orgID int64) ([]models.OrganizationMember, error) {
+	var members []models.OrganizationMember
+	err := r.db.Where("organization_id = ?", orgID).Preload("User").Find(&members).Error
+	return members, err
+}
+
+func (r *OrganizationRepository) GetMemberByID(memberID int64) (*models.OrganizationMember, error) {
+	var member models.OrganizationMember
+	err := r.db.Preload("User").First(&member, memberID).Error
+	return &member, err
+}
+
+func (r *OrganizationRepository) UpdateMemberStatus(memberID int64, status models.MemberStatus) error {
+	return r.db.Model(&models.OrganizationMember{}).Where("id = ?", memberID).Update("status", status).Error
+}
+
+func (r *OrganizationRepository) DeleteMember(memberID int64) error {
+	return r.db.Delete(&models.OrganizationMember{}, memberID).Error
+}
+
+// GetMemberByUserAndOrgID returns a member by user_id and organization_id
+func (r *OrganizationRepository) GetMemberByUserAndOrgID(userID int64, orgID int64) (*models.OrganizationMember, error) {
+	var member models.OrganizationMember
+	err := r.db.Where("user_id = ? AND organization_id = ?", userID, orgID).
+		Preload("User").
+		Preload("Permissions").
+		Preload("Employees").
+		Preload("Employees.Position").
+		Preload("Employees.Position.Permissions").
+		First(&member).Error
+	return &member, err
+}
+
+// GetFounderByUserAndOrgID returns a founder by user_id and organization_id
+func (r *OrganizationRepository) GetFounderByUserAndOrgID(userID int64, orgID int64) (*models.OrganizationFounder, error) {
+	var founder models.OrganizationFounder
+	err := r.db.Where("user_id = ? AND organization_id = ?", userID, orgID).
+		Preload("User").
+		First(&founder).Error
+	return &founder, err
+}

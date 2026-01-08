@@ -1,0 +1,15 @@
+# Dockerfile.migrate
+FROM golang:1.23-alpine AS build
+
+# Скачиваем goose один раз
+RUN go install github.com/pressly/goose/v3/cmd/goose@latest
+
+# Минимальный runtime-образ
+FROM alpine:3.20
+RUN apk add --no-cache ca-certificates
+WORKDIR /app
+COPY --from=build /go/bin/goose /usr/local/bin/goose
+COPY ./migrations ./migrations
+ENTRYPOINT ["goose"]
+
+

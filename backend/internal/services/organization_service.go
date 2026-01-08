@@ -14,13 +14,19 @@ var (
 )
 
 type OrganizationService struct {
-	orgRepo *repository.OrganizationRepository
+	orgRepo       *repository.OrganizationRepository
+	permissionSvc *PermissionService
 }
 
 func NewOrganizationService(orgRepo *repository.OrganizationRepository) *OrganizationService {
 	return &OrganizationService{
 		orgRepo: orgRepo,
 	}
+}
+
+// SetPermissionService sets the permission service (used to avoid circular dependency)
+func (s *OrganizationService) SetPermissionService(permissionSvc *PermissionService) {
+	s.permissionSvc = permissionSvc
 }
 
 type CreateOrganizationInput struct {
@@ -98,6 +104,23 @@ func (s *OrganizationService) GetUserOrganizations(userID int64) ([]models.Organ
 	return s.orgRepo.GetByUserID(userID)
 }
 
+// UserHasAccessToOrganization checks if user has access to organization (founder or active member)
+func (s *OrganizationService) UserHasAccessToOrganization(userID int64, orgID int64) (bool, error) {
+	// Check if user is a founder
+	founder, err := s.orgRepo.GetFounderByUserAndOrgID(userID, orgID)
+	if err == nil && founder != nil && founder.ID > 0 {
+		return true, nil
+	}
+
+	// Check if user is an active member
+	member, err := s.orgRepo.GetMemberByUserAndOrgID(userID, orgID)
+	if err == nil && member != nil && member.ID > 0 && member.Status == models.MemberActive {
+		return true, nil
+	}
+
+	return false, nil
+}
+
 func (s *OrganizationService) UpdateOrganization(orgID int64, userID int64, input CreateOrganizationInput) (*models.Organization, error) {
 	// Проверяем доступ
 	org, err := s.GetOrganization(orgID, userID)
@@ -143,4 +166,59 @@ func (s *OrganizationService) DeleteOrganization(orgID int64, userID int64) erro
 	}
 
 	return s.orgRepo.Delete(org.ID)
+}
+
+// Member methods
+// type InviteMemberInput struct {
+// 	UserID int64 `json:"user_id" binding:"required"`
+// }
+
+// func (s *OrganizationService) InviteMember(orgID int64, userID int64, input InviteMemberInput) (*models.OrganizationMember, error) {
+// 	// Проверяем доступ
+// 	_, err := s.GetOrganization(orgID, userID)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+
+// 	member := &models.OrganizationMember{
+// 		OrganizationID: orgID,
+// 		UserID:         input.UserID,
+// 		Status:         models.MemberInvited,
+// 	}
+
+// 	if err := s.orgRepo.CreateMember(member); err != nil {
+// 		return nil, fmt.Errorf("failed to invite member: %w", err)
+// 	}
+
+// 	return s.orgRepo.GetMemberByID(member.ID)
+// }
+
+func (s *OrganizationService) GetMembers(orgID int64, userID int64) ([]models.OrganizationMember, error) {
+	// Проверяем доступ
+	_, err := s.GetOrganization(orgID, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	return s.orgRepo.GetMembersByOrganizationID(orgID)
+}
+
+func (s *OrganizationService) UpdateMemberStatus(orgID int64, memberID int64, userID int64, status models.MemberStatus) error {
+	// Проверяем доступ
+	_, err := s.GetOrganization(orgID, userID)
+	if err != nil {
+		return err
+	}
+
+	return s.orgRepo.UpdateMemberStatus(memberID, status)
+}
+
+func (s *OrganizationService) RemoveMember(orgID int64, memberID int64, userID int64) error {
+	// Проверяем доступ
+	_, err := s.GetOrganization(orgID, userID)
+	if err != nil {
+		return err
+	}
+
+	return s.orgRepo.DeleteMember(memberID)
 }

@@ -28,6 +28,11 @@ func Start(cfg *config.Config) {
 	userRepo := repository.NewUserRepository(dbConn)
 	resetRepo := repository.NewPasswordResetRepository(dbConn)
 	orgRepo := repository.NewOrganizationRepository(dbConn)
+	locationRepo := repository.NewLocationRepository(dbConn)
+	departmentRepo := repository.NewDepartmentRepository(dbConn)
+	positionRepo := repository.NewPositionRepository(dbConn)
+	permissionRepo := repository.NewPermissionRepository(dbConn)
+	employeeRepo := repository.NewEmployeeRepository(dbConn)
 
 	// Создание email сервиса
 	emailService := services.NewEmailService(
@@ -51,8 +56,36 @@ func Start(cfg *config.Config) {
 	// Создание сервиса организаций
 	orgService := services.NewOrganizationService(orgRepo)
 
+	// Создание сервиса прав (требует orgRepo и employeeRepo)
+	permissionService := services.NewPermissionService(permissionRepo, orgRepo, employeeRepo)
+
+	// Установка PermissionService в OrganizationService (избегаем циклической зависимости)
+	orgService.SetPermissionService(permissionService)
+
+	// Создание сервиса локаций
+	locationService := services.NewLocationService(locationRepo, orgService, permissionService)
+
+	// Создание сервиса отделов
+	departmentService := services.NewDepartmentService(departmentRepo, locationService, permissionService)
+
+	// Создание сервиса позиций
+	positionService := services.NewPositionService(positionRepo, orgService, permissionService)
+
+	// Создание сервиса членов организации
+	memberService := services.NewMemberService(orgRepo, userRepo, permissionService)
+
+	// Создание сервиса сотрудников
+	employeeService := services.NewEmployeeService(employeeRepo, orgRepo, positionRepo, permissionService)
+
+	// TODO: Create controllers for memberService and employeeService
+	_ = memberService
+	_ = employeeService
+
 	userController := controllers.NewUserController(userService)
 	orgController := controllers.NewOrganizationController(orgService)
+	locationController := controllers.NewLocationController(locationService)
+	departmentController := controllers.NewDepartmentController(departmentService)
+	positionController := controllers.NewPositionController(positionService)
 
 	log.Printf("🚀 Server starting on port %s", cfg.AppPort)
 	log.Printf("📊 Database: %s@%s:%s/%s", cfg.PgUser, cfg.PgHost, cfg.PgPort, cfg.PgDb)
@@ -93,6 +126,28 @@ func Start(cfg *config.Config) {
 			protected.GET("/organizations/:id", orgController.GetOrganization)
 			protected.PUT("/organizations/:id", orgController.UpdateOrganization)
 			protected.DELETE("/organizations/:id", orgController.DeleteOrganization)
+
+			// Роуты локаций
+			protected.POST("/organizations/:id/locations", locationController.CreateLocation)
+			protected.GET("/organizations/:id/locations", locationController.GetOrganizationLocations)
+			protected.GET("/locations/:id", locationController.GetLocation)
+			protected.PUT("/locations/:id", locationController.UpdateLocation)
+			protected.DELETE("/locations/:id", locationController.DeleteLocation)
+
+			// Роуты отделов
+			protected.POST("/locations/:id/departments", departmentController.CreateDepartment)
+			protected.GET("/locations/:id/departments", departmentController.GetLocationDepartments)
+			protected.GET("/departments/:id", departmentController.GetDepartment)
+			protected.PUT("/departments/:id", departmentController.UpdateDepartment)
+			protected.DELETE("/departments/:id", departmentController.DeleteDepartment)
+
+			// Роуты позиций
+			protected.POST("/organizations/:id/positions", positionController.CreatePosition)
+			protected.GET("/organizations/:id/positions", positionController.GetOrganizationPositions)
+			protected.GET("/departments/:id/positions", positionController.GetDepartmentPositions)
+			protected.GET("/positions/:id", positionController.GetPosition)
+			protected.PUT("/positions/:id", positionController.UpdatePosition)
+			protected.DELETE("/positions/:id", positionController.DeletePosition)
 		}
 	}
 

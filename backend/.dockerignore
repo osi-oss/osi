@@ -4,5 +4,6 @@
 .gitignore
 README.md
 Dockerfile
+Dockerfile.migrate
 .dockerignore
 *.md
