@@ -14,13 +14,19 @@ var (
 )
 
 type OrganizationService struct {
-	orgRepo *repository.OrganizationRepository
+	orgRepo       *repository.OrganizationRepository
+	permissionSvc *PermissionService
 }
 
 func NewOrganizationService(orgRepo *repository.OrganizationRepository) *OrganizationService {
 	return &OrganizationService{
 		orgRepo: orgRepo,
 	}
+}
+
+// SetPermissionService sets the permission service (used to avoid circular dependency)
+func (s *OrganizationService) SetPermissionService(permissionSvc *PermissionService) {
+	s.permissionSvc = permissionSvc
 }
 
 type CreateOrganizationInput struct {
@@ -96,6 +102,23 @@ func (s *OrganizationService) GetOrganization(orgID int64, userID int64) (*model
 
 func (s *OrganizationService) GetUserOrganizations(userID int64) ([]models.Organization, error) {
 	return s.orgRepo.GetByUserID(userID)
+}
+
+// UserHasAccessToOrganization checks if user has access to organization (founder or active member)
+func (s *OrganizationService) UserHasAccessToOrganization(userID int64, orgID int64) (bool, error) {
+	// Check if user is a founder
+	founder, err := s.orgRepo.GetFounderByUserAndOrgID(userID, orgID)
+	if err == nil && founder != nil && founder.ID > 0 {
+		return true, nil
+	}
+
+	// Check if user is an active member
+	member, err := s.orgRepo.GetMemberByUserAndOrgID(userID, orgID)
+	if err == nil && member != nil && member.ID > 0 && member.Status == models.MemberActive {
+		return true, nil
+	}
+
+	return false, nil
 }
 
 func (s *OrganizationService) UpdateOrganization(orgID int64, userID int64, input CreateOrganizationInput) (*models.Organization, error) {

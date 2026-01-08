@@ -77,3 +77,25 @@ func (r *OrganizationRepository) UpdateMemberStatus(memberID int64, status model
 func (r *OrganizationRepository) DeleteMember(memberID int64) error {
 	return r.db.Delete(&models.OrganizationMember{}, memberID).Error
 }
+
+// GetMemberByUserAndOrgID returns a member by user_id and organization_id
+func (r *OrganizationRepository) GetMemberByUserAndOrgID(userID int64, orgID int64) (*models.OrganizationMember, error) {
+	var member models.OrganizationMember
+	err := r.db.Where("user_id = ? AND organization_id = ?", userID, orgID).
+		Preload("User").
+		Preload("Permissions").
+		Preload("Employees").
+		Preload("Employees.Position").
+		Preload("Employees.Position.Permissions").
+		First(&member).Error
+	return &member, err
+}
+
+// GetFounderByUserAndOrgID returns a founder by user_id and organization_id
+func (r *OrganizationRepository) GetFounderByUserAndOrgID(userID int64, orgID int64) (*models.OrganizationFounder, error) {
+	var founder models.OrganizationFounder
+	err := r.db.Where("user_id = ? AND organization_id = ?", userID, orgID).
+		Preload("User").
+		First(&founder).Error
+	return &founder, err
+}

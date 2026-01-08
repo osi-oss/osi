@@ -72,11 +72,17 @@ func createLocationTestOrg(t *testing.T, db *gorm.DB, userID int64, name string)
 
 // TestCreateLocation тестирует создание локации
 func TestCreateLocation(t *testing.T) {
-	db := setupLocationTestDB(t)
+	db := setupDepartmentTestDB(t)
 	orgRepo := repository.NewOrganizationRepository(db)
+	permissionRepo := repository.NewPermissionRepository(db)
 	locationRepo := repository.NewLocationRepository(db)
+	// departmentRepo := repository.NewDepartmentRepository(db)
+	employeeRepo := repository.NewEmployeeRepository(db)
+
+	permissionService := NewPermissionService(permissionRepo, orgRepo, employeeRepo)
 	orgService := NewOrganizationService(orgRepo)
-	locationService := NewLocationService(locationRepo, orgService)
+	locationService := NewLocationService(locationRepo, orgService, permissionService)
+	// departmentService := NewDepartmentService(departmentRepo, locationService, permissionService)
 
 	founder := createLocationTestUser(t, db, "founder@example.com")
 	nonFounder := createLocationTestUser(t, db, "nonfounder@example.com")
@@ -144,7 +150,7 @@ func TestCreateLocation(t *testing.T) {
 			},
 			expectError: true,
 			errorCheck: func(t *testing.T, err error) {
-				assert.ErrorIs(t, err, ErrUnauthorized)
+				assert.ErrorIs(t, err, ErrAccessDenied)
 			},
 		},
 		{
@@ -159,7 +165,8 @@ func TestCreateLocation(t *testing.T) {
 			},
 			expectError: true,
 			errorCheck: func(t *testing.T, err error) {
-				assert.ErrorIs(t, err, ErrOrganizationNotFound)
+				// When organization doesn't exist, user has no access, so ErrAccessDenied is returned
+				assert.ErrorIs(t, err, ErrAccessDenied)
 			},
 		},
 	}
@@ -186,11 +193,17 @@ func TestCreateLocation(t *testing.T) {
 
 // TestGetLocation тестирует получение локации по ID
 func TestGetLocation(t *testing.T) {
-	db := setupLocationTestDB(t)
+	db := setupDepartmentTestDB(t)
 	orgRepo := repository.NewOrganizationRepository(db)
+	permissionRepo := repository.NewPermissionRepository(db)
 	locationRepo := repository.NewLocationRepository(db)
+	// departmentRepo := repository.NewDepartmentRepository(db)
+	employeeRepo := repository.NewEmployeeRepository(db)
+
+	permissionService := NewPermissionService(permissionRepo, orgRepo, employeeRepo)
 	orgService := NewOrganizationService(orgRepo)
-	locationService := NewLocationService(locationRepo, orgService)
+	locationService := NewLocationService(locationRepo, orgService, permissionService)
+	// departmentService := NewDepartmentService(departmentRepo, locationService, permissionService)
 
 	founder := createLocationTestUser(t, db, "founder@example.com")
 	nonFounder := createLocationTestUser(t, db, "nonfounder@example.com")
@@ -269,11 +282,17 @@ func TestGetLocation(t *testing.T) {
 
 // TestGetOrganizationLocations тестирует получение всех локаций организации
 func TestGetOrganizationLocations(t *testing.T) {
-	db := setupLocationTestDB(t)
+	db := setupDepartmentTestDB(t)
 	orgRepo := repository.NewOrganizationRepository(db)
+	permissionRepo := repository.NewPermissionRepository(db)
 	locationRepo := repository.NewLocationRepository(db)
+	// departmentRepo := repository.NewDepartmentRepository(db)
+	employeeRepo := repository.NewEmployeeRepository(db)
+
+	permissionService := NewPermissionService(permissionRepo, orgRepo, employeeRepo)
 	orgService := NewOrganizationService(orgRepo)
-	locationService := NewLocationService(locationRepo, orgService)
+	locationService := NewLocationService(locationRepo, orgService, permissionService)
+	// departmentService := NewDepartmentService(departmentRepo, locationService, permissionService)
 
 	founder := createLocationTestUser(t, db, "founder@example.com")
 	nonFounder := createLocationTestUser(t, db, "nonfounder@example.com")
@@ -341,7 +360,8 @@ func TestGetOrganizationLocations(t *testing.T) {
 			userID:      founder.ID,
 			expectError: true,
 			errorCheck: func(t *testing.T, err error) {
-				assert.ErrorIs(t, err, ErrOrganizationNotFound)
+				// When organization doesn't exist, UserHasAccessToOrganization returns false -> ErrUnauthorized
+				assert.ErrorIs(t, err, ErrUnauthorized)
 			},
 		},
 	}
@@ -368,11 +388,17 @@ func TestGetOrganizationLocations(t *testing.T) {
 
 // TestUpdateLocation тестирует обновление локации
 func TestUpdateLocation(t *testing.T) {
-	db := setupLocationTestDB(t)
+	db := setupDepartmentTestDB(t)
 	orgRepo := repository.NewOrganizationRepository(db)
+	permissionRepo := repository.NewPermissionRepository(db)
 	locationRepo := repository.NewLocationRepository(db)
+	// departmentRepo := repository.NewDepartmentRepository(db)
+	employeeRepo := repository.NewEmployeeRepository(db)
+
+	permissionService := NewPermissionService(permissionRepo, orgRepo, employeeRepo)
 	orgService := NewOrganizationService(orgRepo)
-	locationService := NewLocationService(locationRepo, orgService)
+	locationService := NewLocationService(locationRepo, orgService, permissionService)
+	// departmentService := NewDepartmentService(departmentRepo, locationService, permissionService)
 
 	founder := createLocationTestUser(t, db, "founder@example.com")
 	nonFounder := createLocationTestUser(t, db, "nonfounder@example.com")
@@ -441,7 +467,7 @@ func TestUpdateLocation(t *testing.T) {
 			},
 			expectError: true,
 			errorCheck: func(t *testing.T, err error) {
-				assert.ErrorIs(t, err, ErrUnauthorized)
+				assert.ErrorIs(t, err, ErrAccessDenied)
 			},
 		},
 		{
@@ -480,11 +506,17 @@ func TestUpdateLocation(t *testing.T) {
 
 // TestDeleteLocation тестирует удаление локации
 func TestDeleteLocation(t *testing.T) {
-	db := setupLocationTestDB(t)
+	db := setupDepartmentTestDB(t)
 	orgRepo := repository.NewOrganizationRepository(db)
+	permissionRepo := repository.NewPermissionRepository(db)
 	locationRepo := repository.NewLocationRepository(db)
+	// departmentRepo := repository.NewDepartmentRepository(db)
+	employeeRepo := repository.NewEmployeeRepository(db)
+
+	permissionService := NewPermissionService(permissionRepo, orgRepo, employeeRepo)
 	orgService := NewOrganizationService(orgRepo)
-	locationService := NewLocationService(locationRepo, orgService)
+	locationService := NewLocationService(locationRepo, orgService, permissionService)
+	// departmentService := NewDepartmentService(departmentRepo, locationService, permissionService)
 
 	founder := createLocationTestUser(t, db, "founder@example.com")
 	nonFounder := createLocationTestUser(t, db, "nonfounder@example.com")
@@ -529,7 +561,7 @@ func TestDeleteLocation(t *testing.T) {
 			userID:      nonFounder.ID,
 			expectError: true,
 			errorCheck: func(t *testing.T, err error) {
-				assert.ErrorIs(t, err, ErrUnauthorized)
+				assert.ErrorIs(t, err, ErrAccessDenied)
 			},
 		},
 		{

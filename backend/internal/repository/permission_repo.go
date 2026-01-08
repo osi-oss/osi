@@ -51,7 +51,7 @@ func (r *PermissionRepository) Delete(id int64) error {
 
 // Position permissions methods
 
-func (r *PermissionRepository) AddPermissionToPosition(positionID int64, permissionID int64) error {
+func (r *PermissionRepository) AssignPermissionToPosition(positionID int64, permissionID int64) error {
 	return r.db.Exec("INSERT INTO position_permissions (position_id, permission_id) VALUES (?, ?) ON CONFLICT DO NOTHING", positionID, permissionID).Error
 }
 
@@ -69,7 +69,7 @@ func (r *PermissionRepository) GetPositionPermissions(positionID int64) ([]model
 
 // Member permissions methods
 
-func (r *PermissionRepository) AddPermissionToMember(memberID int64, permissionID int64) error {
+func (r *PermissionRepository) AssignPermissionToMember(memberID int64, permissionID int64) error {
 	return r.db.Exec("INSERT INTO member_permissions (member_id, permission_id) VALUES (?, ?) ON CONFLICT DO NOTHING", memberID, permissionID).Error
 }
 

@@ -85,12 +85,15 @@ func createDepartmentTestLocation(t *testing.T, db *gorm.DB, orgID int64, name s
 func TestCreateDepartment(t *testing.T) {
 	db := setupDepartmentTestDB(t)
 	orgRepo := repository.NewOrganizationRepository(db)
+	permissionRepo := repository.NewPermissionRepository(db)
 	locationRepo := repository.NewLocationRepository(db)
 	departmentRepo := repository.NewDepartmentRepository(db)
+	employeeRepo := repository.NewEmployeeRepository(db)
 
+	permissionService := NewPermissionService(permissionRepo, orgRepo, employeeRepo)
 	orgService := NewOrganizationService(orgRepo)
-	locationService := NewLocationService(locationRepo, orgService)
-	departmentService := NewDepartmentService(departmentRepo, locationService)
+	locationService := NewLocationService(locationRepo, orgService, permissionService)
+	departmentService := NewDepartmentService(departmentRepo, locationService, permissionService)
 
 	founder := createDepartmentTestUser(t, db, "founder@example.com")
 	nonFounder := createDepartmentTestUser(t, db, "nonfounder@example.com")
@@ -198,12 +201,15 @@ func TestCreateDepartment(t *testing.T) {
 func TestGetDepartment(t *testing.T) {
 	db := setupDepartmentTestDB(t)
 	orgRepo := repository.NewOrganizationRepository(db)
+	permissionRepo := repository.NewPermissionRepository(db)
 	locationRepo := repository.NewLocationRepository(db)
 	departmentRepo := repository.NewDepartmentRepository(db)
+	employeeRepo := repository.NewEmployeeRepository(db)
 
+	permissionService := NewPermissionService(permissionRepo, orgRepo, employeeRepo)
 	orgService := NewOrganizationService(orgRepo)
-	locationService := NewLocationService(locationRepo, orgService)
-	departmentService := NewDepartmentService(departmentRepo, locationService)
+	locationService := NewLocationService(locationRepo, orgService, permissionService)
+	departmentService := NewDepartmentService(departmentRepo, locationService, permissionService)
 
 	founder := createDepartmentTestUser(t, db, "founder@example.com")
 	nonFounder := createDepartmentTestUser(t, db, "nonfounder@example.com")
@@ -275,12 +281,15 @@ func TestGetDepartment(t *testing.T) {
 func TestGetLocationDepartments(t *testing.T) {
 	db := setupDepartmentTestDB(t)
 	orgRepo := repository.NewOrganizationRepository(db)
+	permissionRepo := repository.NewPermissionRepository(db)
 	locationRepo := repository.NewLocationRepository(db)
 	departmentRepo := repository.NewDepartmentRepository(db)
+	employeeRepo := repository.NewEmployeeRepository(db)
 
+	permissionService := NewPermissionService(permissionRepo, orgRepo, employeeRepo)
 	orgService := NewOrganizationService(orgRepo)
-	locationService := NewLocationService(locationRepo, orgService)
-	departmentService := NewDepartmentService(departmentRepo, locationService)
+	locationService := NewLocationService(locationRepo, orgService, permissionService)
+	departmentService := NewDepartmentService(departmentRepo, locationService, permissionService)
 
 	founder := createDepartmentTestUser(t, db, "founder@example.com")
 	org := createDepartmentTestOrg(t, db, founder.ID, "Test Org")
@@ -306,12 +315,15 @@ func TestGetLocationDepartments(t *testing.T) {
 func TestUpdateDepartment(t *testing.T) {
 	db := setupDepartmentTestDB(t)
 	orgRepo := repository.NewOrganizationRepository(db)
+	permissionRepo := repository.NewPermissionRepository(db)
 	locationRepo := repository.NewLocationRepository(db)
 	departmentRepo := repository.NewDepartmentRepository(db)
+	employeeRepo := repository.NewEmployeeRepository(db)
 
+	permissionService := NewPermissionService(permissionRepo, orgRepo, employeeRepo)
 	orgService := NewOrganizationService(orgRepo)
-	locationService := NewLocationService(locationRepo, orgService)
-	departmentService := NewDepartmentService(departmentRepo, locationService)
+	locationService := NewLocationService(locationRepo, orgService, permissionService)
+	departmentService := NewDepartmentService(departmentRepo, locationService, permissionService)
 
 	founder := createDepartmentTestUser(t, db, "founder@example.com")
 	org := createDepartmentTestOrg(t, db, founder.ID, "Test Org")
@@ -340,12 +352,15 @@ func TestUpdateDepartment(t *testing.T) {
 func TestDeleteDepartment(t *testing.T) {
 	db := setupDepartmentTestDB(t)
 	orgRepo := repository.NewOrganizationRepository(db)
+	permissionRepo := repository.NewPermissionRepository(db)
 	locationRepo := repository.NewLocationRepository(db)
 	departmentRepo := repository.NewDepartmentRepository(db)
+	employeeRepo := repository.NewEmployeeRepository(db)
 
+	permissionService := NewPermissionService(permissionRepo, orgRepo, employeeRepo)
 	orgService := NewOrganizationService(orgRepo)
-	locationService := NewLocationService(locationRepo, orgService)
-	departmentService := NewDepartmentService(departmentRepo, locationService)
+	locationService := NewLocationService(locationRepo, orgService, permissionService)
+	departmentService := NewDepartmentService(departmentRepo, locationService, permissionService)
 
 	founder := createDepartmentTestUser(t, db, "founder@example.com")
 	org := createDepartmentTestOrg(t, db, founder.ID, "Test Org")
@@ -372,12 +387,15 @@ func TestDeleteDepartment(t *testing.T) {
 func TestDeleteDepartmentWithChildren(t *testing.T) {
 	db := setupDepartmentTestDB(t)
 	orgRepo := repository.NewOrganizationRepository(db)
+	permissionRepo := repository.NewPermissionRepository(db)
 	locationRepo := repository.NewLocationRepository(db)
 	departmentRepo := repository.NewDepartmentRepository(db)
+	employeeRepo := repository.NewEmployeeRepository(db)
 
+	permissionService := NewPermissionService(permissionRepo, orgRepo, employeeRepo)
 	orgService := NewOrganizationService(orgRepo)
-	locationService := NewLocationService(locationRepo, orgService)
-	departmentService := NewDepartmentService(departmentRepo, locationService)
+	locationService := NewLocationService(locationRepo, orgService, permissionService)
+	departmentService := NewDepartmentService(departmentRepo, locationService, permissionService)
 
 	founder := createDepartmentTestUser(t, db, "founder@example.com")
 	org := createDepartmentTestOrg(t, db, founder.ID, "Test Org")

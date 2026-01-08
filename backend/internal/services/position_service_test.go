@@ -97,9 +97,12 @@ func TestCreatePosition(t *testing.T) {
 	db := setupPositionTestDB(t)
 	orgRepo := repository.NewOrganizationRepository(db)
 	positionRepo := repository.NewPositionRepository(db)
+	permissionRepo := repository.NewPermissionRepository(db)
+	employeeRepo := repository.NewEmployeeRepository(db)
 
+	permissionService := NewPermissionService(permissionRepo, orgRepo, employeeRepo)
 	orgService := NewOrganizationService(orgRepo)
-	positionService := NewPositionService(positionRepo, orgService)
+	positionService := NewPositionService(positionRepo, orgService, permissionService)
 
 	founder := createPositionTestUser(t, db, "founder@example.com")
 	nonFounder := createPositionTestUser(t, db, "nonfounder@example.com")
@@ -174,7 +177,7 @@ func TestCreatePosition(t *testing.T) {
 			},
 			expectError: true,
 			errorCheck: func(t *testing.T, err error) {
-				assert.ErrorIs(t, err, ErrUnauthorized)
+				assert.ErrorIs(t, err, ErrAccessDenied)
 			},
 		},
 		{
@@ -186,7 +189,8 @@ func TestCreatePosition(t *testing.T) {
 			},
 			expectError: true,
 			errorCheck: func(t *testing.T, err error) {
-				assert.ErrorIs(t, err, ErrOrganizationNotFound)
+				// When organization doesn't exist, user has no access, so ErrAccessDenied is returned
+				assert.ErrorIs(t, err, ErrAccessDenied)
 			},
 		},
 	}
@@ -216,10 +220,12 @@ func TestGetPosition(t *testing.T) {
 	db := setupPositionTestDB(t)
 	orgRepo := repository.NewOrganizationRepository(db)
 	positionRepo := repository.NewPositionRepository(db)
+	permissionRepo := repository.NewPermissionRepository(db)
+	employeeRepo := repository.NewEmployeeRepository(db)
 
+	permissionService := NewPermissionService(permissionRepo, orgRepo, employeeRepo)
 	orgService := NewOrganizationService(orgRepo)
-	positionService := NewPositionService(positionRepo, orgService)
-
+	positionService := NewPositionService(positionRepo, orgService, permissionService)
 	founder := createPositionTestUser(t, db, "founder@example.com")
 	nonFounder := createPositionTestUser(t, db, "nonfounder@example.com")
 	org := createPositionTestOrg(t, db, founder.ID, "Test Org")
@@ -291,9 +297,12 @@ func TestGetOrganizationPositions(t *testing.T) {
 	db := setupPositionTestDB(t)
 	orgRepo := repository.NewOrganizationRepository(db)
 	positionRepo := repository.NewPositionRepository(db)
+	permissionRepo := repository.NewPermissionRepository(db)
+	employeeRepo := repository.NewEmployeeRepository(db)
 
+	permissionService := NewPermissionService(permissionRepo, orgRepo, employeeRepo)
 	orgService := NewOrganizationService(orgRepo)
-	positionService := NewPositionService(positionRepo, orgService)
+	positionService := NewPositionService(positionRepo, orgService, permissionService)
 
 	founder := createPositionTestUser(t, db, "founder@example.com")
 	org := createPositionTestOrg(t, db, founder.ID, "Test Org")
@@ -329,9 +338,12 @@ func TestGetDepartmentPositions(t *testing.T) {
 	db := setupPositionTestDB(t)
 	orgRepo := repository.NewOrganizationRepository(db)
 	positionRepo := repository.NewPositionRepository(db)
+	permissionRepo := repository.NewPermissionRepository(db)
+	employeeRepo := repository.NewEmployeeRepository(db)
 
+	permissionService := NewPermissionService(permissionRepo, orgRepo, employeeRepo)
 	orgService := NewOrganizationService(orgRepo)
-	positionService := NewPositionService(positionRepo, orgService)
+	positionService := NewPositionService(positionRepo, orgService, permissionService)
 
 	founder := createPositionTestUser(t, db, "founder@example.com")
 	org := createPositionTestOrg(t, db, founder.ID, "Test Org")
@@ -366,9 +378,12 @@ func TestUpdatePosition(t *testing.T) {
 	db := setupPositionTestDB(t)
 	orgRepo := repository.NewOrganizationRepository(db)
 	positionRepo := repository.NewPositionRepository(db)
+	permissionRepo := repository.NewPermissionRepository(db)
+	employeeRepo := repository.NewEmployeeRepository(db)
 
+	permissionService := NewPermissionService(permissionRepo, orgRepo, employeeRepo)
 	orgService := NewOrganizationService(orgRepo)
-	positionService := NewPositionService(positionRepo, orgService)
+	positionService := NewPositionService(positionRepo, orgService, permissionService)
 
 	founder := createPositionTestUser(t, db, "founder@example.com")
 	org := createPositionTestOrg(t, db, founder.ID, "Test Org")
@@ -429,9 +444,12 @@ func TestDeletePosition(t *testing.T) {
 	db := setupPositionTestDB(t)
 	orgRepo := repository.NewOrganizationRepository(db)
 	positionRepo := repository.NewPositionRepository(db)
+	permissionRepo := repository.NewPermissionRepository(db)
+	employeeRepo := repository.NewEmployeeRepository(db)
 
+	permissionService := NewPermissionService(permissionRepo, orgRepo, employeeRepo)
 	orgService := NewOrganizationService(orgRepo)
-	positionService := NewPositionService(positionRepo, orgService)
+	positionService := NewPositionService(positionRepo, orgService, permissionService)
 
 	founder := createPositionTestUser(t, db, "founder@example.com")
 	nonFounder := createPositionTestUser(t, db, "nonfounder@example.com")
@@ -472,7 +490,7 @@ func TestDeletePosition(t *testing.T) {
 			userID:      nonFounder.ID,
 			expectError: true,
 			errorCheck: func(t *testing.T, err error) {
-				assert.ErrorIs(t, err, ErrUnauthorized)
+				assert.ErrorIs(t, err, ErrAccessDenied)
 			},
 		},
 	}

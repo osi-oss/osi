@@ -13,14 +13,16 @@ var (
 )
 
 type LocationService struct {
-	locationRepo *repository.LocationRepository
-	orgService   *OrganizationService
+	locationRepo  *repository.LocationRepository
+	orgService    *OrganizationService
+	permissionSvc *PermissionService
 }
 
-func NewLocationService(locationRepo *repository.LocationRepository, orgService *OrganizationService) *LocationService {
+func NewLocationService(locationRepo *repository.LocationRepository, orgService *OrganizationService, permissionSvc *PermissionService) *LocationService {
 	return &LocationService{
-		locationRepo: locationRepo,
-		orgService:   orgService,
+		locationRepo:  locationRepo,
+		orgService:    orgService,
+		permissionSvc: permissionSvc,
 	}
 }
 
@@ -40,10 +42,13 @@ type UpdateLocationInput struct {
 }
 
 func (s *LocationService) CreateLocation(orgID int64, userID int64, input CreateLocationInput) (*models.Location, error) {
-	// Проверяем доступ к организации
-	_, err := s.orgService.GetOrganization(orgID, userID)
+	// Check if user has permission to create locations (using departments.create permission)
+	hasPermission, err := s.permissionSvc.UserHasPermission(userID, orgID, "departments.create")
 	if err != nil {
 		return nil, err
+	}
+	if !hasPermission {
+		return nil, ErrAccessDenied
 	}
 
 	location := &models.Location{
@@ -68,20 +73,26 @@ func (s *LocationService) GetLocation(locationID int64, userID int64) (*models.L
 		return nil, ErrLocationNotFound
 	}
 
-	// Проверяем доступ к организации этой локации
-	_, err = s.orgService.GetOrganization(location.OrganizationID, userID)
+	// Check if user has access to this organization
+	hasAccess, err := s.orgService.UserHasAccessToOrganization(userID, location.OrganizationID)
 	if err != nil {
 		return nil, err
+	}
+	if !hasAccess {
+		return nil, ErrUnauthorized
 	}
 
 	return location, nil
 }
 
 func (s *LocationService) GetOrganizationLocations(orgID int64, userID int64) ([]models.Location, error) {
-	// Проверяем доступ к организации
-	_, err := s.orgService.GetOrganization(orgID, userID)
+	// Check if user has access to this organization
+	hasAccess, err := s.orgService.UserHasAccessToOrganization(userID, orgID)
 	if err != nil {
 		return nil, err
+	}
+	if !hasAccess {
+		return nil, ErrUnauthorized
 	}
 
 	return s.locationRepo.GetByOrganizationID(orgID)
@@ -93,10 +104,13 @@ func (s *LocationService) UpdateLocation(locationID int64, userID int64, input U
 		return nil, ErrLocationNotFound
 	}
 
-	// Проверяем доступ к организации этой локации
-	_, err = s.orgService.GetOrganization(location.OrganizationID, userID)
+	// Check if user has permission to update locations
+	hasPermission, err := s.permissionSvc.UserHasPermission(userID, location.OrganizationID, "departments.create")
 	if err != nil {
 		return nil, err
+	}
+	if !hasPermission {
+		return nil, ErrAccessDenied
 	}
 
 	// Обновляем только переданные поля
@@ -129,10 +143,13 @@ func (s *LocationService) DeleteLocation(locationID int64, userID int64) error {
 		return ErrLocationNotFound
 	}
 
-	// Проверяем доступ к организации этой локации
-	_, err = s.orgService.GetOrganization(location.OrganizationID, userID)
+	// Check if user has permission to delete locations
+	hasPermission, err := s.permissionSvc.UserHasPermission(userID, location.OrganizationID, "departments.create")
 	if err != nil {
 		return err
+	}
+	if !hasPermission {
+		return ErrAccessDenied
 	}
 
 	return s.locationRepo.Delete(locationID)

@@ -31,6 +31,8 @@ func Start(cfg *config.Config) {
 	locationRepo := repository.NewLocationRepository(dbConn)
 	departmentRepo := repository.NewDepartmentRepository(dbConn)
 	positionRepo := repository.NewPositionRepository(dbConn)
+	permissionRepo := repository.NewPermissionRepository(dbConn)
+	employeeRepo := repository.NewEmployeeRepository(dbConn)
 
 	// Создание email сервиса
 	emailService := services.NewEmailService(
@@ -54,14 +56,30 @@ func Start(cfg *config.Config) {
 	// Создание сервиса организаций
 	orgService := services.NewOrganizationService(orgRepo)
 
+	// Создание сервиса прав (требует orgRepo и employeeRepo)
+	permissionService := services.NewPermissionService(permissionRepo, orgRepo, employeeRepo)
+
+	// Установка PermissionService в OrganizationService (избегаем циклической зависимости)
+	orgService.SetPermissionService(permissionService)
+
 	// Создание сервиса локаций
-	locationService := services.NewLocationService(locationRepo, orgService)
+	locationService := services.NewLocationService(locationRepo, orgService, permissionService)
 
 	// Создание сервиса отделов
-	departmentService := services.NewDepartmentService(departmentRepo, locationService)
+	departmentService := services.NewDepartmentService(departmentRepo, locationService, permissionService)
 
 	// Создание сервиса позиций
-	positionService := services.NewPositionService(positionRepo, orgService)
+	positionService := services.NewPositionService(positionRepo, orgService, permissionService)
+
+	// Создание сервиса членов организации
+	memberService := services.NewMemberService(orgRepo, userRepo, permissionService)
+
+	// Создание сервиса сотрудников
+	employeeService := services.NewEmployeeService(employeeRepo, orgRepo, positionRepo, permissionService)
+
+	// TODO: Create controllers for memberService and employeeService
+	_ = memberService
+	_ = employeeService
 
 	userController := controllers.NewUserController(userService)
 	orgController := controllers.NewOrganizationController(orgService)

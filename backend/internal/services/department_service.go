@@ -15,12 +15,14 @@ var (
 type DepartmentService struct {
 	deptRepo        *repository.DepartmentRepository
 	locationService *LocationService
+	permissionSvc   *PermissionService
 }
 
-func NewDepartmentService(deptRepo *repository.DepartmentRepository, locationService *LocationService) *DepartmentService {
+func NewDepartmentService(deptRepo *repository.DepartmentRepository, locationService *LocationService, permissionSvc *PermissionService) *DepartmentService {
 	return &DepartmentService{
 		deptRepo:        deptRepo,
 		locationService: locationService,
+		permissionSvc:   permissionSvc,
 	}
 }
 
@@ -42,6 +44,15 @@ func (s *DepartmentService) CreateDepartment(locationID int64, userID int64, inp
 	location, err := s.locationService.GetLocation(locationID, userID)
 	if err != nil {
 		return nil, err
+	}
+
+	// Check if user has permission to create departments
+	hasPermission, err := s.permissionSvc.UserHasPermission(userID, location.OrganizationID, "departments.create")
+	if err != nil {
+		return nil, err
+	}
+	if !hasPermission {
+		return nil, ErrAccessDenied
 	}
 
 	// Если указан родительский отдел, проверяем что он существует и принадлежит той же локации
@@ -104,9 +115,18 @@ func (s *DepartmentService) UpdateDepartment(deptID int64, userID int64, input U
 	}
 
 	// Проверяем доступ к локации этого отдела
-	_, err = s.locationService.GetLocation(dept.LocationID, userID)
+	location, err := s.locationService.GetLocation(dept.LocationID, userID)
 	if err != nil {
 		return nil, err
+	}
+
+	// Check if user has permission to update departments
+	hasPermission, err := s.permissionSvc.UserHasPermission(userID, location.OrganizationID, "departments.create")
+	if err != nil {
+		return nil, err
+	}
+	if !hasPermission {
+		return nil, ErrAccessDenied
 	}
 
 	// Если указан новый родительский отдел, проверяем его
@@ -151,9 +171,18 @@ func (s *DepartmentService) DeleteDepartment(deptID int64, userID int64) error {
 	}
 
 	// Проверяем доступ к локации этого отдела
-	_, err = s.locationService.GetLocation(dept.LocationID, userID)
+	location, err := s.locationService.GetLocation(dept.LocationID, userID)
 	if err != nil {
 		return err
+	}
+
+	// Check if user has permission to delete departments
+	hasPermission, err := s.permissionSvc.UserHasPermission(userID, location.OrganizationID, "departments.create")
+	if err != nil {
+		return err
+	}
+	if !hasPermission {
+		return ErrAccessDenied
 	}
 
 	// Проверяем, что у отдела нет дочерних отделов

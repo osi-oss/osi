@@ -13,14 +13,16 @@ var (
 )
 
 type PositionService struct {
-	posRepo    *repository.PositionRepository
-	orgService *OrganizationService
+	posRepo       *repository.PositionRepository
+	orgService    *OrganizationService
+	permissionSvc *PermissionService
 }
 
-func NewPositionService(posRepo *repository.PositionRepository, orgService *OrganizationService) *PositionService {
+func NewPositionService(posRepo *repository.PositionRepository, orgService *OrganizationService, permissionSvc *PermissionService) *PositionService {
 	return &PositionService{
-		posRepo:    posRepo,
-		orgService: orgService,
+		posRepo:       posRepo,
+		orgService:    orgService,
+		permissionSvc: permissionSvc,
 	}
 }
 
@@ -39,10 +41,13 @@ type UpdatePositionInput struct {
 }
 
 func (s *PositionService) CreatePosition(orgID int64, userID int64, input CreatePositionInput) (*models.Position, error) {
-	// Проверяем доступ к организации
-	_, err := s.orgService.GetOrganization(orgID, userID)
+	// Check if user has permission to create positions
+	hasPermission, err := s.permissionSvc.UserHasPermission(userID, orgID, "positions.create")
 	if err != nil {
 		return nil, err
+	}
+	if !hasPermission {
+		return nil, ErrAccessDenied
 	}
 
 	position := &models.Position{
@@ -67,10 +72,13 @@ func (s *PositionService) GetPosition(posID int64, userID int64) (*models.Positi
 		return nil, ErrPositionNotFound
 	}
 
-	// Проверяем доступ к организации этой позиции
-	_, err = s.orgService.GetOrganization(pos.OrganizationID, userID)
+	// Check if user has access to this organization
+	hasAccess, err := s.orgService.UserHasAccessToOrganization(userID, pos.OrganizationID)
 	if err != nil {
 		return nil, err
+	}
+	if !hasAccess {
+		return nil, ErrUnauthorized
 	}
 
 	return pos, nil
@@ -78,10 +86,13 @@ func (s *PositionService) GetPosition(posID int64, userID int64) (*models.Positi
 
 // GetOrganizationPositions получает все позиции организации
 func (s *PositionService) GetOrganizationPositions(orgID int64, userID int64) ([]models.Position, error) {
-	// Проверяем доступ к организации
-	_, err := s.orgService.GetOrganization(orgID, userID)
+	// Check if user has access to this organization
+	hasAccess, err := s.orgService.UserHasAccessToOrganization(userID, orgID)
 	if err != nil {
 		return nil, err
+	}
+	if !hasAccess {
+		return nil, ErrUnauthorized
 	}
 
 	return s.posRepo.GetByOrganizationID(orgID)
@@ -95,15 +106,16 @@ func (s *PositionService) GetDepartmentPositions(deptID int64, userID int64) ([]
 	}
 
 	if len(positions) == 0 {
-		// Если позиций нет, нужно проверить существование отдела через другой способ
-		// Для простоты просто возвращаем пустой массив
 		return positions, nil
 	}
 
-	// Проверяем доступ к организации первой позиции (все позиции отдела принадлежат одной организации)
-	_, err = s.orgService.GetOrganization(positions[0].OrganizationID, userID)
+	// Check if user has access to the organization of these positions
+	hasAccess, err := s.orgService.UserHasAccessToOrganization(userID, positions[0].OrganizationID)
 	if err != nil {
 		return nil, err
+	}
+	if !hasAccess {
+		return nil, ErrUnauthorized
 	}
 
 	return positions, nil
@@ -116,10 +128,13 @@ func (s *PositionService) UpdatePosition(posID int64, userID int64, input Update
 		return nil, ErrPositionNotFound
 	}
 
-	// Проверяем доступ к организации этой позиции
-	_, err = s.orgService.GetOrganization(pos.OrganizationID, userID)
+	// Check if user has permission to update positions
+	hasPermission, err := s.permissionSvc.UserHasPermission(userID, pos.OrganizationID, "positions.create")
 	if err != nil {
 		return nil, err
+	}
+	if !hasPermission {
+		return nil, ErrAccessDenied
 	}
 
 	// Обновляем только переданные поля
@@ -150,10 +165,13 @@ func (s *PositionService) DeletePosition(posID int64, userID int64) error {
 		return ErrPositionNotFound
 	}
 
-	// Проверяем доступ к организации этой позиции
-	_, err = s.orgService.GetOrganization(pos.OrganizationID, userID)
+	// Check if user has permission to delete positions
+	hasPermission, err := s.permissionSvc.UserHasPermission(userID, pos.OrganizationID, "positions.create")
 	if err != nil {
 		return err
+	}
+	if !hasPermission {
+		return ErrAccessDenied
 	}
 
 	return s.posRepo.Delete(posID)
