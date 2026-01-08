@@ -30,3 +30,15 @@ func (r *PositionRepository) Update(position *models.Position) error {
 func (r *PositionRepository) Delete(id int64) error {
 	return r.db.Delete(&models.Position{}, id).Error
 }
+
+func (r *PositionRepository) GetByOrganizationID(orgID int64) ([]models.Position, error) {
+	var positions []models.Position
+	err := r.db.Where("organization_id = ?", orgID).Preload("Department").Find(&positions).Error
+	return positions, err
+}
+
+func (r *PositionRepository) GetByDepartmentID(deptID int64) ([]models.Position, error) {
+	var positions []models.Position
+	err := r.db.Where("department_id = ?", deptID).Preload("Department").Find(&positions).Error
+	return positions, err
+}

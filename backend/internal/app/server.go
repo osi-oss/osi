@@ -29,6 +29,8 @@ func Start(cfg *config.Config) {
 	resetRepo := repository.NewPasswordResetRepository(dbConn)
 	orgRepo := repository.NewOrganizationRepository(dbConn)
 	locationRepo := repository.NewLocationRepository(dbConn)
+	departmentRepo := repository.NewDepartmentRepository(dbConn)
+	positionRepo := repository.NewPositionRepository(dbConn)
 
 	// Создание email сервиса
 	emailService := services.NewEmailService(
@@ -55,9 +57,17 @@ func Start(cfg *config.Config) {
 	// Создание сервиса локаций
 	locationService := services.NewLocationService(locationRepo, orgService)
 
+	// Создание сервиса отделов
+	departmentService := services.NewDepartmentService(departmentRepo, locationService)
+
+	// Создание сервиса позиций
+	positionService := services.NewPositionService(positionRepo, orgService)
+
 	userController := controllers.NewUserController(userService)
 	orgController := controllers.NewOrganizationController(orgService)
 	locationController := controllers.NewLocationController(locationService)
+	departmentController := controllers.NewDepartmentController(departmentService)
+	positionController := controllers.NewPositionController(positionService)
 
 	log.Printf("🚀 Server starting on port %s", cfg.AppPort)
 	log.Printf("📊 Database: %s@%s:%s/%s", cfg.PgUser, cfg.PgHost, cfg.PgPort, cfg.PgDb)
@@ -105,6 +115,21 @@ func Start(cfg *config.Config) {
 			protected.GET("/locations/:id", locationController.GetLocation)
 			protected.PUT("/locations/:id", locationController.UpdateLocation)
 			protected.DELETE("/locations/:id", locationController.DeleteLocation)
+
+			// Роуты отделов
+			protected.POST("/locations/:id/departments", departmentController.CreateDepartment)
+			protected.GET("/locations/:id/departments", departmentController.GetLocationDepartments)
+			protected.GET("/departments/:id", departmentController.GetDepartment)
+			protected.PUT("/departments/:id", departmentController.UpdateDepartment)
+			protected.DELETE("/departments/:id", departmentController.DeleteDepartment)
+
+			// Роуты позиций
+			protected.POST("/organizations/:id/positions", positionController.CreatePosition)
+			protected.GET("/organizations/:id/positions", positionController.GetOrganizationPositions)
+			protected.GET("/departments/:id/positions", positionController.GetDepartmentPositions)
+			protected.GET("/positions/:id", positionController.GetPosition)
+			protected.PUT("/positions/:id", positionController.UpdatePosition)
+			protected.DELETE("/positions/:id", positionController.DeletePosition)
 		}
 	}
 
