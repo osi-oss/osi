@@ -29,7 +29,7 @@ func (r *PasswordResetRepository) GetByToken(tokenStr string) (*models.PasswordR
 }
 
 // MarkAsUsed помечает токен как использованный
-func (r *PasswordResetRepository) MarkAsUsed(tokenID uint) error {
+func (r *PasswordResetRepository) MarkAsUsed(tokenID int64) error {
 	return r.db.Model(&models.PasswordResetToken{}).
 		Where("id = ?", tokenID).
 		Update("used", true).Error
@@ -42,7 +42,7 @@ func (r *PasswordResetRepository) DeleteExpired() error {
 }
 
 // DeleteByUserID удаляет все токены пользователя (при смене пароля)
-func (r *PasswordResetRepository) DeleteByUserID(userID uint) error {
+func (r *PasswordResetRepository) DeleteByUserID(userID int64) error {
 	return r.db.Where("user_id = ?", userID).
 		Delete(&models.PasswordResetToken{}).Error
 }

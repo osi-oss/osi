@@ -1,16 +1,10 @@
 package services
 
 import (
-	"errors"
-	"fmt"
-
+	"github.com/osi-oss/osi/internal/apperrors"
+	"github.com/osi-oss/osi/internal/dto"
 	"github.com/osi-oss/osi/internal/models"
 	"github.com/osi-oss/osi/internal/repository"
-)
-
-var (
-	ErrOrganizationNotFound = errors.New("organization not found")
-	ErrUnauthorized         = errors.New("unauthorized")
 )
 
 type OrganizationService struct {
@@ -29,23 +23,11 @@ func (s *OrganizationService) SetPermissionService(permissionSvc *PermissionServ
 	s.permissionSvc = permissionSvc
 }
 
-type CreateOrganizationInput struct {
-	Name         string   `json:"name" binding:"required"`
-	LegalName    *string  `json:"legal_name"`
-	INN          *string  `json:"inn"`
-	OGRN         *string  `json:"ogrn"`
-	KPP          *string  `json:"kpp"`
-	LegalAddress *string  `json:"legal_address"`
-	SharePercent *float64 `json:"share_percent"`
-}
-
-func (s *OrganizationService) CreateOrganization(userID int64, input CreateOrganizationInput) (*models.Organization, error) {
-	// Валидация входных данных
+func (s *OrganizationService) CreateOrganization(userID int64, input dto.CreateOrganizationRequest) (*models.Organization, error) {
 	if input.Name == "" {
-		return nil, fmt.Errorf("organization name is required")
+		return nil, apperrors.BadRequest("organization name is required")
 	}
 
-	// Создаем организацию
 	org := &models.Organization{
 		Name:         input.Name,
 		LegalName:    input.LegalName,
@@ -57,34 +39,30 @@ func (s *OrganizationService) CreateOrganization(userID int64, input CreateOrgan
 	}
 
 	if err := s.orgRepo.Create(org); err != nil {
-		return nil, fmt.Errorf("failed to create organization: %w", err)
+		return nil, apperrors.Wrap(err, 500, "failed to create organization")
 	}
 
-	// Создаем основателя (founder) - связываем пользователя с организацией
 	founder := &models.OrganizationFounder{
 		OrganizationID: org.ID,
 		UserID:         userID,
 		SharePercent:   input.SharePercent,
-		IsMain:         true, // Создатель организации - главный основатель
+		IsMain:         true,
 	}
 
 	if err := s.orgRepo.CreateFounder(founder); err != nil {
-		// Если не удалось создать основателя, удаляем организацию
 		s.orgRepo.Delete(org.ID)
-		return nil, fmt.Errorf("failed to create founder: %w", err)
+		return nil, apperrors.Wrap(err, 500, "failed to create founder")
 	}
 
-	// Загружаем организацию с основателями для возврата
 	return s.orgRepo.GetByID(org.ID)
 }
 
 func (s *OrganizationService) GetOrganization(orgID int64, userID int64) (*models.Organization, error) {
 	org, err := s.orgRepo.GetByID(orgID)
 	if err != nil {
-		return nil, ErrOrganizationNotFound
+		return nil, apperrors.ErrOrganizationNotFound
 	}
 
-	// Проверяем, что пользователь имеет доступ к этой организации
 	hasAccess := false
 	for _, founder := range org.Founders {
 		if founder.UserID == userID {
@@ -94,7 +72,17 @@ func (s *OrganizationService) GetOrganization(orgID int64, userID int64) (*model
 	}
 
 	if !hasAccess {
-		return nil, ErrUnauthorized
+		// Check members
+		for _, member := range org.Members {
+			if member.UserID == userID && member.Status == models.MemberActive {
+				hasAccess = true
+				break
+			}
+		}
+	}
+
+	if !hasAccess {
+		return nil, apperrors.ErrForbidden
 	}
 
 	return org, nil
@@ -104,15 +92,13 @@ func (s *OrganizationService) GetUserOrganizations(userID int64) ([]models.Organ
 	return s.orgRepo.GetByUserID(userID)
 }
 
-// UserHasAccessToOrganization checks if user has access to organization (founder or active member)
+// UserHasAccessToOrganization checks if user has access to organization
 func (s *OrganizationService) UserHasAccessToOrganization(userID int64, orgID int64) (bool, error) {
-	// Check if user is a founder
 	founder, err := s.orgRepo.GetFounderByUserAndOrgID(userID, orgID)
 	if err == nil && founder != nil && founder.ID > 0 {
 		return true, nil
 	}
 
-	// Check if user is an active member
 	member, err := s.orgRepo.GetMemberByUserAndOrgID(userID, orgID)
 	if err == nil && member != nil && member.ID > 0 && member.Status == models.MemberActive {
 		return true, nil
@@ -121,14 +107,12 @@ func (s *OrganizationService) UserHasAccessToOrganization(userID int64, orgID in
 	return false, nil
 }
 
-func (s *OrganizationService) UpdateOrganization(orgID int64, userID int64, input CreateOrganizationInput) (*models.Organization, error) {
-	// Проверяем доступ
+func (s *OrganizationService) UpdateOrganization(orgID int64, userID int64, input dto.UpdateOrganizationRequest) (*models.Organization, error) {
 	org, err := s.GetOrganization(orgID, userID)
 	if err != nil {
 		return nil, err
 	}
 
-	// Обновляем поля
 	if input.Name != "" {
 		org.Name = input.Name
 	}
@@ -139,20 +123,18 @@ func (s *OrganizationService) UpdateOrganization(orgID int64, userID int64, inpu
 	org.LegalAddress = input.LegalAddress
 
 	if err := s.orgRepo.Update(org); err != nil {
-		return nil, fmt.Errorf("failed to update organization: %w", err)
+		return nil, apperrors.Wrap(err, 500, "failed to update organization")
 	}
 
 	return s.orgRepo.GetByID(org.ID)
 }
 
 func (s *OrganizationService) DeleteOrganization(orgID int64, userID int64) error {
-	// Проверяем доступ
 	org, err := s.GetOrganization(orgID, userID)
 	if err != nil {
 		return err
 	}
 
-	// Проверяем, что пользователь - главный основатель
 	isMainFounder := false
 	for _, founder := range org.Founders {
 		if founder.UserID == userID && founder.IsMain {
@@ -162,63 +144,32 @@ func (s *OrganizationService) DeleteOrganization(orgID int64, userID int64) erro
 	}
 
 	if !isMainFounder {
-		return fmt.Errorf("only main founder can delete organization")
+		return apperrors.ErrForbidden
 	}
 
 	return s.orgRepo.Delete(org.ID)
 }
 
-// Member methods
-// type InviteMemberInput struct {
-// 	UserID int64 `json:"user_id" binding:"required"`
-// }
-
-// func (s *OrganizationService) InviteMember(orgID int64, userID int64, input InviteMemberInput) (*models.OrganizationMember, error) {
-// 	// Проверяем доступ
-// 	_, err := s.GetOrganization(orgID, userID)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-
-// 	member := &models.OrganizationMember{
-// 		OrganizationID: orgID,
-// 		UserID:         input.UserID,
-// 		Status:         models.MemberInvited,
-// 	}
-
-// 	if err := s.orgRepo.CreateMember(member); err != nil {
-// 		return nil, fmt.Errorf("failed to invite member: %w", err)
-// 	}
-
-// 	return s.orgRepo.GetMemberByID(member.ID)
-// }
-
 func (s *OrganizationService) GetMembers(orgID int64, userID int64) ([]models.OrganizationMember, error) {
-	// Проверяем доступ
 	_, err := s.GetOrganization(orgID, userID)
 	if err != nil {
 		return nil, err
 	}
-
 	return s.orgRepo.GetMembersByOrganizationID(orgID)
 }
 
 func (s *OrganizationService) UpdateMemberStatus(orgID int64, memberID int64, userID int64, status models.MemberStatus) error {
-	// Проверяем доступ
 	_, err := s.GetOrganization(orgID, userID)
 	if err != nil {
 		return err
 	}
-
 	return s.orgRepo.UpdateMemberStatus(memberID, status)
 }
 
 func (s *OrganizationService) RemoveMember(orgID int64, memberID int64, userID int64) error {
-	// Проверяем доступ
 	_, err := s.GetOrganization(orgID, userID)
 	if err != nil {
 		return err
 	}
-
 	return s.orgRepo.DeleteMember(memberID)
 }

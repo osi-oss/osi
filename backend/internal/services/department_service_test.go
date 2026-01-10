@@ -3,6 +3,8 @@ package services
 import (
 	"testing"
 
+	"github.com/osi-oss/osi/internal/apperrors"
+	"github.com/osi-oss/osi/internal/dto"
 	"github.com/osi-oss/osi/internal/models"
 	"github.com/osi-oss/osi/internal/repository"
 	"github.com/stretchr/testify/assert"
@@ -104,7 +106,7 @@ func TestCreateDepartment(t *testing.T) {
 		name        string
 		locationID  int64
 		userID      int64
-		input       CreateDepartmentInput
+		input       dto.CreateDepartmentRequest
 		expectError bool
 		errorCheck  func(*testing.T, error)
 		checkDept   func(*testing.T, *models.Department)
@@ -113,7 +115,7 @@ func TestCreateDepartment(t *testing.T) {
 			name:       "Success - Create department",
 			locationID: location.ID,
 			userID:     founder.ID,
-			input: CreateDepartmentInput{
+			input: dto.CreateDepartmentRequest{
 				Name:        "IT Department",
 				Description: stringPtr("Information Technology"),
 			},
@@ -130,7 +132,7 @@ func TestCreateDepartment(t *testing.T) {
 			name:       "Success - Create department with parent",
 			locationID: location.ID,
 			userID:     founder.ID,
-			input: CreateDepartmentInput{
+			input: dto.CreateDepartmentRequest{
 				Name:        "Sub Department",
 				ParentID:    nil, // Будет установлен в тесте
 				Description: stringPtr("Sub department"),
@@ -145,24 +147,24 @@ func TestCreateDepartment(t *testing.T) {
 			name:       "Error - Non-founder cannot create",
 			locationID: location.ID,
 			userID:     nonFounder.ID,
-			input: CreateDepartmentInput{
+			input: dto.CreateDepartmentRequest{
 				Name: "Unauthorized Department",
 			},
 			expectError: true,
 			errorCheck: func(t *testing.T, err error) {
-				assert.ErrorIs(t, err, ErrUnauthorized)
+				assert.ErrorIs(t, err, apperrors.ErrAccessDenied)
 			},
 		},
 		{
 			name:       "Error - Location not found",
 			locationID: 99999,
 			userID:     founder.ID,
-			input: CreateDepartmentInput{
+			input: dto.CreateDepartmentRequest{
 				Name: "Invalid Location Dept",
 			},
 			expectError: true,
 			errorCheck: func(t *testing.T, err error) {
-				assert.ErrorIs(t, err, ErrLocationNotFound)
+				assert.ErrorIs(t, err, apperrors.ErrLocationNotFound)
 			},
 		},
 	}
@@ -244,7 +246,7 @@ func TestGetDepartment(t *testing.T) {
 			userID:      nonFounder.ID,
 			expectError: true,
 			errorCheck: func(t *testing.T, err error) {
-				assert.ErrorIs(t, err, ErrUnauthorized)
+				assert.ErrorIs(t, err, apperrors.ErrAccessDenied)
 			},
 		},
 		{
@@ -253,7 +255,7 @@ func TestGetDepartment(t *testing.T) {
 			userID:      founder.ID,
 			expectError: true,
 			errorCheck: func(t *testing.T, err error) {
-				assert.ErrorIs(t, err, ErrDepartmentNotFound)
+				assert.ErrorIs(t, err, apperrors.ErrDepartmentNotFound)
 			},
 		},
 	}
@@ -337,7 +339,7 @@ func TestUpdateDepartment(t *testing.T) {
 	err := db.Create(department).Error
 	require.NoError(t, err)
 
-	input := UpdateDepartmentInput{
+	input := dto.UpdateDepartmentRequest{
 		Name:        "New Name",
 		Description: stringPtr("New Description"),
 	}

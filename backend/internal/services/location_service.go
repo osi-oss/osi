@@ -1,15 +1,10 @@
 package services
 
 import (
-	"errors"
-	"fmt"
-
+	"github.com/osi-oss/osi/internal/apperrors"
+	"github.com/osi-oss/osi/internal/dto"
 	"github.com/osi-oss/osi/internal/models"
 	"github.com/osi-oss/osi/internal/repository"
-)
-
-var (
-	ErrLocationNotFound = errors.New("location not found")
 )
 
 type LocationService struct {
@@ -26,29 +21,13 @@ func NewLocationService(locationRepo *repository.LocationRepository, orgService 
 	}
 }
 
-type CreateLocationInput struct {
-	Name       string  `json:"name" binding:"required"`
-	Address    *string `json:"address"`
-	Source     string  `json:"source" binding:"required"` // 'registry' | 'manual'
-	IsVerified bool    `json:"is_verified"`
-}
-
-type UpdateLocationInput struct {
-	Name       string  `json:"name"`
-	Address    *string `json:"address"`
-	Source     string  `json:"source"`
-	IsVerified *bool   `json:"is_verified"`
-	IsActive   *bool   `json:"is_active"`
-}
-
-func (s *LocationService) CreateLocation(orgID int64, userID int64, input CreateLocationInput) (*models.Location, error) {
-	// Check if user has permission to create locations (using departments.create permission)
-	hasPermission, err := s.permissionSvc.UserHasPermission(userID, orgID, "departments.create")
+func (s *LocationService) CreateLocation(orgID int64, userID int64, input dto.CreateLocationRequest) (*models.Location, error) {
+	hasPermission, err := s.permissionSvc.UserHasPermission(userID, orgID, "locations.create")
 	if err != nil {
 		return nil, err
 	}
 	if !hasPermission {
-		return nil, ErrAccessDenied
+		return nil, apperrors.ErrAccessDenied
 	}
 
 	location := &models.Location{
@@ -61,7 +40,7 @@ func (s *LocationService) CreateLocation(orgID int64, userID int64, input Create
 	}
 
 	if err := s.locationRepo.Create(location); err != nil {
-		return nil, fmt.Errorf("failed to create location: %w", err)
+		return nil, apperrors.Wrap(err, 500, "failed to create location")
 	}
 
 	return s.locationRepo.GetByID(location.ID)
@@ -70,50 +49,46 @@ func (s *LocationService) CreateLocation(orgID int64, userID int64, input Create
 func (s *LocationService) GetLocation(locationID int64, userID int64) (*models.Location, error) {
 	location, err := s.locationRepo.GetByID(locationID)
 	if err != nil {
-		return nil, ErrLocationNotFound
+		return nil, apperrors.ErrLocationNotFound
 	}
 
-	// Check if user has access to this organization
 	hasAccess, err := s.orgService.UserHasAccessToOrganization(userID, location.OrganizationID)
 	if err != nil {
 		return nil, err
 	}
 	if !hasAccess {
-		return nil, ErrUnauthorized
+		return nil, apperrors.ErrForbidden
 	}
 
 	return location, nil
 }
 
 func (s *LocationService) GetOrganizationLocations(orgID int64, userID int64) ([]models.Location, error) {
-	// Check if user has access to this organization
 	hasAccess, err := s.orgService.UserHasAccessToOrganization(userID, orgID)
 	if err != nil {
 		return nil, err
 	}
 	if !hasAccess {
-		return nil, ErrUnauthorized
+		return nil, apperrors.ErrForbidden
 	}
 
 	return s.locationRepo.GetByOrganizationID(orgID)
 }
 
-func (s *LocationService) UpdateLocation(locationID int64, userID int64, input UpdateLocationInput) (*models.Location, error) {
+func (s *LocationService) UpdateLocation(locationID int64, userID int64, input dto.UpdateLocationRequest) (*models.Location, error) {
 	location, err := s.locationRepo.GetByID(locationID)
 	if err != nil {
-		return nil, ErrLocationNotFound
+		return nil, apperrors.ErrLocationNotFound
 	}
 
-	// Check if user has permission to update locations
-	hasPermission, err := s.permissionSvc.UserHasPermission(userID, location.OrganizationID, "departments.create")
+	hasPermission, err := s.permissionSvc.UserHasPermission(userID, location.OrganizationID, "locations.update")
 	if err != nil {
 		return nil, err
 	}
 	if !hasPermission {
-		return nil, ErrAccessDenied
+		return nil, apperrors.ErrAccessDenied
 	}
 
-	// Обновляем только переданные поля
 	if input.Name != "" {
 		location.Name = input.Name
 	}
@@ -131,7 +106,7 @@ func (s *LocationService) UpdateLocation(locationID int64, userID int64, input U
 	}
 
 	if err := s.locationRepo.Update(location); err != nil {
-		return nil, fmt.Errorf("failed to update location: %w", err)
+		return nil, apperrors.Wrap(err, 500, "failed to update location")
 	}
 
 	return s.locationRepo.GetByID(location.ID)
@@ -140,16 +115,15 @@ func (s *LocationService) UpdateLocation(locationID int64, userID int64, input U
 func (s *LocationService) DeleteLocation(locationID int64, userID int64) error {
 	location, err := s.locationRepo.GetByID(locationID)
 	if err != nil {
-		return ErrLocationNotFound
+		return apperrors.ErrLocationNotFound
 	}
 
-	// Check if user has permission to delete locations
-	hasPermission, err := s.permissionSvc.UserHasPermission(userID, location.OrganizationID, "departments.create")
+	hasPermission, err := s.permissionSvc.UserHasPermission(userID, location.OrganizationID, "locations.delete")
 	if err != nil {
 		return err
 	}
 	if !hasPermission {
-		return ErrAccessDenied
+		return apperrors.ErrAccessDenied
 	}
 
 	return s.locationRepo.Delete(locationID)

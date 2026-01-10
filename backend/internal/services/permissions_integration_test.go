@@ -3,6 +3,8 @@ package services
 import (
 	"testing"
 
+	"github.com/osi-oss/osi/internal/apperrors"
+	"github.com/osi-oss/osi/internal/dto"
 	"github.com/osi-oss/osi/internal/models"
 	"github.com/osi-oss/osi/internal/repository"
 	"github.com/stretchr/testify/assert"
@@ -52,7 +54,14 @@ func setupPermissionsTestDB(t *testing.T) *gorm.DB {
 	// Создаем тестовые права в БД
 	permissions := []models.Permission{
 		{Code: "departments.create", Description: "Create departments", GroupName: "Departments"},
+		{Code: "departments.update", Description: "Update departments", GroupName: "Departments"},
+		{Code: "departments.delete", Description: "Delete departments", GroupName: "Departments"},
 		{Code: "positions.create", Description: "Create positions", GroupName: "Positions"},
+		{Code: "positions.update", Description: "Update positions", GroupName: "Positions"},
+		{Code: "positions.delete", Description: "Delete positions", GroupName: "Positions"},
+		{Code: "locations.create", Description: "Create locations", GroupName: "Locations"},
+		{Code: "locations.update", Description: "Update locations", GroupName: "Locations"},
+		{Code: "locations.delete", Description: "Delete locations", GroupName: "Locations"},
 		{Code: "members.invite", Description: "Invite members", GroupName: "Members"},
 		{Code: "members.view", Description: "View members", GroupName: "Members"},
 	}
@@ -116,16 +125,22 @@ func TestLocationPermissions(t *testing.T) {
 	}
 	require.NoError(t, db.Create(memberWithout).Error)
 
-	// Получаем право departments.create
-	var deptPermission models.Permission
-	require.NoError(t, db.Where("code = ?", "departments.create").First(&deptPermission).Error)
+	// Получаем права для локаций
+	var locCreatePerm, locUpdatePerm, locDeletePerm models.Permission
+	require.NoError(t, db.Where("code = ?", "locations.create").First(&locCreatePerm).Error)
+	require.NoError(t, db.Where("code = ?", "locations.update").First(&locUpdatePerm).Error)
+	require.NoError(t, db.Where("code = ?", "locations.delete").First(&locDeletePerm).Error)
 
-	// Назначаем право члену с правами
+	// Назначаем права члену с правами
 	require.NoError(t, db.Exec("INSERT INTO member_permissions (organization_member_id, permission_id) VALUES (?, ?)",
-		memberWith.ID, deptPermission.ID).Error)
+		memberWith.ID, locCreatePerm.ID).Error)
+	require.NoError(t, db.Exec("INSERT INTO member_permissions (organization_member_id, permission_id) VALUES (?, ?)",
+		memberWith.ID, locUpdatePerm.ID).Error)
+	require.NoError(t, db.Exec("INSERT INTO member_permissions (organization_member_id, permission_id) VALUES (?, ?)",
+		memberWith.ID, locDeletePerm.ID).Error)
 
 	t.Run("Founder can create location", func(t *testing.T) {
-		location, err := locationService.CreateLocation(org.ID, founder.ID, CreateLocationInput{
+		location, err := locationService.CreateLocation(org.ID, founder.ID, dto.CreateLocationRequest{
 			Name:   "Founder Location",
 			Source: "manual",
 		})
@@ -135,7 +150,7 @@ func TestLocationPermissions(t *testing.T) {
 	})
 
 	t.Run("Member with permission can create location", func(t *testing.T) {
-		location, err := locationService.CreateLocation(org.ID, memberWithPermission.ID, CreateLocationInput{
+		location, err := locationService.CreateLocation(org.ID, memberWithPermission.ID, dto.CreateLocationRequest{
 			Name:   "Member Location",
 			Source: "manual",
 		})
@@ -145,12 +160,12 @@ func TestLocationPermissions(t *testing.T) {
 	})
 
 	t.Run("Member without permission cannot create location", func(t *testing.T) {
-		location, err := locationService.CreateLocation(org.ID, memberWithoutPermission.ID, CreateLocationInput{
+		location, err := locationService.CreateLocation(org.ID, memberWithoutPermission.ID, dto.CreateLocationRequest{
 			Name:   "Unauthorized Location",
 			Source: "manual",
 		})
 		require.Error(t, err)
-		assert.ErrorIs(t, err, ErrAccessDenied)
+		assert.ErrorIs(t, err, apperrors.ErrAccessDenied)
 		assert.Nil(t, location)
 	})
 
@@ -165,7 +180,7 @@ func TestLocationPermissions(t *testing.T) {
 		require.NoError(t, db.Create(location).Error)
 
 		// Обновляем
-		updated, err := locationService.UpdateLocation(location.ID, memberWithPermission.ID, UpdateLocationInput{
+		updated, err := locationService.UpdateLocation(location.ID, memberWithPermission.ID, dto.UpdateLocationRequest{
 			Name: "Updated by Member",
 		})
 		require.NoError(t, err)
@@ -183,11 +198,11 @@ func TestLocationPermissions(t *testing.T) {
 		require.NoError(t, db.Create(location).Error)
 
 		// Пытаемся обновить
-		updated, err := locationService.UpdateLocation(location.ID, memberWithoutPermission.ID, UpdateLocationInput{
+		updated, err := locationService.UpdateLocation(location.ID, memberWithoutPermission.ID, dto.UpdateLocationRequest{
 			Name: "Should Fail",
 		})
 		require.Error(t, err)
-		assert.ErrorIs(t, err, ErrAccessDenied)
+		assert.ErrorIs(t, err, apperrors.ErrAccessDenied)
 		assert.Nil(t, updated)
 	})
 
@@ -219,7 +234,7 @@ func TestLocationPermissions(t *testing.T) {
 		// Пытаемся удалить
 		err := locationService.DeleteLocation(location.ID, memberWithoutPermission.ID)
 		require.Error(t, err)
-		assert.ErrorIs(t, err, ErrAccessDenied)
+		assert.ErrorIs(t, err, apperrors.ErrAccessDenied)
 	})
 
 	t.Run("All members can view locations", func(t *testing.T) {
@@ -303,16 +318,22 @@ func TestDepartmentPermissions(t *testing.T) {
 	}
 	require.NoError(t, db.Create(memberWithout).Error)
 
-	// Получаем право departments.create
-	var deptPermission models.Permission
-	require.NoError(t, db.Where("code = ?", "departments.create").First(&deptPermission).Error)
+	// Получаем права для отделов
+	var deptCreatePerm, deptUpdatePerm, deptDeletePerm models.Permission
+	require.NoError(t, db.Where("code = ?", "departments.create").First(&deptCreatePerm).Error)
+	require.NoError(t, db.Where("code = ?", "departments.update").First(&deptUpdatePerm).Error)
+	require.NoError(t, db.Where("code = ?", "departments.delete").First(&deptDeletePerm).Error)
 
-	// Назначаем право члену с правами
+	// Назначаем права члену с правами
 	require.NoError(t, db.Exec("INSERT INTO member_permissions (organization_member_id, permission_id) VALUES (?, ?)",
-		memberWith.ID, deptPermission.ID).Error)
+		memberWith.ID, deptCreatePerm.ID).Error)
+	require.NoError(t, db.Exec("INSERT INTO member_permissions (organization_member_id, permission_id) VALUES (?, ?)",
+		memberWith.ID, deptUpdatePerm.ID).Error)
+	require.NoError(t, db.Exec("INSERT INTO member_permissions (organization_member_id, permission_id) VALUES (?, ?)",
+		memberWith.ID, deptDeletePerm.ID).Error)
 
 	t.Run("Founder can create department", func(t *testing.T) {
-		dept, err := departmentService.CreateDepartment(location.ID, founder.ID, CreateDepartmentInput{
+		dept, err := departmentService.CreateDepartment(location.ID, founder.ID, dto.CreateDepartmentRequest{
 			Name: "Founder Department",
 		})
 		require.NoError(t, err)
@@ -321,7 +342,7 @@ func TestDepartmentPermissions(t *testing.T) {
 	})
 
 	t.Run("Member with permission can create department", func(t *testing.T) {
-		dept, err := departmentService.CreateDepartment(location.ID, memberWithPermission.ID, CreateDepartmentInput{
+		dept, err := departmentService.CreateDepartment(location.ID, memberWithPermission.ID, dto.CreateDepartmentRequest{
 			Name: "Member Department",
 		})
 		require.NoError(t, err)
@@ -330,11 +351,11 @@ func TestDepartmentPermissions(t *testing.T) {
 	})
 
 	t.Run("Member without permission cannot create department", func(t *testing.T) {
-		dept, err := departmentService.CreateDepartment(location.ID, memberWithoutPermission.ID, CreateDepartmentInput{
+		dept, err := departmentService.CreateDepartment(location.ID, memberWithoutPermission.ID, dto.CreateDepartmentRequest{
 			Name: "Unauthorized Department",
 		})
 		require.Error(t, err)
-		assert.ErrorIs(t, err, ErrAccessDenied)
+		assert.ErrorIs(t, err, apperrors.ErrAccessDenied)
 		assert.Nil(t, dept)
 	})
 
@@ -347,7 +368,7 @@ func TestDepartmentPermissions(t *testing.T) {
 		require.NoError(t, db.Create(dept).Error)
 
 		// Обновляем
-		updated, err := departmentService.UpdateDepartment(dept.ID, memberWithPermission.ID, UpdateDepartmentInput{
+		updated, err := departmentService.UpdateDepartment(dept.ID, memberWithPermission.ID, dto.UpdateDepartmentRequest{
 			Name: "Updated Department",
 		})
 		require.NoError(t, err)
@@ -363,11 +384,11 @@ func TestDepartmentPermissions(t *testing.T) {
 		require.NoError(t, db.Create(dept).Error)
 
 		// Пытаемся обновить
-		updated, err := departmentService.UpdateDepartment(dept.ID, memberWithoutPermission.ID, UpdateDepartmentInput{
+		updated, err := departmentService.UpdateDepartment(dept.ID, memberWithoutPermission.ID, dto.UpdateDepartmentRequest{
 			Name: "Should Fail",
 		})
 		require.Error(t, err)
-		assert.ErrorIs(t, err, ErrAccessDenied)
+		assert.ErrorIs(t, err, apperrors.ErrAccessDenied)
 		assert.Nil(t, updated)
 	})
 
@@ -395,7 +416,7 @@ func TestDepartmentPermissions(t *testing.T) {
 		// Пытаемся удалить
 		err := departmentService.DeleteDepartment(dept.ID, memberWithoutPermission.ID)
 		require.Error(t, err)
-		assert.ErrorIs(t, err, ErrAccessDenied)
+		assert.ErrorIs(t, err, apperrors.ErrAccessDenied)
 	})
 }
 
@@ -451,16 +472,22 @@ func TestPositionPermissions(t *testing.T) {
 	}
 	require.NoError(t, db.Create(memberWithout).Error)
 
-	// Получаем право positions.create
-	var posPermission models.Permission
-	require.NoError(t, db.Where("code = ?", "positions.create").First(&posPermission).Error)
+	// Получаем права для позиций
+	var posCreatePerm, posUpdatePerm, posDeletePerm models.Permission
+	require.NoError(t, db.Where("code = ?", "positions.create").First(&posCreatePerm).Error)
+	require.NoError(t, db.Where("code = ?", "positions.update").First(&posUpdatePerm).Error)
+	require.NoError(t, db.Where("code = ?", "positions.delete").First(&posDeletePerm).Error)
 
-	// Назначаем право члену с правами
+	// Назначаем права члену с правами
 	require.NoError(t, db.Exec("INSERT INTO member_permissions (organization_member_id, permission_id) VALUES (?, ?)",
-		memberWith.ID, posPermission.ID).Error)
+		memberWith.ID, posCreatePerm.ID).Error)
+	require.NoError(t, db.Exec("INSERT INTO member_permissions (organization_member_id, permission_id) VALUES (?, ?)",
+		memberWith.ID, posUpdatePerm.ID).Error)
+	require.NoError(t, db.Exec("INSERT INTO member_permissions (organization_member_id, permission_id) VALUES (?, ?)",
+		memberWith.ID, posDeletePerm.ID).Error)
 
 	t.Run("Founder can create position", func(t *testing.T) {
-		pos, err := positionService.CreatePosition(org.ID, founder.ID, CreatePositionInput{
+		pos, err := positionService.CreatePosition(org.ID, founder.ID, dto.CreatePositionRequest{
 			Name: "Founder Position",
 		})
 		require.NoError(t, err)
@@ -469,7 +496,7 @@ func TestPositionPermissions(t *testing.T) {
 	})
 
 	t.Run("Member with permission can create position", func(t *testing.T) {
-		pos, err := positionService.CreatePosition(org.ID, memberWithPermission.ID, CreatePositionInput{
+		pos, err := positionService.CreatePosition(org.ID, memberWithPermission.ID, dto.CreatePositionRequest{
 			Name: "Member Position",
 		})
 		require.NoError(t, err)
@@ -478,11 +505,11 @@ func TestPositionPermissions(t *testing.T) {
 	})
 
 	t.Run("Member without permission cannot create position", func(t *testing.T) {
-		pos, err := positionService.CreatePosition(org.ID, memberWithoutPermission.ID, CreatePositionInput{
+		pos, err := positionService.CreatePosition(org.ID, memberWithoutPermission.ID, dto.CreatePositionRequest{
 			Name: "Unauthorized Position",
 		})
 		require.Error(t, err)
-		assert.ErrorIs(t, err, ErrAccessDenied)
+		assert.ErrorIs(t, err, apperrors.ErrAccessDenied)
 		assert.Nil(t, pos)
 	})
 
@@ -495,7 +522,7 @@ func TestPositionPermissions(t *testing.T) {
 		require.NoError(t, db.Create(pos).Error)
 
 		// Обновляем
-		updated, err := positionService.UpdatePosition(pos.ID, memberWithPermission.ID, UpdatePositionInput{
+		updated, err := positionService.UpdatePosition(pos.ID, memberWithPermission.ID, dto.UpdatePositionRequest{
 			Name: "Updated Position",
 		})
 		require.NoError(t, err)
@@ -511,11 +538,11 @@ func TestPositionPermissions(t *testing.T) {
 		require.NoError(t, db.Create(pos).Error)
 
 		// Пытаемся обновить
-		updated, err := positionService.UpdatePosition(pos.ID, memberWithoutPermission.ID, UpdatePositionInput{
+		updated, err := positionService.UpdatePosition(pos.ID, memberWithoutPermission.ID, dto.UpdatePositionRequest{
 			Name: "Should Fail",
 		})
 		require.Error(t, err)
-		assert.ErrorIs(t, err, ErrAccessDenied)
+		assert.ErrorIs(t, err, apperrors.ErrAccessDenied)
 		assert.Nil(t, updated)
 	})
 
@@ -543,7 +570,7 @@ func TestPositionPermissions(t *testing.T) {
 		// Пытаемся удалить
 		err := positionService.DeletePosition(pos.ID, memberWithoutPermission.ID)
 		require.Error(t, err)
-		assert.ErrorIs(t, err, ErrAccessDenied)
+		assert.ErrorIs(t, err, apperrors.ErrAccessDenied)
 	})
 
 	t.Run("All members can view positions", func(t *testing.T) {
@@ -613,22 +640,22 @@ func TestPermissionsThroughPosition(t *testing.T) {
 	}
 	require.NoError(t, db.Create(position).Error)
 
-	// Получаем право departments.create
-	var deptPermission models.Permission
-	require.NoError(t, db.Where("code = ?", "departments.create").First(&deptPermission).Error)
+	// Получаем право locations.create
+	var locPermission models.Permission
+	require.NoError(t, db.Where("code = ?", "locations.create").First(&locPermission).Error)
 
 	// Назначаем право позиции
 	require.NoError(t, db.Exec("INSERT INTO position_permissions (position_id, permission_id) VALUES (?, ?)",
-		position.ID, deptPermission.ID).Error)
+		position.ID, locPermission.ID).Error)
 
 	t.Run("Employee without position cannot create location", func(t *testing.T) {
 		// Сотрудник еще не назначен на позицию
-		location, err := locationService.CreateLocation(org.ID, employee.ID, CreateLocationInput{
+		location, err := locationService.CreateLocation(org.ID, employee.ID, dto.CreateLocationRequest{
 			Name:   "Should Fail",
 			Source: "manual",
 		})
 		require.Error(t, err)
-		assert.ErrorIs(t, err, ErrAccessDenied)
+		assert.ErrorIs(t, err, apperrors.ErrAccessDenied)
 		assert.Nil(t, location)
 	})
 
@@ -641,7 +668,7 @@ func TestPermissionsThroughPosition(t *testing.T) {
 		require.NoError(t, db.Create(employeeRecord).Error)
 
 		// Теперь сотрудник должен иметь право через позицию
-		location, err := locationService.CreateLocation(org.ID, employee.ID, CreateLocationInput{
+		location, err := locationService.CreateLocation(org.ID, employee.ID, dto.CreateLocationRequest{
 			Name:   "Employee Location",
 			Source: "manual",
 		})

@@ -3,14 +3,10 @@ package services
 import (
 	"errors"
 
+	"github.com/osi-oss/osi/internal/apperrors"
 	"github.com/osi-oss/osi/internal/models"
 	"github.com/osi-oss/osi/internal/repository"
 	"gorm.io/gorm"
-)
-
-var (
-	ErrPermissionNotFound = errors.New("permission not found")
-	ErrAccessDenied       = errors.New("access denied")
 )
 
 type PermissionService struct {
@@ -61,7 +57,7 @@ func (s *PermissionService) UserHasPermission(userID int64, orgID int64, permiss
 	permission, err := s.permissionRepo.GetByCode(permissionCode)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return false, ErrPermissionNotFound
+			return false, apperrors.ErrPermissionNotFound
 		}
 		return false, err
 	}
@@ -193,7 +189,7 @@ func (s *PermissionService) AssignPermissionToMember(actorUserID int64, memberID
 		return err
 	}
 	if !hasPermission {
-		return ErrAccessDenied
+		return apperrors.ErrAccessDenied
 	}
 
 	// Get the permission
@@ -219,7 +215,7 @@ func (s *PermissionService) RemovePermissionFromMember(actorUserID int64, member
 		return err
 	}
 	if !hasPermission {
-		return ErrAccessDenied
+		return apperrors.ErrAccessDenied
 	}
 
 	// Get the permission
@@ -239,7 +235,7 @@ func (s *PermissionService) AssignPermissionToPosition(actorUserID int64, positi
 		return err
 	}
 	if !hasPermission {
-		return ErrAccessDenied
+		return apperrors.ErrAccessDenied
 	}
 
 	// Get the permission
@@ -259,7 +255,7 @@ func (s *PermissionService) RemovePermissionFromPosition(actorUserID int64, posi
 		return err
 	}
 	if !hasPermission {
-		return ErrAccessDenied
+		return apperrors.ErrAccessDenied
 	}
 
 	// Get the permission

@@ -2,16 +2,12 @@ package services
 
 import (
 	"errors"
-	"time"
 
+	"github.com/osi-oss/osi/internal/apperrors"
+	"github.com/osi-oss/osi/internal/dto"
 	"github.com/osi-oss/osi/internal/models"
 	"github.com/osi-oss/osi/internal/repository"
 	"gorm.io/gorm"
-)
-
-var (
-	ErrEmployeeNotFound = errors.New("employee not found")
-	ErrMemberNotActive  = errors.New("member is not active")
 )
 
 type EmployeeService struct {
@@ -35,57 +31,39 @@ func NewEmployeeService(
 	}
 }
 
-type AssignPositionInput struct {
-	MemberID   int64      `json:"member_id" binding:"required"`
-	PositionID int64      `json:"position_id" binding:"required"`
-	StartDate  *time.Time `json:"start_date"`
-	IsIntern   bool       `json:"is_intern"`
-}
-
-type UpdateEmployeeInput struct {
-	EndDate  *time.Time `json:"end_date"`
-	IsIntern *bool      `json:"is_intern"`
-}
-
-// AssignPosition assigns a position to a member (requires positions.create permission)
-func (s *EmployeeService) AssignPosition(actorUserID int64, input AssignPositionInput) (*models.Employee, error) {
-	// Get the member
+func (s *EmployeeService) AssignPosition(actorUserID int64, input dto.AssignPositionRequest) (*models.Employee, error) {
 	member, err := s.orgRepo.GetMemberByID(input.MemberID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, ErrMemberNotFound
+			return nil, apperrors.ErrMemberNotFound
 		}
 		return nil, err
 	}
 
-	// Check if member is active
 	if member.Status != models.MemberActive {
-		return nil, ErrMemberNotActive
+		return nil, apperrors.ErrMemberNotActive
 	}
 
-	// Check if actor has permission to assign positions
-	hasPermission, err := s.permissionSvc.UserHasPermission(actorUserID, member.OrganizationID, "positions.create")
+	hasPermission, err := s.permissionSvc.UserHasPermission(actorUserID, member.OrganizationID, "positions.assign")
 	if err != nil {
 		return nil, err
 	}
 	if !hasPermission {
-		return nil, ErrAccessDenied
+		return nil, apperrors.ErrAccessDenied
 	}
 
-	// Verify position exists and belongs to same organization
 	position, err := s.positionRepo.GetByID(input.PositionID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, ErrPositionNotFound
+			return nil, apperrors.ErrPositionNotFound
 		}
 		return nil, err
 	}
 
 	if position.OrganizationID != member.OrganizationID {
-		return nil, errors.New("position does not belong to the same organization")
+		return nil, apperrors.BadRequest("position does not belong to the same organization")
 	}
 
-	// Create employee record
 	employee := &models.Employee{
 		MemberID:   input.MemberID,
 		PositionID: input.PositionID,
@@ -94,100 +72,55 @@ func (s *EmployeeService) AssignPosition(actorUserID int64, input AssignPosition
 	}
 
 	if err := s.employeeRepo.Create(employee); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, 500, "failed to assign position")
 	}
 
-	// Load relations
-	employee.Member = *member
-	employee.Position = *position
-
-	return employee, nil
+	return s.employeeRepo.GetByID(employee.ID)
 }
 
-// GetMemberEmployees returns all employment records for a member
-func (s *EmployeeService) GetMemberEmployees(actorUserID int64, memberID int64) ([]models.Employee, error) {
-	// Get the member
-	member, err := s.orgRepo.GetMemberByID(memberID)
-	if err != nil {
-		return nil, err
-	}
-
-	// Check if actor has permission to view members
-	hasPermission, err := s.permissionSvc.UserHasPermission(actorUserID, member.OrganizationID, "members.view")
-	if err != nil {
-		return nil, err
-	}
-	if !hasPermission {
-		return nil, ErrAccessDenied
-	}
-
-	return s.employeeRepo.GetByMemberID(memberID)
-}
-
-// GetPositionEmployees returns all employees for a position
-func (s *EmployeeService) GetPositionEmployees(actorUserID int64, positionID int64) ([]models.Employee, error) {
-	// Get the position
-	position, err := s.positionRepo.GetByID(positionID)
-	if err != nil {
-		return nil, err
-	}
-
-	// Check if actor has permission to view members
-	hasPermission, err := s.permissionSvc.UserHasPermission(actorUserID, position.OrganizationID, "members.view")
-	if err != nil {
-		return nil, err
-	}
-	if !hasPermission {
-		return nil, ErrAccessDenied
-	}
-
-	return s.employeeRepo.GetByPositionID(positionID)
-}
-
-// GetEmployeeByID returns an employee by ID
-func (s *EmployeeService) GetEmployeeByID(actorUserID int64, employeeID int64) (*models.Employee, error) {
-	// Get the employee
+func (s *EmployeeService) GetEmployee(employeeID int64, userID int64) (*models.Employee, error) {
 	employee, err := s.employeeRepo.GetByID(employeeID)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, ErrEmployeeNotFound
-		}
-		return nil, err
+		return nil, apperrors.ErrEmployeeNotFound
 	}
 
-	// Check if actor has permission to view members
-	hasPermission, err := s.permissionSvc.UserHasPermission(actorUserID, employee.Member.OrganizationID, "members.view")
+	member, err := s.orgRepo.GetMemberByID(employee.MemberID)
 	if err != nil {
 		return nil, err
 	}
-	if !hasPermission {
-		return nil, ErrAccessDenied
+
+	founder, err := s.orgRepo.GetFounderByUserAndOrgID(userID, member.OrganizationID)
+	if err == nil && founder != nil && founder.ID > 0 {
+		return employee, nil
 	}
 
-	return employee, nil
+	memberCheck, err := s.orgRepo.GetMemberByUserAndOrgID(userID, member.OrganizationID)
+	if err == nil && memberCheck != nil && memberCheck.ID > 0 && memberCheck.Status == models.MemberActive {
+		return employee, nil
+	}
+
+	return nil, apperrors.ErrForbidden
 }
 
-// UpdateEmployee updates an employee record (requires positions.create permission)
-func (s *EmployeeService) UpdateEmployee(actorUserID int64, employeeID int64, input UpdateEmployeeInput) (*models.Employee, error) {
-	// Get the employee
+func (s *EmployeeService) UpdateEmployee(actorUserID int64, employeeID int64, input dto.UpdateEmployeeRequest) (*models.Employee, error) {
 	employee, err := s.employeeRepo.GetByID(employeeID)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, ErrEmployeeNotFound
-		}
+		return nil, apperrors.ErrEmployeeNotFound
+	}
+
+	member, err := s.orgRepo.GetMemberByID(employee.MemberID)
+	if err != nil {
 		return nil, err
 	}
 
-	// Check if actor has permission to manage positions
-	hasPermission, err := s.permissionSvc.UserHasPermission(actorUserID, employee.Member.OrganizationID, "positions.create")
+	hasPermission, err := s.permissionSvc.UserHasPermission(actorUserID, member.OrganizationID, "positions.assign")
 	if err != nil {
 		return nil, err
 	}
 	if !hasPermission {
-		return nil, ErrAccessDenied
+		return nil, apperrors.ErrAccessDenied
 	}
 
-	// Update fields
 	if input.EndDate != nil {
 		employee.EndDate = input.EndDate
 	}
@@ -196,30 +129,29 @@ func (s *EmployeeService) UpdateEmployee(actorUserID int64, employeeID int64, in
 	}
 
 	if err := s.employeeRepo.Update(employee); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, 500, "failed to update employee")
 	}
 
-	return employee, nil
+	return s.employeeRepo.GetByID(employee.ID)
 }
 
-// RemoveEmployee deletes an employee record (requires positions.create permission)
-func (s *EmployeeService) RemoveEmployee(actorUserID int64, employeeID int64) error {
-	// Get the employee
+func (s *EmployeeService) RemoveFromPosition(actorUserID int64, employeeID int64) error {
 	employee, err := s.employeeRepo.GetByID(employeeID)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return ErrEmployeeNotFound
-		}
+		return apperrors.ErrEmployeeNotFound
+	}
+
+	member, err := s.orgRepo.GetMemberByID(employee.MemberID)
+	if err != nil {
 		return err
 	}
 
-	// Check if actor has permission to manage positions
-	hasPermission, err := s.permissionSvc.UserHasPermission(actorUserID, employee.Member.OrganizationID, "positions.create")
+	hasPermission, err := s.permissionSvc.UserHasPermission(actorUserID, member.OrganizationID, "positions.assign")
 	if err != nil {
 		return err
 	}
 	if !hasPermission {
-		return ErrAccessDenied
+		return apperrors.ErrAccessDenied
 	}
 
 	return s.employeeRepo.Delete(employeeID)

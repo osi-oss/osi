@@ -3,6 +3,8 @@ package services
 import (
 	"testing"
 
+	"github.com/osi-oss/osi/internal/apperrors"
+	"github.com/osi-oss/osi/internal/dto"
 	"github.com/osi-oss/osi/internal/models"
 	"github.com/osi-oss/osi/internal/repository"
 	"github.com/stretchr/testify/assert"
@@ -114,7 +116,7 @@ func TestCreatePosition(t *testing.T) {
 		name        string
 		orgID       int64
 		userID      int64
-		input       CreatePositionInput
+		input       dto.CreatePositionRequest
 		expectError bool
 		errorCheck  func(*testing.T, error)
 		checkPos    func(*testing.T, *models.Position)
@@ -123,7 +125,7 @@ func TestCreatePosition(t *testing.T) {
 			name:   "Success - Create position without department",
 			orgID:  org.ID,
 			userID: founder.ID,
-			input: CreatePositionInput{
+			input: dto.CreatePositionRequest{
 				Name:        "Software Engineer",
 				IsAdmin:     false,
 				Description: stringPtr("Develops software"),
@@ -141,7 +143,7 @@ func TestCreatePosition(t *testing.T) {
 			name:   "Success - Create position with department",
 			orgID:  org.ID,
 			userID: founder.ID,
-			input: CreatePositionInput{
+			input: dto.CreatePositionRequest{
 				Name:         "Senior Developer",
 				DepartmentID: &department.ID,
 				IsAdmin:      false,
@@ -158,7 +160,7 @@ func TestCreatePosition(t *testing.T) {
 			name:   "Success - Create admin position",
 			orgID:  org.ID,
 			userID: founder.ID,
-			input: CreatePositionInput{
+			input: dto.CreatePositionRequest{
 				Name:    "Administrator",
 				IsAdmin: true,
 			},
@@ -172,25 +174,25 @@ func TestCreatePosition(t *testing.T) {
 			name:   "Error - Non-founder cannot create",
 			orgID:  org.ID,
 			userID: nonFounder.ID,
-			input: CreatePositionInput{
+			input: dto.CreatePositionRequest{
 				Name: "Unauthorized Position",
 			},
 			expectError: true,
 			errorCheck: func(t *testing.T, err error) {
-				assert.ErrorIs(t, err, ErrAccessDenied)
+				assert.ErrorIs(t, err, apperrors.ErrAccessDenied)
 			},
 		},
 		{
 			name:   "Error - Organization not found",
 			orgID:  99999,
 			userID: founder.ID,
-			input: CreatePositionInput{
+			input: dto.CreatePositionRequest{
 				Name: "Invalid Org Position",
 			},
 			expectError: true,
 			errorCheck: func(t *testing.T, err error) {
-				// When organization doesn't exist, user has no access, so ErrAccessDenied is returned
-				assert.ErrorIs(t, err, ErrAccessDenied)
+				// When organization doesn't exist, user has no access, so apperrors.ErrAccessDenied is returned
+				assert.ErrorIs(t, err, apperrors.ErrAccessDenied)
 			},
 		},
 	}
@@ -259,7 +261,7 @@ func TestGetPosition(t *testing.T) {
 			userID:      nonFounder.ID,
 			expectError: true,
 			errorCheck: func(t *testing.T, err error) {
-				assert.ErrorIs(t, err, ErrUnauthorized)
+				assert.ErrorIs(t, err, apperrors.ErrAccessDenied)
 			},
 		},
 		{
@@ -268,7 +270,7 @@ func TestGetPosition(t *testing.T) {
 			userID:      founder.ID,
 			expectError: true,
 			errorCheck: func(t *testing.T, err error) {
-				assert.ErrorIs(t, err, ErrPositionNotFound)
+				assert.ErrorIs(t, err, apperrors.ErrPositionNotFound)
 			},
 		},
 	}
@@ -399,12 +401,12 @@ func TestUpdatePosition(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		input    UpdatePositionInput
+		input    dto.UpdatePositionRequest
 		checkPos func(*testing.T, *models.Position)
 	}{
 		{
 			name: "Update all fields",
-			input: UpdatePositionInput{
+			input: dto.UpdatePositionRequest{
 				Name:        "New Name",
 				IsAdmin:     boolPtr(true),
 				Description: stringPtr("New Description"),
@@ -417,7 +419,7 @@ func TestUpdatePosition(t *testing.T) {
 		},
 		{
 			name: "Partial update",
-			input: UpdatePositionInput{
+			input: dto.UpdatePositionRequest{
 				Name: "Another Name",
 			},
 			checkPos: func(t *testing.T, pos *models.Position) {
@@ -490,7 +492,7 @@ func TestDeletePosition(t *testing.T) {
 			userID:      nonFounder.ID,
 			expectError: true,
 			errorCheck: func(t *testing.T, err error) {
-				assert.ErrorIs(t, err, ErrAccessDenied)
+				assert.ErrorIs(t, err, apperrors.ErrAccessDenied)
 			},
 		},
 	}

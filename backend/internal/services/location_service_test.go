@@ -3,6 +3,8 @@ package services
 import (
 	"testing"
 
+	"github.com/osi-oss/osi/internal/apperrors"
+	"github.com/osi-oss/osi/internal/dto"
 	"github.com/osi-oss/osi/internal/models"
 	"github.com/osi-oss/osi/internal/repository"
 	"github.com/stretchr/testify/assert"
@@ -92,7 +94,7 @@ func TestCreateLocation(t *testing.T) {
 		name        string
 		orgID       int64
 		userID      int64
-		input       CreateLocationInput
+		input       dto.CreateLocationRequest
 		expectError bool
 		errorCheck  func(*testing.T, error)
 		checkLoc    func(*testing.T, *models.Location)
@@ -101,7 +103,7 @@ func TestCreateLocation(t *testing.T) {
 			name:   "Success - Create location by founder",
 			orgID:  org.ID,
 			userID: founder.ID,
-			input: CreateLocationInput{
+			input: dto.CreateLocationRequest{
 				Name:       "Main Office",
 				Address:    stringPtr("123 Main St, Moscow"),
 				Source:     "manual",
@@ -123,7 +125,7 @@ func TestCreateLocation(t *testing.T) {
 			name:   "Success - Create location without address",
 			orgID:  org.ID,
 			userID: founder.ID,
-			input: CreateLocationInput{
+			input: dto.CreateLocationRequest{
 				Name:       "Branch Office",
 				Address:    nil,
 				Source:     "registry",
@@ -142,7 +144,7 @@ func TestCreateLocation(t *testing.T) {
 			name:   "Error - Non-founder cannot create location",
 			orgID:  org.ID,
 			userID: nonFounder.ID,
-			input: CreateLocationInput{
+			input: dto.CreateLocationRequest{
 				Name:       "Unauthorized Location",
 				Address:    stringPtr("456 Side St"),
 				Source:     "manual",
@@ -150,14 +152,14 @@ func TestCreateLocation(t *testing.T) {
 			},
 			expectError: true,
 			errorCheck: func(t *testing.T, err error) {
-				assert.ErrorIs(t, err, ErrAccessDenied)
+				assert.ErrorIs(t, err, apperrors.ErrAccessDenied)
 			},
 		},
 		{
 			name:   "Error - Organization not found",
 			orgID:  99999,
 			userID: founder.ID,
-			input: CreateLocationInput{
+			input: dto.CreateLocationRequest{
 				Name:       "Nonexistent Org Location",
 				Address:    stringPtr("789 Wrong St"),
 				Source:     "manual",
@@ -165,8 +167,8 @@ func TestCreateLocation(t *testing.T) {
 			},
 			expectError: true,
 			errorCheck: func(t *testing.T, err error) {
-				// When organization doesn't exist, user has no access, so ErrAccessDenied is returned
-				assert.ErrorIs(t, err, ErrAccessDenied)
+				// When organization doesn't exist, user has no access, so apperrors.ErrAccessDenied is returned
+				assert.ErrorIs(t, err, apperrors.ErrAccessDenied)
 			},
 		},
 	}
@@ -246,7 +248,7 @@ func TestGetLocation(t *testing.T) {
 			userID:      nonFounder.ID,
 			expectError: true,
 			errorCheck: func(t *testing.T, err error) {
-				assert.ErrorIs(t, err, ErrUnauthorized)
+				assert.ErrorIs(t, err, apperrors.ErrAccessDenied)
 			},
 		},
 		{
@@ -255,7 +257,7 @@ func TestGetLocation(t *testing.T) {
 			userID:      founder.ID,
 			expectError: true,
 			errorCheck: func(t *testing.T, err error) {
-				assert.ErrorIs(t, err, ErrLocationNotFound)
+				assert.ErrorIs(t, err, apperrors.ErrLocationNotFound)
 			},
 		},
 	}
@@ -351,7 +353,7 @@ func TestGetOrganizationLocations(t *testing.T) {
 			userID:      nonFounder.ID,
 			expectError: true,
 			errorCheck: func(t *testing.T, err error) {
-				assert.ErrorIs(t, err, ErrUnauthorized)
+				assert.ErrorIs(t, err, apperrors.ErrAccessDenied)
 			},
 		},
 		{
@@ -360,8 +362,8 @@ func TestGetOrganizationLocations(t *testing.T) {
 			userID:      founder.ID,
 			expectError: true,
 			errorCheck: func(t *testing.T, err error) {
-				// When organization doesn't exist, UserHasAccessToOrganization returns false -> ErrUnauthorized
-				assert.ErrorIs(t, err, ErrUnauthorized)
+				// When organization doesn't exist, UserHasAccessToOrganization returns false -> apperrors.ErrAccessDenied
+				assert.ErrorIs(t, err, apperrors.ErrAccessDenied)
 			},
 		},
 	}
@@ -420,7 +422,7 @@ func TestUpdateLocation(t *testing.T) {
 		name        string
 		locationID  int64
 		userID      int64
-		input       UpdateLocationInput
+		input       dto.UpdateLocationRequest
 		expectError bool
 		errorCheck  func(*testing.T, error)
 		checkLoc    func(*testing.T, *models.Location)
@@ -429,7 +431,7 @@ func TestUpdateLocation(t *testing.T) {
 			name:       "Success - Update all fields",
 			locationID: location.ID,
 			userID:     founder.ID,
-			input: UpdateLocationInput{
+			input: dto.UpdateLocationRequest{
 				Name:       "New Name",
 				Address:    stringPtr("New Address"),
 				Source:     "registry",
@@ -449,7 +451,7 @@ func TestUpdateLocation(t *testing.T) {
 			name:       "Success - Partial update (only name)",
 			locationID: location.ID,
 			userID:     founder.ID,
-			input: UpdateLocationInput{
+			input: dto.UpdateLocationRequest{
 				Name: "Partially Updated",
 			},
 			expectError: false,
@@ -462,24 +464,24 @@ func TestUpdateLocation(t *testing.T) {
 			name:       "Error - Non-founder cannot update",
 			locationID: location.ID,
 			userID:     nonFounder.ID,
-			input: UpdateLocationInput{
+			input: dto.UpdateLocationRequest{
 				Name: "Unauthorized Update",
 			},
 			expectError: true,
 			errorCheck: func(t *testing.T, err error) {
-				assert.ErrorIs(t, err, ErrAccessDenied)
+				assert.ErrorIs(t, err, apperrors.ErrAccessDenied)
 			},
 		},
 		{
 			name:       "Error - Location not found",
 			locationID: 99999,
 			userID:     founder.ID,
-			input: UpdateLocationInput{
+			input: dto.UpdateLocationRequest{
 				Name: "Nonexistent",
 			},
 			expectError: true,
 			errorCheck: func(t *testing.T, err error) {
-				assert.ErrorIs(t, err, ErrLocationNotFound)
+				assert.ErrorIs(t, err, apperrors.ErrLocationNotFound)
 			},
 		},
 	}
@@ -561,7 +563,7 @@ func TestDeleteLocation(t *testing.T) {
 			userID:      nonFounder.ID,
 			expectError: true,
 			errorCheck: func(t *testing.T, err error) {
-				assert.ErrorIs(t, err, ErrAccessDenied)
+				assert.ErrorIs(t, err, apperrors.ErrAccessDenied)
 			},
 		},
 		{
@@ -573,7 +575,7 @@ func TestDeleteLocation(t *testing.T) {
 			userID:      founder.ID,
 			expectError: true,
 			errorCheck: func(t *testing.T, err error) {
-				assert.ErrorIs(t, err, ErrLocationNotFound)
+				assert.ErrorIs(t, err, apperrors.ErrLocationNotFound)
 			},
 		},
 	}
