@@ -20,13 +20,7 @@ func NewPositionController(positionService *services.PositionService) *PositionC
 
 // CreatePosition создает новую позицию
 func (ctrl *PositionController) CreatePosition(c *gin.Context) {
-	userID, err := helpers.GetUserID(c)
-	if err != nil {
-		helpers.RespondError(c, err)
-		return
-	}
-
-	orgID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	orgID, err := strconv.ParseInt(c.Param("orgId"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid organization id"})
 		return
@@ -38,7 +32,7 @@ func (ctrl *PositionController) CreatePosition(c *gin.Context) {
 		return
 	}
 
-	position, err := ctrl.positionService.CreatePosition(orgID, userID, req)
+	position, err := ctrl.positionService.CreatePosition(orgID, req)
 	if err != nil {
 		helpers.RespondError(c, err)
 		return
@@ -49,19 +43,13 @@ func (ctrl *PositionController) CreatePosition(c *gin.Context) {
 
 // GetOrganizationPositions получает все позиции организации
 func (ctrl *PositionController) GetOrganizationPositions(c *gin.Context) {
-	userID, err := helpers.GetUserID(c)
-	if err != nil {
-		helpers.RespondError(c, err)
-		return
-	}
-
-	orgID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	orgID, err := strconv.ParseInt(c.Param("orgId"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid organization id"})
 		return
 	}
 
-	positions, err := ctrl.positionService.GetOrganizationPositions(orgID, userID)
+	positions, err := ctrl.positionService.GetOrganizationPositions(orgID)
 	if err != nil {
 		helpers.RespondError(c, err)
 		return
@@ -72,19 +60,13 @@ func (ctrl *PositionController) GetOrganizationPositions(c *gin.Context) {
 
 // GetDepartmentPositions получает все позиции отдела
 func (ctrl *PositionController) GetDepartmentPositions(c *gin.Context) {
-	userID, err := helpers.GetUserID(c)
-	if err != nil {
-		helpers.RespondError(c, err)
-		return
-	}
-
-	deptID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	deptID, err := strconv.ParseInt(c.Param("deptId"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid department id"})
 		return
 	}
 
-	positions, err := ctrl.positionService.GetDepartmentPositions(deptID, userID)
+	positions, err := ctrl.positionService.GetDepartmentPositions(deptID)
 	if err != nil {
 		helpers.RespondError(c, err)
 		return
@@ -95,19 +77,13 @@ func (ctrl *PositionController) GetDepartmentPositions(c *gin.Context) {
 
 // GetPosition получает позицию по ID
 func (ctrl *PositionController) GetPosition(c *gin.Context) {
-	userID, err := helpers.GetUserID(c)
-	if err != nil {
-		helpers.RespondError(c, err)
-		return
-	}
-
-	posID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	posID, err := strconv.ParseInt(c.Param("posId"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid position id"})
 		return
 	}
 
-	position, err := ctrl.positionService.GetPosition(posID, userID)
+	position, err := ctrl.positionService.GetPosition(posID)
 	if err != nil {
 		helpers.RespondError(c, err)
 		return
@@ -118,13 +94,7 @@ func (ctrl *PositionController) GetPosition(c *gin.Context) {
 
 // UpdatePosition обновляет позицию
 func (ctrl *PositionController) UpdatePosition(c *gin.Context) {
-	userID, err := helpers.GetUserID(c)
-	if err != nil {
-		helpers.RespondError(c, err)
-		return
-	}
-
-	posID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	posID, err := strconv.ParseInt(c.Param("posId"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid position id"})
 		return
@@ -136,7 +106,7 @@ func (ctrl *PositionController) UpdatePosition(c *gin.Context) {
 		return
 	}
 
-	position, err := ctrl.positionService.UpdatePosition(posID, userID, req)
+	position, err := ctrl.positionService.UpdatePosition(posID, req)
 	if err != nil {
 		helpers.RespondError(c, err)
 		return
@@ -147,19 +117,13 @@ func (ctrl *PositionController) UpdatePosition(c *gin.Context) {
 
 // DeletePosition удаляет позицию
 func (ctrl *PositionController) DeletePosition(c *gin.Context) {
-	userID, err := helpers.GetUserID(c)
-	if err != nil {
-		helpers.RespondError(c, err)
-		return
-	}
-
-	posID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	posID, err := strconv.ParseInt(c.Param("posId"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid position id"})
 		return
 	}
 
-	if err := ctrl.positionService.DeletePosition(posID, userID); err != nil {
+	if err := ctrl.positionService.DeletePosition(posID); err != nil {
 		helpers.RespondError(c, err)
 		return
 	}

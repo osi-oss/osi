@@ -74,35 +74,26 @@ func createLocationTestOrg(t *testing.T, db *gorm.DB, userID int64, name string)
 
 // TestCreateLocation тестирует создание локации
 func TestCreateLocation(t *testing.T) {
-	db := setupDepartmentTestDB(t)
+	db := setupLocationTestDB(t)
 	orgRepo := repository.NewOrganizationRepository(db)
-	permissionRepo := repository.NewPermissionRepository(db)
 	locationRepo := repository.NewLocationRepository(db)
-	// departmentRepo := repository.NewDepartmentRepository(db)
-	employeeRepo := repository.NewEmployeeRepository(db)
 
-	permissionService := NewPermissionService(permissionRepo, orgRepo, employeeRepo)
-	orgService := NewOrganizationService(orgRepo)
-	locationService := NewLocationService(locationRepo, orgService, permissionService)
-	// departmentService := NewDepartmentService(departmentRepo, locationService, permissionService)
+	locationService := NewLocationService(locationRepo, orgRepo)
 
 	founder := createLocationTestUser(t, db, "founder@example.com")
-	nonFounder := createLocationTestUser(t, db, "nonfounder@example.com")
 	org := createLocationTestOrg(t, db, founder.ID, "Test Org")
 
 	tests := []struct {
 		name        string
 		orgID       int64
-		userID      int64
 		input       dto.CreateLocationRequest
 		expectError bool
 		errorCheck  func(*testing.T, error)
 		checkLoc    func(*testing.T, *models.Location)
 	}{
 		{
-			name:   "Success - Create location by founder",
-			orgID:  org.ID,
-			userID: founder.ID,
+			name:  "Success - Create location with all fields",
+			orgID: org.ID,
 			input: dto.CreateLocationRequest{
 				Name:       "Main Office",
 				Address:    stringPtr("123 Main St, Moscow"),
@@ -122,9 +113,8 @@ func TestCreateLocation(t *testing.T) {
 			},
 		},
 		{
-			name:   "Success - Create location without address",
-			orgID:  org.ID,
-			userID: founder.ID,
+			name:  "Success - Create location without address",
+			orgID: org.ID,
 			input: dto.CreateLocationRequest{
 				Name:       "Branch Office",
 				Address:    nil,
@@ -141,24 +131,8 @@ func TestCreateLocation(t *testing.T) {
 			},
 		},
 		{
-			name:   "Error - Non-founder cannot create location",
-			orgID:  org.ID,
-			userID: nonFounder.ID,
-			input: dto.CreateLocationRequest{
-				Name:       "Unauthorized Location",
-				Address:    stringPtr("456 Side St"),
-				Source:     "manual",
-				IsVerified: false,
-			},
-			expectError: true,
-			errorCheck: func(t *testing.T, err error) {
-				assert.ErrorIs(t, err, apperrors.ErrAccessDenied)
-			},
-		},
-		{
-			name:   "Error - Organization not found",
-			orgID:  99999,
-			userID: founder.ID,
+			name:  "Error - Organization not found",
+			orgID: 99999,
 			input: dto.CreateLocationRequest{
 				Name:       "Nonexistent Org Location",
 				Address:    stringPtr("789 Wrong St"),
@@ -167,15 +141,14 @@ func TestCreateLocation(t *testing.T) {
 			},
 			expectError: true,
 			errorCheck: func(t *testing.T, err error) {
-				// When organization doesn't exist, user has no access, so apperrors.ErrAccessDenied is returned
-				assert.ErrorIs(t, err, apperrors.ErrAccessDenied)
+				assert.ErrorIs(t, err, apperrors.ErrOrganizationNotFound)
 			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			location, err := locationService.CreateLocation(tt.orgID, tt.userID, tt.input)
+			location, err := locationService.CreateLocation(tt.orgID, tt.input)
 
 			if tt.expectError {
 				require.Error(t, err)
@@ -195,20 +168,13 @@ func TestCreateLocation(t *testing.T) {
 
 // TestGetLocation тестирует получение локации по ID
 func TestGetLocation(t *testing.T) {
-	db := setupDepartmentTestDB(t)
+	db := setupLocationTestDB(t)
 	orgRepo := repository.NewOrganizationRepository(db)
-	permissionRepo := repository.NewPermissionRepository(db)
 	locationRepo := repository.NewLocationRepository(db)
-	// departmentRepo := repository.NewDepartmentRepository(db)
-	employeeRepo := repository.NewEmployeeRepository(db)
 
-	permissionService := NewPermissionService(permissionRepo, orgRepo, employeeRepo)
-	orgService := NewOrganizationService(orgRepo)
-	locationService := NewLocationService(locationRepo, orgService, permissionService)
-	// departmentService := NewDepartmentService(departmentRepo, locationService, permissionService)
+	locationService := NewLocationService(locationRepo, orgRepo)
 
 	founder := createLocationTestUser(t, db, "founder@example.com")
-	nonFounder := createLocationTestUser(t, db, "nonfounder@example.com")
 	org := createLocationTestOrg(t, db, founder.ID, "Test Org")
 
 	// Создаем локацию
@@ -226,15 +192,13 @@ func TestGetLocation(t *testing.T) {
 	tests := []struct {
 		name        string
 		locationID  int64
-		userID      int64
 		expectError bool
 		errorCheck  func(*testing.T, error)
 		checkLoc    func(*testing.T, *models.Location)
 	}{
 		{
-			name:        "Success - Get location by founder",
+			name:        "Success - Get location by ID",
 			locationID:  location.ID,
-			userID:      founder.ID,
 			expectError: false,
 			checkLoc: func(t *testing.T, loc *models.Location) {
 				assert.Equal(t, location.ID, loc.ID)
@@ -243,18 +207,8 @@ func TestGetLocation(t *testing.T) {
 			},
 		},
 		{
-			name:        "Error - Non-founder cannot get location",
-			locationID:  location.ID,
-			userID:      nonFounder.ID,
-			expectError: true,
-			errorCheck: func(t *testing.T, err error) {
-				assert.ErrorIs(t, err, apperrors.ErrAccessDenied)
-			},
-		},
-		{
 			name:        "Error - Location not found",
 			locationID:  99999,
-			userID:      founder.ID,
 			expectError: true,
 			errorCheck: func(t *testing.T, err error) {
 				assert.ErrorIs(t, err, apperrors.ErrLocationNotFound)
@@ -264,7 +218,7 @@ func TestGetLocation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			loc, err := locationService.GetLocation(tt.locationID, tt.userID)
+			loc, err := locationService.GetLocation(tt.locationID)
 
 			if tt.expectError {
 				require.Error(t, err)
@@ -284,20 +238,13 @@ func TestGetLocation(t *testing.T) {
 
 // TestGetOrganizationLocations тестирует получение всех локаций организации
 func TestGetOrganizationLocations(t *testing.T) {
-	db := setupDepartmentTestDB(t)
+	db := setupLocationTestDB(t)
 	orgRepo := repository.NewOrganizationRepository(db)
-	permissionRepo := repository.NewPermissionRepository(db)
 	locationRepo := repository.NewLocationRepository(db)
-	// departmentRepo := repository.NewDepartmentRepository(db)
-	employeeRepo := repository.NewEmployeeRepository(db)
 
-	permissionService := NewPermissionService(permissionRepo, orgRepo, employeeRepo)
-	orgService := NewOrganizationService(orgRepo)
-	locationService := NewLocationService(locationRepo, orgService, permissionService)
-	// departmentService := NewDepartmentService(departmentRepo, locationService, permissionService)
+	locationService := NewLocationService(locationRepo, orgRepo)
 
 	founder := createLocationTestUser(t, db, "founder@example.com")
-	nonFounder := createLocationTestUser(t, db, "nonfounder@example.com")
 	org := createLocationTestOrg(t, db, founder.ID, "Test Org")
 
 	// Создаем несколько локаций
@@ -321,23 +268,21 @@ func TestGetOrganizationLocations(t *testing.T) {
 			IsActive:       false,
 		},
 	}
-	for _, loc := range locations {
-		err := db.Create(&loc).Error
+	for i := range locations {
+		err := db.Create(&locations[i]).Error
 		require.NoError(t, err)
 	}
 
 	tests := []struct {
 		name        string
 		orgID       int64
-		userID      int64
 		expectError bool
 		errorCheck  func(*testing.T, error)
 		checkLocs   func(*testing.T, []models.Location)
 	}{
 		{
-			name:        "Success - Get all locations by founder",
+			name:        "Success - Get all locations",
 			orgID:       org.ID,
-			userID:      founder.ID,
 			expectError: false,
 			checkLocs: func(t *testing.T, locs []models.Location) {
 				assert.Len(t, locs, 3)
@@ -348,29 +293,18 @@ func TestGetOrganizationLocations(t *testing.T) {
 			},
 		},
 		{
-			name:        "Error - Non-founder cannot get locations",
-			orgID:       org.ID,
-			userID:      nonFounder.ID,
-			expectError: true,
-			errorCheck: func(t *testing.T, err error) {
-				assert.ErrorIs(t, err, apperrors.ErrAccessDenied)
-			},
-		},
-		{
-			name:        "Error - Organization not found",
-			orgID:       99999,
-			userID:      founder.ID,
-			expectError: true,
-			errorCheck: func(t *testing.T, err error) {
-				// When organization doesn't exist, UserHasAccessToOrganization returns false -> apperrors.ErrAccessDenied
-				assert.ErrorIs(t, err, apperrors.ErrAccessDenied)
+			name:        "Success - Empty list for org without locations",
+			orgID:       99999, // Несуществующая организация вернёт пустой список
+			expectError: false,
+			checkLocs: func(t *testing.T, locs []models.Location) {
+				assert.Len(t, locs, 0)
 			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			locs, err := locationService.GetOrganizationLocations(tt.orgID, tt.userID)
+			locs, err := locationService.GetOrganizationLocations(tt.orgID)
 
 			if tt.expectError {
 				require.Error(t, err)
@@ -390,20 +324,13 @@ func TestGetOrganizationLocations(t *testing.T) {
 
 // TestUpdateLocation тестирует обновление локации
 func TestUpdateLocation(t *testing.T) {
-	db := setupDepartmentTestDB(t)
+	db := setupLocationTestDB(t)
 	orgRepo := repository.NewOrganizationRepository(db)
-	permissionRepo := repository.NewPermissionRepository(db)
 	locationRepo := repository.NewLocationRepository(db)
-	// departmentRepo := repository.NewDepartmentRepository(db)
-	employeeRepo := repository.NewEmployeeRepository(db)
 
-	permissionService := NewPermissionService(permissionRepo, orgRepo, employeeRepo)
-	orgService := NewOrganizationService(orgRepo)
-	locationService := NewLocationService(locationRepo, orgService, permissionService)
-	// departmentService := NewDepartmentService(departmentRepo, locationService, permissionService)
+	locationService := NewLocationService(locationRepo, orgRepo)
 
 	founder := createLocationTestUser(t, db, "founder@example.com")
-	nonFounder := createLocationTestUser(t, db, "nonfounder@example.com")
 	org := createLocationTestOrg(t, db, founder.ID, "Test Org")
 
 	// Создаем локацию
@@ -421,7 +348,6 @@ func TestUpdateLocation(t *testing.T) {
 	tests := []struct {
 		name        string
 		locationID  int64
-		userID      int64
 		input       dto.UpdateLocationRequest
 		expectError bool
 		errorCheck  func(*testing.T, error)
@@ -430,7 +356,6 @@ func TestUpdateLocation(t *testing.T) {
 		{
 			name:       "Success - Update all fields",
 			locationID: location.ID,
-			userID:     founder.ID,
 			input: dto.UpdateLocationRequest{
 				Name:       "New Name",
 				Address:    stringPtr("New Address"),
@@ -450,32 +375,17 @@ func TestUpdateLocation(t *testing.T) {
 		{
 			name:       "Success - Partial update (only name)",
 			locationID: location.ID,
-			userID:     founder.ID,
 			input: dto.UpdateLocationRequest{
 				Name: "Partially Updated",
 			},
 			expectError: false,
 			checkLoc: func(t *testing.T, loc *models.Location) {
 				assert.Equal(t, "Partially Updated", loc.Name)
-				// Другие поля должны остаться без изменений
-			},
-		},
-		{
-			name:       "Error - Non-founder cannot update",
-			locationID: location.ID,
-			userID:     nonFounder.ID,
-			input: dto.UpdateLocationRequest{
-				Name: "Unauthorized Update",
-			},
-			expectError: true,
-			errorCheck: func(t *testing.T, err error) {
-				assert.ErrorIs(t, err, apperrors.ErrAccessDenied)
 			},
 		},
 		{
 			name:       "Error - Location not found",
 			locationID: 99999,
-			userID:     founder.ID,
 			input: dto.UpdateLocationRequest{
 				Name: "Nonexistent",
 			},
@@ -488,7 +398,7 @@ func TestUpdateLocation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			loc, err := locationService.UpdateLocation(tt.locationID, tt.userID, tt.input)
+			loc, err := locationService.UpdateLocation(tt.locationID, tt.input)
 
 			if tt.expectError {
 				require.Error(t, err)
@@ -508,31 +418,23 @@ func TestUpdateLocation(t *testing.T) {
 
 // TestDeleteLocation тестирует удаление локации
 func TestDeleteLocation(t *testing.T) {
-	db := setupDepartmentTestDB(t)
+	db := setupLocationTestDB(t)
 	orgRepo := repository.NewOrganizationRepository(db)
-	permissionRepo := repository.NewPermissionRepository(db)
 	locationRepo := repository.NewLocationRepository(db)
-	// departmentRepo := repository.NewDepartmentRepository(db)
-	employeeRepo := repository.NewEmployeeRepository(db)
 
-	permissionService := NewPermissionService(permissionRepo, orgRepo, employeeRepo)
-	orgService := NewOrganizationService(orgRepo)
-	locationService := NewLocationService(locationRepo, orgService, permissionService)
-	// departmentService := NewDepartmentService(departmentRepo, locationService, permissionService)
+	locationService := NewLocationService(locationRepo, orgRepo)
 
 	founder := createLocationTestUser(t, db, "founder@example.com")
-	nonFounder := createLocationTestUser(t, db, "nonfounder@example.com")
 	org := createLocationTestOrg(t, db, founder.ID, "Test Org")
 
 	tests := []struct {
 		name        string
 		setupLoc    func() *models.Location
-		userID      int64
 		expectError bool
 		errorCheck  func(*testing.T, error)
 	}{
 		{
-			name: "Success - Delete location by founder",
+			name: "Success - Delete location",
 			setupLoc: func() *models.Location {
 				loc := &models.Location{
 					OrganizationID: org.ID,
@@ -544,35 +446,13 @@ func TestDeleteLocation(t *testing.T) {
 				require.NoError(t, err)
 				return loc
 			},
-			userID:      founder.ID,
 			expectError: false,
-		},
-		{
-			name: "Error - Non-founder cannot delete",
-			setupLoc: func() *models.Location {
-				loc := &models.Location{
-					OrganizationID: org.ID,
-					Name:           "Protected Location",
-					Source:         "manual",
-					IsActive:       true,
-				}
-				err := db.Create(loc).Error
-				require.NoError(t, err)
-				return loc
-			},
-			userID:      nonFounder.ID,
-			expectError: true,
-			errorCheck: func(t *testing.T, err error) {
-				assert.ErrorIs(t, err, apperrors.ErrAccessDenied)
-			},
 		},
 		{
 			name: "Error - Location not found",
 			setupLoc: func() *models.Location {
-				// Возвращаем локацию с несуществующим ID, но не создаём её в БД
-				return &models.Location{}
+				return &models.Location{} // ID = 0, will use 99999
 			},
-			userID:      founder.ID,
 			expectError: true,
 			errorCheck: func(t *testing.T, err error) {
 				assert.ErrorIs(t, err, apperrors.ErrLocationNotFound)
@@ -583,12 +463,11 @@ func TestDeleteLocation(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			loc := tt.setupLoc()
-			// Для несуществующей локации используем ID 99999
 			locID := loc.ID
 			if locID == 0 {
 				locID = 99999
 			}
-			err := locationService.DeleteLocation(locID, tt.userID)
+			err := locationService.DeleteLocation(locID)
 
 			if tt.expectError {
 				require.Error(t, err)

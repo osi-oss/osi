@@ -20,13 +20,7 @@ func NewDepartmentController(departmentService *services.DepartmentService) *Dep
 
 // CreateDepartment создает новый отдел
 func (ctrl *DepartmentController) CreateDepartment(c *gin.Context) {
-	userID, err := helpers.GetUserID(c)
-	if err != nil {
-		helpers.RespondError(c, err)
-		return
-	}
-
-	locationID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	locationID, err := strconv.ParseInt(c.Param("locId"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid location id"})
 		return
@@ -38,7 +32,7 @@ func (ctrl *DepartmentController) CreateDepartment(c *gin.Context) {
 		return
 	}
 
-	department, err := ctrl.departmentService.CreateDepartment(locationID, userID, req)
+	department, err := ctrl.departmentService.CreateDepartment(locationID, req)
 	if err != nil {
 		helpers.RespondError(c, err)
 		return
@@ -49,19 +43,13 @@ func (ctrl *DepartmentController) CreateDepartment(c *gin.Context) {
 
 // GetLocationDepartments получает все отделы локации
 func (ctrl *DepartmentController) GetLocationDepartments(c *gin.Context) {
-	userID, err := helpers.GetUserID(c)
-	if err != nil {
-		helpers.RespondError(c, err)
-		return
-	}
-
-	locationID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	locationID, err := strconv.ParseInt(c.Param("locId"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid location id"})
 		return
 	}
 
-	departments, err := ctrl.departmentService.GetLocationDepartments(locationID, userID)
+	departments, err := ctrl.departmentService.GetLocationDepartments(locationID)
 	if err != nil {
 		helpers.RespondError(c, err)
 		return
@@ -72,19 +60,13 @@ func (ctrl *DepartmentController) GetLocationDepartments(c *gin.Context) {
 
 // GetDepartment получает отдел по ID
 func (ctrl *DepartmentController) GetDepartment(c *gin.Context) {
-	userID, err := helpers.GetUserID(c)
-	if err != nil {
-		helpers.RespondError(c, err)
-		return
-	}
-
-	deptID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	deptID, err := strconv.ParseInt(c.Param("deptId"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid department id"})
 		return
 	}
 
-	department, err := ctrl.departmentService.GetDepartment(deptID, userID)
+	department, err := ctrl.departmentService.GetDepartment(deptID)
 	if err != nil {
 		helpers.RespondError(c, err)
 		return
@@ -95,13 +77,7 @@ func (ctrl *DepartmentController) GetDepartment(c *gin.Context) {
 
 // UpdateDepartment обновляет отдел
 func (ctrl *DepartmentController) UpdateDepartment(c *gin.Context) {
-	userID, err := helpers.GetUserID(c)
-	if err != nil {
-		helpers.RespondError(c, err)
-		return
-	}
-
-	deptID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	deptID, err := strconv.ParseInt(c.Param("deptId"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid department id"})
 		return
@@ -113,7 +89,7 @@ func (ctrl *DepartmentController) UpdateDepartment(c *gin.Context) {
 		return
 	}
 
-	department, err := ctrl.departmentService.UpdateDepartment(deptID, userID, req)
+	department, err := ctrl.departmentService.UpdateDepartment(deptID, req)
 	if err != nil {
 		helpers.RespondError(c, err)
 		return
@@ -124,19 +100,13 @@ func (ctrl *DepartmentController) UpdateDepartment(c *gin.Context) {
 
 // DeleteDepartment удаляет отдел
 func (ctrl *DepartmentController) DeleteDepartment(c *gin.Context) {
-	userID, err := helpers.GetUserID(c)
-	if err != nil {
-		helpers.RespondError(c, err)
-		return
-	}
-
-	deptID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	deptID, err := strconv.ParseInt(c.Param("deptId"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid department id"})
 		return
 	}
 
-	if err := ctrl.departmentService.DeleteDepartment(deptID, userID); err != nil {
+	if err := ctrl.departmentService.DeleteDepartment(deptID); err != nil {
 		helpers.RespondError(c, err)
 		return
 	}

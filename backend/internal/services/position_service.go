@@ -8,28 +8,16 @@ import (
 )
 
 type PositionService struct {
-	posRepo       *repository.PositionRepository
-	orgService    *OrganizationService
-	permissionSvc *PermissionService
+	posRepo *repository.PositionRepository
 }
 
-func NewPositionService(posRepo *repository.PositionRepository, orgService *OrganizationService, permissionSvc *PermissionService) *PositionService {
+func NewPositionService(posRepo *repository.PositionRepository) *PositionService {
 	return &PositionService{
-		posRepo:       posRepo,
-		orgService:    orgService,
-		permissionSvc: permissionSvc,
+		posRepo: posRepo,
 	}
 }
 
-func (s *PositionService) CreatePosition(orgID int64, userID int64, input dto.CreatePositionRequest) (*models.Position, error) {
-	hasPermission, err := s.permissionSvc.UserHasPermission(userID, orgID, "positions.create")
-	if err != nil {
-		return nil, err
-	}
-	if !hasPermission {
-		return nil, apperrors.ErrAccessDenied
-	}
-
+func (s *PositionService) CreatePosition(orgID int64, input dto.CreatePositionRequest) (*models.Position, error) {
 	position := &models.Position{
 		OrganizationID: orgID,
 		DepartmentID:   input.DepartmentID,
@@ -45,68 +33,26 @@ func (s *PositionService) CreatePosition(orgID int64, userID int64, input dto.Cr
 	return s.posRepo.GetByID(position.ID)
 }
 
-func (s *PositionService) GetPosition(posID int64, userID int64) (*models.Position, error) {
+func (s *PositionService) GetPosition(posID int64) (*models.Position, error) {
 	pos, err := s.posRepo.GetByID(posID)
 	if err != nil {
 		return nil, apperrors.ErrPositionNotFound
 	}
-
-	hasAccess, err := s.orgService.UserHasAccessToOrganization(userID, pos.OrganizationID)
-	if err != nil {
-		return nil, err
-	}
-	if !hasAccess {
-		return nil, apperrors.ErrForbidden
-	}
-
 	return pos, nil
 }
 
-func (s *PositionService) GetOrganizationPositions(orgID int64, userID int64) ([]models.Position, error) {
-	hasAccess, err := s.orgService.UserHasAccessToOrganization(userID, orgID)
-	if err != nil {
-		return nil, err
-	}
-	if !hasAccess {
-		return nil, apperrors.ErrForbidden
-	}
-
+func (s *PositionService) GetOrganizationPositions(orgID int64) ([]models.Position, error) {
 	return s.posRepo.GetByOrganizationID(orgID)
 }
 
-func (s *PositionService) GetDepartmentPositions(deptID int64, userID int64) ([]models.Position, error) {
-	positions, err := s.posRepo.GetByDepartmentID(deptID)
-	if err != nil {
-		return nil, err
-	}
-
-	if len(positions) == 0 {
-		return positions, nil
-	}
-
-	hasAccess, err := s.orgService.UserHasAccessToOrganization(userID, positions[0].OrganizationID)
-	if err != nil {
-		return nil, err
-	}
-	if !hasAccess {
-		return nil, apperrors.ErrForbidden
-	}
-
-	return positions, nil
+func (s *PositionService) GetDepartmentPositions(deptID int64) ([]models.Position, error) {
+	return s.posRepo.GetByDepartmentID(deptID)
 }
 
-func (s *PositionService) UpdatePosition(posID int64, userID int64, input dto.UpdatePositionRequest) (*models.Position, error) {
+func (s *PositionService) UpdatePosition(posID int64, input dto.UpdatePositionRequest) (*models.Position, error) {
 	pos, err := s.posRepo.GetByID(posID)
 	if err != nil {
 		return nil, apperrors.ErrPositionNotFound
-	}
-
-	hasPermission, err := s.permissionSvc.UserHasPermission(userID, pos.OrganizationID, "positions.update")
-	if err != nil {
-		return nil, err
-	}
-	if !hasPermission {
-		return nil, apperrors.ErrAccessDenied
 	}
 
 	if input.Name != "" {
@@ -129,18 +75,10 @@ func (s *PositionService) UpdatePosition(posID int64, userID int64, input dto.Up
 	return s.posRepo.GetByID(pos.ID)
 }
 
-func (s *PositionService) DeletePosition(posID int64, userID int64) error {
-	pos, err := s.posRepo.GetByID(posID)
+func (s *PositionService) DeletePosition(posID int64) error {
+	_, err := s.posRepo.GetByID(posID)
 	if err != nil {
 		return apperrors.ErrPositionNotFound
-	}
-
-	hasPermission, err := s.permissionSvc.UserHasPermission(userID, pos.OrganizationID, "positions.delete")
-	if err != nil {
-		return err
-	}
-	if !hasPermission {
-		return apperrors.ErrAccessDenied
 	}
 
 	return s.posRepo.Delete(posID)

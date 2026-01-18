@@ -8,31 +8,22 @@ import (
 )
 
 type DepartmentService struct {
-	deptRepo        *repository.DepartmentRepository
-	locationService *LocationService
-	permissionSvc   *PermissionService
+	deptRepo     *repository.DepartmentRepository
+	locationRepo *repository.LocationRepository
 }
 
-func NewDepartmentService(deptRepo *repository.DepartmentRepository, locationService *LocationService, permissionSvc *PermissionService) *DepartmentService {
+func NewDepartmentService(deptRepo *repository.DepartmentRepository, locationRepo *repository.LocationRepository) *DepartmentService {
 	return &DepartmentService{
-		deptRepo:        deptRepo,
-		locationService: locationService,
-		permissionSvc:   permissionSvc,
+		deptRepo:     deptRepo,
+		locationRepo: locationRepo,
 	}
 }
 
-func (s *DepartmentService) CreateDepartment(locationID int64, userID int64, input dto.CreateDepartmentRequest) (*models.Department, error) {
-	location, err := s.locationService.GetLocation(locationID, userID)
+func (s *DepartmentService) CreateDepartment(locationID int64, input dto.CreateDepartmentRequest) (*models.Department, error) {
+	// Check if location exists
+	_, err := s.locationRepo.GetByID(locationID)
 	if err != nil {
-		return nil, err
-	}
-
-	hasPermission, err := s.permissionSvc.UserHasPermission(userID, location.OrganizationID, "departments.create")
-	if err != nil {
-		return nil, err
-	}
-	if !hasPermission {
-		return nil, apperrors.ErrAccessDenied
+		return nil, apperrors.ErrLocationNotFound
 	}
 
 	if input.ParentID != nil {
@@ -46,7 +37,7 @@ func (s *DepartmentService) CreateDepartment(locationID int64, userID int64, inp
 	}
 
 	department := &models.Department{
-		LocationID:  location.ID,
+		LocationID:  locationID,
 		ParentID:    input.ParentID,
 		Name:        input.Name,
 		Description: input.Description,
@@ -59,46 +50,22 @@ func (s *DepartmentService) CreateDepartment(locationID int64, userID int64, inp
 	return s.deptRepo.GetByID(department.ID)
 }
 
-func (s *DepartmentService) GetDepartment(deptID int64, userID int64) (*models.Department, error) {
+func (s *DepartmentService) GetDepartment(deptID int64) (*models.Department, error) {
 	dept, err := s.deptRepo.GetByID(deptID)
 	if err != nil {
 		return nil, apperrors.ErrDepartmentNotFound
 	}
-
-	_, err = s.locationService.GetLocation(dept.LocationID, userID)
-	if err != nil {
-		return nil, err
-	}
-
 	return dept, nil
 }
 
-func (s *DepartmentService) GetLocationDepartments(locationID int64, userID int64) ([]models.Department, error) {
-	_, err := s.locationService.GetLocation(locationID, userID)
-	if err != nil {
-		return nil, err
-	}
-
+func (s *DepartmentService) GetLocationDepartments(locationID int64) ([]models.Department, error) {
 	return s.deptRepo.GetByLocationID(locationID)
 }
 
-func (s *DepartmentService) UpdateDepartment(deptID int64, userID int64, input dto.UpdateDepartmentRequest) (*models.Department, error) {
+func (s *DepartmentService) UpdateDepartment(deptID int64, input dto.UpdateDepartmentRequest) (*models.Department, error) {
 	dept, err := s.deptRepo.GetByID(deptID)
 	if err != nil {
 		return nil, apperrors.ErrDepartmentNotFound
-	}
-
-	location, err := s.locationService.GetLocation(dept.LocationID, userID)
-	if err != nil {
-		return nil, err
-	}
-
-	hasPermission, err := s.permissionSvc.UserHasPermission(userID, location.OrganizationID, "departments.update")
-	if err != nil {
-		return nil, err
-	}
-	if !hasPermission {
-		return nil, apperrors.ErrAccessDenied
 	}
 
 	if input.ParentID != nil {
@@ -131,23 +98,10 @@ func (s *DepartmentService) UpdateDepartment(deptID int64, userID int64, input d
 	return s.deptRepo.GetByID(dept.ID)
 }
 
-func (s *DepartmentService) DeleteDepartment(deptID int64, userID int64) error {
+func (s *DepartmentService) DeleteDepartment(deptID int64) error {
 	dept, err := s.deptRepo.GetByID(deptID)
 	if err != nil {
 		return apperrors.ErrDepartmentNotFound
-	}
-
-	location, err := s.locationService.GetLocation(dept.LocationID, userID)
-	if err != nil {
-		return err
-	}
-
-	hasPermission, err := s.permissionSvc.UserHasPermission(userID, location.OrganizationID, "departments.delete")
-	if err != nil {
-		return err
-	}
-	if !hasPermission {
-		return apperrors.ErrAccessDenied
 	}
 
 	if len(dept.Children) > 0 {

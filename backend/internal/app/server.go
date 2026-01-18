@@ -53,33 +53,33 @@ func Start(cfg *config.Config) {
 		cfg.BaseURL,
 	)
 
+	// Создание сервиса прав
+	permissionService := services.NewPermissionService(permissionRepo, orgRepo, employeeRepo)
+
 	// Создание сервиса организаций
 	orgService := services.NewOrganizationService(orgRepo)
 
-	// Создание сервиса прав (требует orgRepo и employeeRepo)
-	permissionService := services.NewPermissionService(permissionRepo, orgRepo, employeeRepo)
+	// Создание сервиса локаций (без permissionSvc)
+	locationService := services.NewLocationService(locationRepo, orgRepo)
 
-	// Установка PermissionService в OrganizationService (избегаем циклической зависимости)
-	orgService.SetPermissionService(permissionService)
+	// Создание сервиса отделов (без permissionSvc)
+	departmentService := services.NewDepartmentService(departmentRepo, locationRepo)
 
-	// Создание сервиса локаций
-	locationService := services.NewLocationService(locationRepo, orgService, permissionService)
+	// Создание сервиса позиций (без permissionSvc)
+	positionService := services.NewPositionService(positionRepo)
 
-	// Создание сервиса отделов
-	departmentService := services.NewDepartmentService(departmentRepo, locationService, permissionService)
+	// Создание сервиса членов организации (без permissionSvc)
+	memberService := services.NewMemberService(orgRepo, userRepo)
 
-	// Создание сервиса позиций
-	positionService := services.NewPositionService(positionRepo, orgService, permissionService)
-
-	// Создание сервиса членов организации
-	memberService := services.NewMemberService(orgRepo, userRepo, permissionService)
-
-	// Создание сервиса сотрудников
-	employeeService := services.NewEmployeeService(employeeRepo, orgRepo, positionRepo, permissionService)
+	// Создание сервиса сотрудников (без permissionSvc)
+	employeeService := services.NewEmployeeService(employeeRepo, orgRepo, positionRepo)
 
 	// TODO: Create controllers for memberService and employeeService
 	_ = memberService
 	_ = employeeService
+
+	// Создание middleware
+	permMiddleware := middleware.NewPermissionMiddleware(permissionService)
 
 	userController := controllers.NewUserController(userService)
 	orgController := controllers.NewOrganizationController(orgService)
@@ -101,7 +101,6 @@ func Start(cfg *config.Config) {
 		ctx.JSON(200, gin.H{"message": "pong"})
 	})
 
-	// В server.go добавить:
 	api := r.Group("/api")
 	{
 		// Открытые роуты
@@ -110,44 +109,82 @@ func Start(cfg *config.Config) {
 		api.POST("/forgot-password", userController.RequestPasswordReset)
 
 		// Сброс пароля
-		api.GET("/reset-password/validate", userController.ValidateResetToken) // Проверка токена
-		api.POST("/reset-password", userController.ResetPassword)              // Сброс пароля
+		api.GET("/reset-password/validate", userController.ValidateResetToken)
+		api.POST("/reset-password", userController.ResetPassword)
 
-		// Защищенные роуты
+		// Защищенные роуты (требуют аутентификации)
 		protected := api.Group("/")
 		protected.Use(middleware.AuthRequired(cfg.JWTSecret))
 		{
 			protected.GET("/profile", userController.GetProfile)
 			protected.POST("/logout", userController.Logout)
 
-			// Роуты организаций
+			// Организации
 			protected.POST("/organizations", orgController.CreateOrganization)
 			protected.GET("/organizations", orgController.GetUserOrganizations)
-			protected.GET("/organizations/:id", orgController.GetOrganization)
-			protected.PUT("/organizations/:id", orgController.UpdateOrganization)
-			protected.DELETE("/organizations/:id", orgController.DeleteOrganization)
+			protected.GET("/organizations/:orgId",
+				permMiddleware.RequireOrgAccess,
+				orgController.GetOrganization)
+			protected.PUT("/organizations/:orgId",
+				permMiddleware.RequireOrgAccess,
+				orgController.UpdateOrganization)
+			protected.DELETE("/organizations/:orgId",
+				permMiddleware.RequireOrgAccess,
+				orgController.DeleteOrganization)
 
-			// Роуты локаций
-			protected.POST("/organizations/:id/locations", locationController.CreateLocation)
-			protected.GET("/organizations/:id/locations", locationController.GetOrganizationLocations)
-			protected.GET("/locations/:id", locationController.GetLocation)
-			protected.PUT("/locations/:id", locationController.UpdateLocation)
-			protected.DELETE("/locations/:id", locationController.DeleteLocation)
+			// Локации
+			protected.POST("/organizations/:orgId/locations",
+				permMiddleware.RequirePermission("locations.create"),
+				locationController.CreateLocation)
+			protected.GET("/organizations/:orgId/locations",
+				permMiddleware.RequireOrgAccess,
+				locationController.GetOrganizationLocations)
+			protected.GET("/organizations/:orgId/locations/:locId",
+				permMiddleware.RequireOrgAccess,
+				locationController.GetLocation)
+			protected.PUT("/organizations/:orgId/locations/:locId",
+				permMiddleware.RequirePermission("locations.update"),
+				locationController.UpdateLocation)
+			protected.DELETE("/organizations/:orgId/locations/:locId",
+				permMiddleware.RequirePermission("locations.delete"),
+				locationController.DeleteLocation)
 
-			// Роуты отделов
-			protected.POST("/locations/:id/departments", departmentController.CreateDepartment)
-			protected.GET("/locations/:id/departments", departmentController.GetLocationDepartments)
-			protected.GET("/departments/:id", departmentController.GetDepartment)
-			protected.PUT("/departments/:id", departmentController.UpdateDepartment)
-			protected.DELETE("/departments/:id", departmentController.DeleteDepartment)
+			// Отделы
+			protected.POST("/organizations/:orgId/locations/:locId/departments",
+				permMiddleware.RequirePermission("departments.create"),
+				departmentController.CreateDepartment)
+			protected.GET("/organizations/:orgId/locations/:locId/departments",
+				permMiddleware.RequireOrgAccess,
+				departmentController.GetLocationDepartments)
+			protected.GET("/organizations/:orgId/locations/:locId/departments/:deptId",
+				permMiddleware.RequireOrgAccess,
+				departmentController.GetDepartment)
+			protected.PUT("/organizations/:orgId/locations/:locId/departments/:deptId",
+				permMiddleware.RequirePermission("departments.update"),
+				departmentController.UpdateDepartment)
+			protected.DELETE("/organizations/:orgId/locations/:locId/departments/:deptId",
+				permMiddleware.RequirePermission("departments.delete"),
+				departmentController.DeleteDepartment)
 
-			// Роуты позиций
-			protected.POST("/organizations/:id/positions", positionController.CreatePosition)
-			protected.GET("/organizations/:id/positions", positionController.GetOrganizationPositions)
-			protected.GET("/departments/:id/positions", positionController.GetDepartmentPositions)
-			protected.GET("/positions/:id", positionController.GetPosition)
-			protected.PUT("/positions/:id", positionController.UpdatePosition)
-			protected.DELETE("/positions/:id", positionController.DeletePosition)
+			// Позиции
+			protected.POST("/organizations/:orgId/positions",
+				permMiddleware.RequirePermission("positions.create"),
+				positionController.CreatePosition)
+			protected.GET("/organizations/:orgId/positions",
+				permMiddleware.RequireOrgAccess,
+				positionController.GetOrganizationPositions)
+			protected.GET("/organizations/:orgId/locations/:locId/departments/:deptId/positions",
+				permMiddleware.RequireOrgAccess,
+				positionController.GetDepartmentPositions)
+			protected.GET("/organizations/:orgId/positions/:posId",
+				permMiddleware.RequireOrgAccess,
+				positionController.GetPosition)
+			protected.PUT("/organizations/:orgId/positions/:posId",
+				permMiddleware.RequirePermission("positions.update"),
+				positionController.UpdatePosition)
+			protected.DELETE("/organizations/:orgId/positions/:posId",
+				permMiddleware.RequirePermission("positions.delete"),
+				positionController.DeletePosition)
 		}
 	}
 

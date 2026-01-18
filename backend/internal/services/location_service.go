@@ -8,26 +8,22 @@ import (
 )
 
 type LocationService struct {
-	locationRepo  *repository.LocationRepository
-	orgService    *OrganizationService
-	permissionSvc *PermissionService
+	locationRepo *repository.LocationRepository
+	orgRepo      *repository.OrganizationRepository
 }
 
-func NewLocationService(locationRepo *repository.LocationRepository, orgService *OrganizationService, permissionSvc *PermissionService) *LocationService {
+func NewLocationService(locationRepo *repository.LocationRepository, orgRepo *repository.OrganizationRepository) *LocationService {
 	return &LocationService{
-		locationRepo:  locationRepo,
-		orgService:    orgService,
-		permissionSvc: permissionSvc,
+		locationRepo: locationRepo,
+		orgRepo:      orgRepo,
 	}
 }
 
-func (s *LocationService) CreateLocation(orgID int64, userID int64, input dto.CreateLocationRequest) (*models.Location, error) {
-	hasPermission, err := s.permissionSvc.UserHasPermission(userID, orgID, "locations.create")
+func (s *LocationService) CreateLocation(orgID int64, input dto.CreateLocationRequest) (*models.Location, error) {
+	// Check if organization exists
+	_, err := s.orgRepo.GetByID(orgID)
 	if err != nil {
-		return nil, err
-	}
-	if !hasPermission {
-		return nil, apperrors.ErrAccessDenied
+		return nil, apperrors.ErrOrganizationNotFound
 	}
 
 	location := &models.Location{
@@ -46,47 +42,22 @@ func (s *LocationService) CreateLocation(orgID int64, userID int64, input dto.Cr
 	return s.locationRepo.GetByID(location.ID)
 }
 
-func (s *LocationService) GetLocation(locationID int64, userID int64) (*models.Location, error) {
+func (s *LocationService) GetLocation(locationID int64) (*models.Location, error) {
 	location, err := s.locationRepo.GetByID(locationID)
 	if err != nil {
 		return nil, apperrors.ErrLocationNotFound
 	}
-
-	hasAccess, err := s.orgService.UserHasAccessToOrganization(userID, location.OrganizationID)
-	if err != nil {
-		return nil, err
-	}
-	if !hasAccess {
-		return nil, apperrors.ErrForbidden
-	}
-
 	return location, nil
 }
 
-func (s *LocationService) GetOrganizationLocations(orgID int64, userID int64) ([]models.Location, error) {
-	hasAccess, err := s.orgService.UserHasAccessToOrganization(userID, orgID)
-	if err != nil {
-		return nil, err
-	}
-	if !hasAccess {
-		return nil, apperrors.ErrForbidden
-	}
-
+func (s *LocationService) GetOrganizationLocations(orgID int64) ([]models.Location, error) {
 	return s.locationRepo.GetByOrganizationID(orgID)
 }
 
-func (s *LocationService) UpdateLocation(locationID int64, userID int64, input dto.UpdateLocationRequest) (*models.Location, error) {
+func (s *LocationService) UpdateLocation(locationID int64, input dto.UpdateLocationRequest) (*models.Location, error) {
 	location, err := s.locationRepo.GetByID(locationID)
 	if err != nil {
 		return nil, apperrors.ErrLocationNotFound
-	}
-
-	hasPermission, err := s.permissionSvc.UserHasPermission(userID, location.OrganizationID, "locations.update")
-	if err != nil {
-		return nil, err
-	}
-	if !hasPermission {
-		return nil, apperrors.ErrAccessDenied
 	}
 
 	if input.Name != "" {
@@ -112,18 +83,10 @@ func (s *LocationService) UpdateLocation(locationID int64, userID int64, input d
 	return s.locationRepo.GetByID(location.ID)
 }
 
-func (s *LocationService) DeleteLocation(locationID int64, userID int64) error {
-	location, err := s.locationRepo.GetByID(locationID)
+func (s *LocationService) DeleteLocation(locationID int64) error {
+	_, err := s.locationRepo.GetByID(locationID)
 	if err != nil {
 		return apperrors.ErrLocationNotFound
-	}
-
-	hasPermission, err := s.permissionSvc.UserHasPermission(userID, location.OrganizationID, "locations.delete")
-	if err != nil {
-		return err
-	}
-	if !hasPermission {
-		return apperrors.ErrAccessDenied
 	}
 
 	return s.locationRepo.Delete(locationID)

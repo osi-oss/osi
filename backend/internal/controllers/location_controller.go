@@ -20,13 +20,7 @@ func NewLocationController(locationService *services.LocationService) *LocationC
 
 // CreateLocation создает новую локацию
 func (ctrl *LocationController) CreateLocation(c *gin.Context) {
-	userID, err := helpers.GetUserID(c)
-	if err != nil {
-		helpers.RespondError(c, err)
-		return
-	}
-
-	orgID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	orgID, err := strconv.ParseInt(c.Param("orgId"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid organization id"})
 		return
@@ -38,7 +32,7 @@ func (ctrl *LocationController) CreateLocation(c *gin.Context) {
 		return
 	}
 
-	location, err := ctrl.locationService.CreateLocation(orgID, userID, req)
+	location, err := ctrl.locationService.CreateLocation(orgID, req)
 	if err != nil {
 		helpers.RespondError(c, err)
 		return
@@ -49,19 +43,13 @@ func (ctrl *LocationController) CreateLocation(c *gin.Context) {
 
 // GetOrganizationLocations получает все локации организации
 func (ctrl *LocationController) GetOrganizationLocations(c *gin.Context) {
-	userID, err := helpers.GetUserID(c)
-	if err != nil {
-		helpers.RespondError(c, err)
-		return
-	}
-
-	orgID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	orgID, err := strconv.ParseInt(c.Param("orgId"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid organization id"})
 		return
 	}
 
-	locations, err := ctrl.locationService.GetOrganizationLocations(orgID, userID)
+	locations, err := ctrl.locationService.GetOrganizationLocations(orgID)
 	if err != nil {
 		helpers.RespondError(c, err)
 		return
@@ -72,19 +60,13 @@ func (ctrl *LocationController) GetOrganizationLocations(c *gin.Context) {
 
 // GetLocation получает локацию по ID
 func (ctrl *LocationController) GetLocation(c *gin.Context) {
-	userID, err := helpers.GetUserID(c)
-	if err != nil {
-		helpers.RespondError(c, err)
-		return
-	}
-
-	locationID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	locationID, err := strconv.ParseInt(c.Param("locId"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid location id"})
 		return
 	}
 
-	location, err := ctrl.locationService.GetLocation(locationID, userID)
+	location, err := ctrl.locationService.GetLocation(locationID)
 	if err != nil {
 		helpers.RespondError(c, err)
 		return
@@ -95,13 +77,7 @@ func (ctrl *LocationController) GetLocation(c *gin.Context) {
 
 // UpdateLocation обновляет локацию
 func (ctrl *LocationController) UpdateLocation(c *gin.Context) {
-	userID, err := helpers.GetUserID(c)
-	if err != nil {
-		helpers.RespondError(c, err)
-		return
-	}
-
-	locationID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	locationID, err := strconv.ParseInt(c.Param("locId"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid location id"})
 		return
@@ -113,7 +89,7 @@ func (ctrl *LocationController) UpdateLocation(c *gin.Context) {
 		return
 	}
 
-	location, err := ctrl.locationService.UpdateLocation(locationID, userID, req)
+	location, err := ctrl.locationService.UpdateLocation(locationID, req)
 	if err != nil {
 		helpers.RespondError(c, err)
 		return
@@ -124,19 +100,13 @@ func (ctrl *LocationController) UpdateLocation(c *gin.Context) {
 
 // DeleteLocation удаляет локацию
 func (ctrl *LocationController) DeleteLocation(c *gin.Context) {
-	userID, err := helpers.GetUserID(c)
-	if err != nil {
-		helpers.RespondError(c, err)
-		return
-	}
-
-	locationID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	locationID, err := strconv.ParseInt(c.Param("locId"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid location id"})
 		return
 	}
 
-	if err := ctrl.locationService.DeleteLocation(locationID, userID); err != nil {
+	if err := ctrl.locationService.DeleteLocation(locationID); err != nil {
 		helpers.RespondError(c, err)
 		return
 	}

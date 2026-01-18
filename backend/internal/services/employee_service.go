@@ -11,27 +11,24 @@ import (
 )
 
 type EmployeeService struct {
-	employeeRepo  *repository.EmployeeRepository
-	orgRepo       *repository.OrganizationRepository
-	positionRepo  *repository.PositionRepository
-	permissionSvc *PermissionService
+	employeeRepo *repository.EmployeeRepository
+	orgRepo      *repository.OrganizationRepository
+	positionRepo *repository.PositionRepository
 }
 
 func NewEmployeeService(
 	employeeRepo *repository.EmployeeRepository,
 	orgRepo *repository.OrganizationRepository,
 	positionRepo *repository.PositionRepository,
-	permissionSvc *PermissionService,
 ) *EmployeeService {
 	return &EmployeeService{
-		employeeRepo:  employeeRepo,
-		orgRepo:       orgRepo,
-		positionRepo:  positionRepo,
-		permissionSvc: permissionSvc,
+		employeeRepo: employeeRepo,
+		orgRepo:      orgRepo,
+		positionRepo: positionRepo,
 	}
 }
 
-func (s *EmployeeService) AssignPosition(actorUserID int64, input dto.AssignPositionRequest) (*models.Employee, error) {
+func (s *EmployeeService) AssignPosition(input dto.AssignPositionRequest) (*models.Employee, error) {
 	member, err := s.orgRepo.GetMemberByID(input.MemberID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -42,14 +39,6 @@ func (s *EmployeeService) AssignPosition(actorUserID int64, input dto.AssignPosi
 
 	if member.Status != models.MemberActive {
 		return nil, apperrors.ErrMemberNotActive
-	}
-
-	hasPermission, err := s.permissionSvc.UserHasPermission(actorUserID, member.OrganizationID, "positions.assign")
-	if err != nil {
-		return nil, err
-	}
-	if !hasPermission {
-		return nil, apperrors.ErrAccessDenied
 	}
 
 	position, err := s.positionRepo.GetByID(input.PositionID)
@@ -78,47 +67,18 @@ func (s *EmployeeService) AssignPosition(actorUserID int64, input dto.AssignPosi
 	return s.employeeRepo.GetByID(employee.ID)
 }
 
-func (s *EmployeeService) GetEmployee(employeeID int64, userID int64) (*models.Employee, error) {
+func (s *EmployeeService) GetEmployee(employeeID int64) (*models.Employee, error) {
 	employee, err := s.employeeRepo.GetByID(employeeID)
 	if err != nil {
 		return nil, apperrors.ErrEmployeeNotFound
 	}
-
-	member, err := s.orgRepo.GetMemberByID(employee.MemberID)
-	if err != nil {
-		return nil, err
-	}
-
-	founder, err := s.orgRepo.GetFounderByUserAndOrgID(userID, member.OrganizationID)
-	if err == nil && founder != nil && founder.ID > 0 {
-		return employee, nil
-	}
-
-	memberCheck, err := s.orgRepo.GetMemberByUserAndOrgID(userID, member.OrganizationID)
-	if err == nil && memberCheck != nil && memberCheck.ID > 0 && memberCheck.Status == models.MemberActive {
-		return employee, nil
-	}
-
-	return nil, apperrors.ErrForbidden
+	return employee, nil
 }
 
-func (s *EmployeeService) UpdateEmployee(actorUserID int64, employeeID int64, input dto.UpdateEmployeeRequest) (*models.Employee, error) {
+func (s *EmployeeService) UpdateEmployee(employeeID int64, input dto.UpdateEmployeeRequest) (*models.Employee, error) {
 	employee, err := s.employeeRepo.GetByID(employeeID)
 	if err != nil {
 		return nil, apperrors.ErrEmployeeNotFound
-	}
-
-	member, err := s.orgRepo.GetMemberByID(employee.MemberID)
-	if err != nil {
-		return nil, err
-	}
-
-	hasPermission, err := s.permissionSvc.UserHasPermission(actorUserID, member.OrganizationID, "positions.assign")
-	if err != nil {
-		return nil, err
-	}
-	if !hasPermission {
-		return nil, apperrors.ErrAccessDenied
 	}
 
 	if input.EndDate != nil {
@@ -135,23 +95,10 @@ func (s *EmployeeService) UpdateEmployee(actorUserID int64, employeeID int64, in
 	return s.employeeRepo.GetByID(employee.ID)
 }
 
-func (s *EmployeeService) RemoveFromPosition(actorUserID int64, employeeID int64) error {
-	employee, err := s.employeeRepo.GetByID(employeeID)
+func (s *EmployeeService) RemoveFromPosition(employeeID int64) error {
+	_, err := s.employeeRepo.GetByID(employeeID)
 	if err != nil {
 		return apperrors.ErrEmployeeNotFound
-	}
-
-	member, err := s.orgRepo.GetMemberByID(employee.MemberID)
-	if err != nil {
-		return err
-	}
-
-	hasPermission, err := s.permissionSvc.UserHasPermission(actorUserID, member.OrganizationID, "positions.assign")
-	if err != nil {
-		return err
-	}
-	if !hasPermission {
-		return apperrors.ErrAccessDenied
 	}
 
 	return s.employeeRepo.Delete(employeeID)

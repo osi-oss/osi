@@ -49,7 +49,7 @@ func (ctrl *OrganizationController) GetOrganization(c *gin.Context) {
 		return
 	}
 
-	orgID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	orgID, err := strconv.ParseInt(c.Param("orgId"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid organization id"})
 		return
@@ -89,7 +89,7 @@ func (ctrl *OrganizationController) UpdateOrganization(c *gin.Context) {
 		return
 	}
 
-	orgID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	orgID, err := strconv.ParseInt(c.Param("orgId"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid organization id"})
 		return
@@ -118,7 +118,7 @@ func (ctrl *OrganizationController) DeleteOrganization(c *gin.Context) {
 		return
 	}
 
-	orgID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	orgID, err := strconv.ParseInt(c.Param("orgId"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid organization id"})
 		return

@@ -13,11 +13,12 @@ import (
 	"gorm.io/gorm"
 )
 
-// setupDepartmentTestDB создает тестовую базу данных для отделов
+// setupDepartmentTestDB создает тестовую базу данных в памяти
 func setupDepartmentTestDB(t *testing.T) *gorm.DB {
 	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
-	require.NoError(t, err)
+	require.NoError(t, err, "failed to open test database")
 
+	// Миграции
 	err = db.AutoMigrate(
 		&models.User{},
 		&models.Organization{},
@@ -26,14 +27,16 @@ func setupDepartmentTestDB(t *testing.T) *gorm.DB {
 		&models.Location{},
 		&models.Department{},
 		&models.Position{},
+		&models.Employee{},
+		&models.Permission{},
 	)
-	require.NoError(t, err)
+	require.NoError(t, err, "failed to run migrations")
 
 	return db
 }
 
-// createDepartmentTestUser создает тестового пользователя
-func createDepartmentTestUser(t *testing.T, db *gorm.DB, email string) *models.User {
+// createDeptTestUser создает тестового пользователя
+func createDeptTestUser(t *testing.T, db *gorm.DB, email string) *models.User {
 	user := &models.User{
 		Email:           stringPtr(email),
 		PasswordHash:    "hashed_password",
@@ -42,18 +45,18 @@ func createDepartmentTestUser(t *testing.T, db *gorm.DB, email string) *models.U
 		LastName:        "User",
 	}
 	err := db.Create(user).Error
-	require.NoError(t, err)
+	require.NoError(t, err, "failed to create test user")
 	return user
 }
 
-// createDepartmentTestOrg создает тестовую организацию
-func createDepartmentTestOrg(t *testing.T, db *gorm.DB, userID int64, name string) *models.Organization {
+// createDeptTestOrg создает тестовую организацию
+func createDeptTestOrg(t *testing.T, db *gorm.DB, userID int64, name string) *models.Organization {
 	org := &models.Organization{
 		Name:   name,
 		Status: models.OrgDraft,
 	}
 	err := db.Create(org).Error
-	require.NoError(t, err)
+	require.NoError(t, err, "failed to create test organization")
 
 	founder := &models.OrganizationFounder{
 		OrganizationID: org.ID,
@@ -62,16 +65,16 @@ func createDepartmentTestOrg(t *testing.T, db *gorm.DB, userID int64, name strin
 		SharePercent:   float64Ptr(100.0),
 	}
 	err = db.Create(founder).Error
-	require.NoError(t, err)
+	require.NoError(t, err, "failed to create test founder")
 
 	err = db.Preload("Founders").First(org, org.ID).Error
-	require.NoError(t, err)
+	require.NoError(t, err, "failed to reload organization")
 
 	return org
 }
 
-// createDepartmentTestLocation создает тестовую локацию
-func createDepartmentTestLocation(t *testing.T, db *gorm.DB, orgID int64, name string) *models.Location {
+// createDeptTestLocation создает тестовую локацию
+func createDeptTestLocation(t *testing.T, db *gorm.DB, orgID int64, name string) *models.Location {
 	location := &models.Location{
 		OrganizationID: orgID,
 		Name:           name,
@@ -79,33 +82,25 @@ func createDepartmentTestLocation(t *testing.T, db *gorm.DB, orgID int64, name s
 		IsActive:       true,
 	}
 	err := db.Create(location).Error
-	require.NoError(t, err)
+	require.NoError(t, err, "failed to create test location")
 	return location
 }
 
 // TestCreateDepartment тестирует создание отдела
 func TestCreateDepartment(t *testing.T) {
 	db := setupDepartmentTestDB(t)
-	orgRepo := repository.NewOrganizationRepository(db)
-	permissionRepo := repository.NewPermissionRepository(db)
 	locationRepo := repository.NewLocationRepository(db)
 	departmentRepo := repository.NewDepartmentRepository(db)
-	employeeRepo := repository.NewEmployeeRepository(db)
 
-	permissionService := NewPermissionService(permissionRepo, orgRepo, employeeRepo)
-	orgService := NewOrganizationService(orgRepo)
-	locationService := NewLocationService(locationRepo, orgService, permissionService)
-	departmentService := NewDepartmentService(departmentRepo, locationService, permissionService)
+	departmentService := NewDepartmentService(departmentRepo, locationRepo)
 
-	founder := createDepartmentTestUser(t, db, "founder@example.com")
-	nonFounder := createDepartmentTestUser(t, db, "nonfounder@example.com")
-	org := createDepartmentTestOrg(t, db, founder.ID, "Test Org")
-	location := createDepartmentTestLocation(t, db, org.ID, "Main Office")
+	founder := createDeptTestUser(t, db, "founder@example.com")
+	org := createDeptTestOrg(t, db, founder.ID, "Test Org")
+	location := createDeptTestLocation(t, db, org.ID, "Main Office")
 
 	tests := []struct {
 		name        string
 		locationID  int64
-		userID      int64
 		input       dto.CreateDepartmentRequest
 		expectError bool
 		errorCheck  func(*testing.T, error)
@@ -114,53 +109,24 @@ func TestCreateDepartment(t *testing.T) {
 		{
 			name:       "Success - Create department",
 			locationID: location.ID,
-			userID:     founder.ID,
 			input: dto.CreateDepartmentRequest{
-				Name:        "IT Department",
-				Description: stringPtr("Information Technology"),
+				Name:        "Engineering",
+				Description: stringPtr("Software development team"),
 			},
 			expectError: false,
 			checkDept: func(t *testing.T, dept *models.Department) {
-				assert.Equal(t, "IT Department", dept.Name)
-				assert.Equal(t, "Information Technology", *dept.Description)
+				assert.Equal(t, "Engineering", dept.Name)
+				assert.Equal(t, "Software development team", *dept.Description)
 				assert.Equal(t, location.ID, dept.LocationID)
 				assert.Nil(t, dept.ParentID)
 				assert.NotZero(t, dept.ID)
 			},
 		},
 		{
-			name:       "Success - Create department with parent",
-			locationID: location.ID,
-			userID:     founder.ID,
-			input: dto.CreateDepartmentRequest{
-				Name:        "Sub Department",
-				ParentID:    nil, // Будет установлен в тесте
-				Description: stringPtr("Sub department"),
-			},
-			expectError: false,
-			checkDept: func(t *testing.T, dept *models.Department) {
-				assert.Equal(t, "Sub Department", dept.Name)
-				assert.NotNil(t, dept.ParentID)
-			},
-		},
-		{
-			name:       "Error - Non-founder cannot create",
-			locationID: location.ID,
-			userID:     nonFounder.ID,
-			input: dto.CreateDepartmentRequest{
-				Name: "Unauthorized Department",
-			},
-			expectError: true,
-			errorCheck: func(t *testing.T, err error) {
-				assert.ErrorIs(t, err, apperrors.ErrAccessDenied)
-			},
-		},
-		{
 			name:       "Error - Location not found",
 			locationID: 99999,
-			userID:     founder.ID,
 			input: dto.CreateDepartmentRequest{
-				Name: "Invalid Location Dept",
+				Name: "Orphan Department",
 			},
 			expectError: true,
 			errorCheck: func(t *testing.T, err error) {
@@ -169,15 +135,9 @@ func TestCreateDepartment(t *testing.T) {
 		},
 	}
 
-	var parentDept *models.Department
-	for i, tt := range tests {
+	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Для второго теста устанавливаем ParentID
-			if i == 1 && parentDept != nil {
-				tt.input.ParentID = &parentDept.ID
-			}
-
-			dept, err := departmentService.CreateDepartment(tt.locationID, tt.userID, tt.input)
+			dept, err := departmentService.CreateDepartment(tt.locationID, tt.input)
 
 			if tt.expectError {
 				require.Error(t, err)
@@ -190,79 +150,93 @@ func TestCreateDepartment(t *testing.T) {
 				if tt.checkDept != nil {
 					tt.checkDept(t, dept)
 				}
-				// Сохраняем первый департамент для использования в качестве родителя
-				if i == 0 {
-					parentDept = dept
-				}
 			}
 		})
 	}
 }
 
-// TestGetDepartment тестирует получение отдела
-func TestGetDepartment(t *testing.T) {
+// TestCreateDepartmentWithParent тестирует создание отдела с родителем
+func TestCreateDepartmentWithParent(t *testing.T) {
 	db := setupDepartmentTestDB(t)
-	orgRepo := repository.NewOrganizationRepository(db)
-	permissionRepo := repository.NewPermissionRepository(db)
 	locationRepo := repository.NewLocationRepository(db)
 	departmentRepo := repository.NewDepartmentRepository(db)
-	employeeRepo := repository.NewEmployeeRepository(db)
 
-	permissionService := NewPermissionService(permissionRepo, orgRepo, employeeRepo)
-	orgService := NewOrganizationService(orgRepo)
-	locationService := NewLocationService(locationRepo, orgService, permissionService)
-	departmentService := NewDepartmentService(departmentRepo, locationService, permissionService)
+	departmentService := NewDepartmentService(departmentRepo, locationRepo)
 
-	founder := createDepartmentTestUser(t, db, "founder@example.com")
-	nonFounder := createDepartmentTestUser(t, db, "nonfounder@example.com")
-	org := createDepartmentTestOrg(t, db, founder.ID, "Test Org")
-	location := createDepartmentTestLocation(t, db, org.ID, "Main Office")
+	founder := createDeptTestUser(t, db, "founder@example.com")
+	org := createDeptTestOrg(t, db, founder.ID, "Test Org")
+	location := createDeptTestLocation(t, db, org.ID, "Main Office")
 
-	// Создаем отдел
-	department := &models.Department{
+	// Создаем родительский отдел
+	parentDept := &models.Department{
 		LocationID:  location.ID,
-		Name:        "Test Department",
-		Description: stringPtr("Test Description"),
+		Name:        "Parent Department",
+		Description: stringPtr("Parent"),
 	}
-	err := db.Create(department).Error
+	err := db.Create(parentDept).Error
+	require.NoError(t, err)
+
+	// Создаем другую локацию для теста
+	otherLocation := createDeptTestLocation(t, db, org.ID, "Other Office")
+	otherDept := &models.Department{
+		LocationID:  otherLocation.ID,
+		Name:        "Other Parent",
+		Description: stringPtr("In other location"),
+	}
+	err = db.Create(otherDept).Error
 	require.NoError(t, err)
 
 	tests := []struct {
 		name        string
-		deptID      int64
-		userID      int64
+		locationID  int64
+		input       dto.CreateDepartmentRequest
 		expectError bool
 		errorCheck  func(*testing.T, error)
+		checkDept   func(*testing.T, *models.Department)
 	}{
 		{
-			name:        "Success - Get department by founder",
-			deptID:      department.ID,
-			userID:      founder.ID,
+			name:       "Success - Create child department",
+			locationID: location.ID,
+			input: dto.CreateDepartmentRequest{
+				Name:     "Child Department",
+				ParentID: &parentDept.ID,
+			},
 			expectError: false,
-		},
-		{
-			name:        "Error - Non-founder cannot get",
-			deptID:      department.ID,
-			userID:      nonFounder.ID,
-			expectError: true,
-			errorCheck: func(t *testing.T, err error) {
-				assert.ErrorIs(t, err, apperrors.ErrAccessDenied)
+			checkDept: func(t *testing.T, dept *models.Department) {
+				assert.Equal(t, "Child Department", dept.Name)
+				assert.Equal(t, parentDept.ID, *dept.ParentID)
+				assert.Equal(t, location.ID, dept.LocationID)
 			},
 		},
 		{
-			name:        "Error - Department not found",
-			deptID:      99999,
-			userID:      founder.ID,
+			name:       "Error - Parent not found",
+			locationID: location.ID,
+			input: dto.CreateDepartmentRequest{
+				Name:     "Orphan Child",
+				ParentID: int64Ptr(99999),
+			},
 			expectError: true,
 			errorCheck: func(t *testing.T, err error) {
-				assert.ErrorIs(t, err, apperrors.ErrDepartmentNotFound)
+				assert.Contains(t, err.Error(), "parent department not found")
+			},
+		},
+		{
+			name:       "Error - Parent in different location",
+			locationID: location.ID,
+			input: dto.CreateDepartmentRequest{
+				Name:     "Cross Location Child",
+				ParentID: &otherDept.ID,
+			},
+			expectError: true,
+			errorCheck: func(t *testing.T, err error) {
+				assert.Contains(t, err.Error(), "parent department belongs to different location")
 			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			dept, err := departmentService.GetDepartment(tt.deptID, tt.userID)
+			dept, err := departmentService.CreateDepartment(tt.locationID, tt.input)
 
 			if tt.expectError {
 				require.Error(t, err)
@@ -272,8 +246,76 @@ func TestGetDepartment(t *testing.T) {
 			} else {
 				require.NoError(t, err)
 				require.NotNil(t, dept)
-				assert.Equal(t, department.ID, dept.ID)
-				assert.Equal(t, "Test Department", dept.Name)
+				if tt.checkDept != nil {
+					tt.checkDept(t, dept)
+				}
+			}
+		})
+	}
+}
+
+// TestGetDepartment тестирует получение отдела по ID
+func TestGetDepartment(t *testing.T) {
+	db := setupDepartmentTestDB(t)
+	locationRepo := repository.NewLocationRepository(db)
+	departmentRepo := repository.NewDepartmentRepository(db)
+
+	departmentService := NewDepartmentService(departmentRepo, locationRepo)
+
+	founder := createDeptTestUser(t, db, "founder@example.com")
+	org := createDeptTestOrg(t, db, founder.ID, "Test Org")
+	location := createDeptTestLocation(t, db, org.ID, "Main Office")
+
+	// Создаем отдел
+	dept := &models.Department{
+		LocationID:  location.ID,
+		Name:        "Test Department",
+		Description: stringPtr("Test description"),
+	}
+	err := db.Create(dept).Error
+	require.NoError(t, err)
+
+	tests := []struct {
+		name        string
+		deptID      int64
+		expectError bool
+		errorCheck  func(*testing.T, error)
+		checkDept   func(*testing.T, *models.Department)
+	}{
+		{
+			name:        "Success - Get department",
+			deptID:      dept.ID,
+			expectError: false,
+			checkDept: func(t *testing.T, d *models.Department) {
+				assert.Equal(t, dept.ID, d.ID)
+				assert.Equal(t, "Test Department", d.Name)
+			},
+		},
+		{
+			name:        "Error - Department not found",
+			deptID:      99999,
+			expectError: true,
+			errorCheck: func(t *testing.T, err error) {
+				assert.ErrorIs(t, err, apperrors.ErrDepartmentNotFound)
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			d, err := departmentService.GetDepartment(tt.deptID)
+
+			if tt.expectError {
+				require.Error(t, err)
+				if tt.errorCheck != nil {
+					tt.errorCheck(t, err)
+				}
+			} else {
+				require.NoError(t, err)
+				require.NotNil(t, d)
+				if tt.checkDept != nil {
+					tt.checkDept(t, d)
+				}
 			}
 		})
 	}
@@ -282,146 +324,216 @@ func TestGetDepartment(t *testing.T) {
 // TestGetLocationDepartments тестирует получение всех отделов локации
 func TestGetLocationDepartments(t *testing.T) {
 	db := setupDepartmentTestDB(t)
-	orgRepo := repository.NewOrganizationRepository(db)
-	permissionRepo := repository.NewPermissionRepository(db)
 	locationRepo := repository.NewLocationRepository(db)
 	departmentRepo := repository.NewDepartmentRepository(db)
-	employeeRepo := repository.NewEmployeeRepository(db)
 
-	permissionService := NewPermissionService(permissionRepo, orgRepo, employeeRepo)
-	orgService := NewOrganizationService(orgRepo)
-	locationService := NewLocationService(locationRepo, orgService, permissionService)
-	departmentService := NewDepartmentService(departmentRepo, locationService, permissionService)
+	departmentService := NewDepartmentService(departmentRepo, locationRepo)
 
-	founder := createDepartmentTestUser(t, db, "founder@example.com")
-	org := createDepartmentTestOrg(t, db, founder.ID, "Test Org")
-	location := createDepartmentTestLocation(t, db, org.ID, "Main Office")
+	founder := createDeptTestUser(t, db, "founder@example.com")
+	org := createDeptTestOrg(t, db, founder.ID, "Test Org")
+	location := createDeptTestLocation(t, db, org.ID, "Main Office")
 
 	// Создаем несколько отделов
-	departments := []models.Department{
-		{LocationID: location.ID, Name: "IT"},
-		{LocationID: location.ID, Name: "HR"},
-		{LocationID: location.ID, Name: "Finance"},
+	depts := []models.Department{
+		{LocationID: location.ID, Name: "Department 1"},
+		{LocationID: location.ID, Name: "Department 2"},
+		{LocationID: location.ID, Name: "Department 3"},
 	}
-	for _, dept := range departments {
-		err := db.Create(&dept).Error
+	for i := range depts {
+		err := db.Create(&depts[i]).Error
 		require.NoError(t, err)
 	}
 
-	depts, err := departmentService.GetLocationDepartments(location.ID, founder.ID)
-	require.NoError(t, err)
-	assert.Len(t, depts, 3)
+	tests := []struct {
+		name        string
+		locationID  int64
+		expectError bool
+		checkDepts  func(*testing.T, []models.Department)
+	}{
+		{
+			name:        "Success - Get all departments",
+			locationID:  location.ID,
+			expectError: false,
+			checkDepts: func(t *testing.T, depts []models.Department) {
+				assert.Len(t, depts, 3)
+			},
+		},
+		{
+			name:        "Success - Empty list for non-existent location",
+			locationID:  99999,
+			expectError: false,
+			checkDepts: func(t *testing.T, depts []models.Department) {
+				assert.Len(t, depts, 0)
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			depts, err := departmentService.GetLocationDepartments(tt.locationID)
+
+			if tt.expectError {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				if tt.checkDepts != nil {
+					tt.checkDepts(t, depts)
+				}
+			}
+		})
+	}
 }
 
 // TestUpdateDepartment тестирует обновление отдела
 func TestUpdateDepartment(t *testing.T) {
 	db := setupDepartmentTestDB(t)
-	orgRepo := repository.NewOrganizationRepository(db)
-	permissionRepo := repository.NewPermissionRepository(db)
 	locationRepo := repository.NewLocationRepository(db)
 	departmentRepo := repository.NewDepartmentRepository(db)
-	employeeRepo := repository.NewEmployeeRepository(db)
 
-	permissionService := NewPermissionService(permissionRepo, orgRepo, employeeRepo)
-	orgService := NewOrganizationService(orgRepo)
-	locationService := NewLocationService(locationRepo, orgService, permissionService)
-	departmentService := NewDepartmentService(departmentRepo, locationService, permissionService)
+	departmentService := NewDepartmentService(departmentRepo, locationRepo)
 
-	founder := createDepartmentTestUser(t, db, "founder@example.com")
-	org := createDepartmentTestOrg(t, db, founder.ID, "Test Org")
-	location := createDepartmentTestLocation(t, db, org.ID, "Main Office")
+	founder := createDeptTestUser(t, db, "founder@example.com")
+	org := createDeptTestOrg(t, db, founder.ID, "Test Org")
+	location := createDeptTestLocation(t, db, org.ID, "Main Office")
 
-	department := &models.Department{
+	// Создаем отдел
+	dept := &models.Department{
 		LocationID:  location.ID,
 		Name:        "Old Name",
-		Description: stringPtr("Old Description"),
+		Description: stringPtr("Old description"),
 	}
-	err := db.Create(department).Error
+	err := db.Create(dept).Error
 	require.NoError(t, err)
 
-	input := dto.UpdateDepartmentRequest{
-		Name:        "New Name",
-		Description: stringPtr("New Description"),
+	tests := []struct {
+		name        string
+		deptID      int64
+		input       dto.UpdateDepartmentRequest
+		expectError bool
+		errorCheck  func(*testing.T, error)
+		checkDept   func(*testing.T, *models.Department)
+	}{
+		{
+			name:   "Success - Update name",
+			deptID: dept.ID,
+			input: dto.UpdateDepartmentRequest{
+				Name: "New Name",
+			},
+			expectError: false,
+			checkDept: func(t *testing.T, d *models.Department) {
+				assert.Equal(t, "New Name", d.Name)
+			},
+		},
+		{
+			name:   "Error - Department not found",
+			deptID: 99999,
+			input: dto.UpdateDepartmentRequest{
+				Name: "Nonexistent",
+			},
+			expectError: true,
+			errorCheck: func(t *testing.T, err error) {
+				assert.ErrorIs(t, err, apperrors.ErrDepartmentNotFound)
+			},
+		},
+		{
+			name:   "Error - Cannot be its own parent",
+			deptID: dept.ID,
+			input: dto.UpdateDepartmentRequest{
+				ParentID: &dept.ID,
+			},
+			expectError: true,
+			errorCheck: func(t *testing.T, err error) {
+				assert.Contains(t, err.Error(), "cannot be its own parent")
+			},
+		},
 	}
 
-	updated, err := departmentService.UpdateDepartment(department.ID, founder.ID, input)
-	require.NoError(t, err)
-	assert.Equal(t, "New Name", updated.Name)
-	assert.Equal(t, "New Description", *updated.Description)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			d, err := departmentService.UpdateDepartment(tt.deptID, tt.input)
+
+			if tt.expectError {
+				require.Error(t, err)
+				if tt.errorCheck != nil {
+					tt.errorCheck(t, err)
+				}
+			} else {
+				require.NoError(t, err)
+				require.NotNil(t, d)
+				if tt.checkDept != nil {
+					tt.checkDept(t, d)
+				}
+			}
+		})
+	}
 }
 
 // TestDeleteDepartment тестирует удаление отдела
 func TestDeleteDepartment(t *testing.T) {
 	db := setupDepartmentTestDB(t)
-	orgRepo := repository.NewOrganizationRepository(db)
-	permissionRepo := repository.NewPermissionRepository(db)
 	locationRepo := repository.NewLocationRepository(db)
 	departmentRepo := repository.NewDepartmentRepository(db)
-	employeeRepo := repository.NewEmployeeRepository(db)
 
-	permissionService := NewPermissionService(permissionRepo, orgRepo, employeeRepo)
-	orgService := NewOrganizationService(orgRepo)
-	locationService := NewLocationService(locationRepo, orgService, permissionService)
-	departmentService := NewDepartmentService(departmentRepo, locationService, permissionService)
+	departmentService := NewDepartmentService(departmentRepo, locationRepo)
 
-	founder := createDepartmentTestUser(t, db, "founder@example.com")
-	org := createDepartmentTestOrg(t, db, founder.ID, "Test Org")
-	location := createDepartmentTestLocation(t, db, org.ID, "Main Office")
+	founder := createDeptTestUser(t, db, "founder@example.com")
+	org := createDeptTestOrg(t, db, founder.ID, "Test Org")
+	location := createDeptTestLocation(t, db, org.ID, "Main Office")
 
-	department := &models.Department{
-		LocationID: location.ID,
-		Name:       "To Delete",
+	tests := []struct {
+		name        string
+		setupDept   func() int64
+		expectError bool
+		errorCheck  func(*testing.T, error)
+	}{
+		{
+			name: "Success - Delete department",
+			setupDept: func() int64 {
+				dept := &models.Department{
+					LocationID: location.ID,
+					Name:       "To Delete",
+				}
+				err := db.Create(dept).Error
+				require.NoError(t, err)
+				return dept.ID
+			},
+			expectError: false,
+		},
+		{
+			name: "Error - Department not found",
+			setupDept: func() int64 {
+				return 99999
+			},
+			expectError: true,
+			errorCheck: func(t *testing.T, err error) {
+				assert.ErrorIs(t, err, apperrors.ErrDepartmentNotFound)
+			},
+		},
 	}
-	err := db.Create(department).Error
-	require.NoError(t, err)
 
-	err = departmentService.DeleteDepartment(department.ID, founder.ID)
-	require.NoError(t, err)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			deptID := tt.setupDept()
+			err := departmentService.DeleteDepartment(deptID)
 
-	// Проверяем, что отдел удален
-	var deleted models.Department
-	err = db.First(&deleted, department.ID).Error
-	assert.Error(t, err)
-	assert.ErrorIs(t, err, gorm.ErrRecordNotFound)
+			if tt.expectError {
+				require.Error(t, err)
+				if tt.errorCheck != nil {
+					tt.errorCheck(t, err)
+				}
+			} else {
+				require.NoError(t, err)
+
+				// Проверяем, что отдел удален
+				var deleted models.Department
+				err := db.First(&deleted, deptID).Error
+				assert.ErrorIs(t, err, gorm.ErrRecordNotFound)
+			}
+		})
+	}
 }
 
-// TestDeleteDepartmentWithChildren тестирует, что нельзя удалить отдел с дочерними отделами
-func TestDeleteDepartmentWithChildren(t *testing.T) {
-	db := setupDepartmentTestDB(t)
-	orgRepo := repository.NewOrganizationRepository(db)
-	permissionRepo := repository.NewPermissionRepository(db)
-	locationRepo := repository.NewLocationRepository(db)
-	departmentRepo := repository.NewDepartmentRepository(db)
-	employeeRepo := repository.NewEmployeeRepository(db)
-
-	permissionService := NewPermissionService(permissionRepo, orgRepo, employeeRepo)
-	orgService := NewOrganizationService(orgRepo)
-	locationService := NewLocationService(locationRepo, orgService, permissionService)
-	departmentService := NewDepartmentService(departmentRepo, locationService, permissionService)
-
-	founder := createDepartmentTestUser(t, db, "founder@example.com")
-	org := createDepartmentTestOrg(t, db, founder.ID, "Test Org")
-	location := createDepartmentTestLocation(t, db, org.ID, "Main Office")
-
-	// Создаем родительский отдел
-	parent := &models.Department{
-		LocationID: location.ID,
-		Name:       "Parent",
-	}
-	err := db.Create(parent).Error
-	require.NoError(t, err)
-
-	// Создаем дочерний отдел
-	child := &models.Department{
-		LocationID: location.ID,
-		ParentID:   &parent.ID,
-		Name:       "Child",
-	}
-	err = db.Create(child).Error
-	require.NoError(t, err)
-
-	// Пытаемся удалить родительский отдел
-	err = departmentService.DeleteDepartment(parent.ID, founder.ID)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "cannot delete department with child departments")
+// int64Ptr возвращает указатель на int64
+func int64Ptr(i int64) *int64 {
+	return &i
 }

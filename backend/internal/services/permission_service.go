@@ -87,6 +87,23 @@ func (s *PermissionService) UserHasPermission(userID int64, orgID int64, permiss
 	return false, nil
 }
 
+// UserHasAccessToOrganization checks if user has access to organization (founder or active member)
+func (s *PermissionService) UserHasAccessToOrganization(userID int64, orgID int64) (bool, error) {
+	// Check if user is a founder
+	founder, err := s.orgRepo.GetFounderByUserAndOrgID(userID, orgID)
+	if err == nil && founder != nil && founder.ID > 0 {
+		return true, nil
+	}
+
+	// Check if user is an active member
+	member, err := s.orgRepo.GetMemberByUserAndOrgID(userID, orgID)
+	if err == nil && member != nil && member.ID > 0 && member.Status == models.MemberActive {
+		return true, nil
+	}
+
+	return false, nil
+}
+
 // UserHasAnyPermission checks if a user has any of the specified permissions
 func (s *PermissionService) UserHasAnyPermission(userID int64, orgID int64, permissionCodes []string) (bool, error) {
 	for _, code := range permissionCodes {

@@ -8,19 +8,13 @@ import (
 )
 
 type OrganizationService struct {
-	orgRepo       *repository.OrganizationRepository
-	permissionSvc *PermissionService
+	orgRepo *repository.OrganizationRepository
 }
 
 func NewOrganizationService(orgRepo *repository.OrganizationRepository) *OrganizationService {
 	return &OrganizationService{
 		orgRepo: orgRepo,
 	}
-}
-
-// SetPermissionService sets the permission service (used to avoid circular dependency)
-func (s *OrganizationService) SetPermissionService(permissionSvc *PermissionService) {
-	s.permissionSvc = permissionSvc
 }
 
 func (s *OrganizationService) CreateOrganization(userID int64, input dto.CreateOrganizationRequest) (*models.Organization, error) {

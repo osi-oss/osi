@@ -12,32 +12,21 @@ import (
 )
 
 type MemberService struct {
-	orgRepo       *repository.OrganizationRepository
-	userRepo      *repository.UserRepository
-	permissionSvc *PermissionService
+	orgRepo  *repository.OrganizationRepository
+	userRepo *repository.UserRepository
 }
 
 func NewMemberService(
 	orgRepo *repository.OrganizationRepository,
 	userRepo *repository.UserRepository,
-	permissionSvc *PermissionService,
 ) *MemberService {
 	return &MemberService{
-		orgRepo:       orgRepo,
-		userRepo:      userRepo,
-		permissionSvc: permissionSvc,
+		orgRepo:  orgRepo,
+		userRepo: userRepo,
 	}
 }
 
-func (s *MemberService) InviteMember(actorUserID int64, input dto.InviteMemberRequest) (*models.OrganizationMember, error) {
-	hasPermission, err := s.permissionSvc.UserHasPermission(actorUserID, input.OrganizationID, "members.invite")
-	if err != nil {
-		return nil, err
-	}
-	if !hasPermission {
-		return nil, apperrors.ErrAccessDenied
-	}
-
+func (s *MemberService) InviteMember(input dto.InviteMemberRequest) (*models.OrganizationMember, error) {
 	user, err := s.userRepo.GetByEmail(input.Email)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -106,52 +95,28 @@ func (s *MemberService) DeclineInvitation(userID int64, orgID int64) error {
 	return s.orgRepo.DeleteMember(member.ID)
 }
 
-func (s *MemberService) BlockMember(actorUserID int64, memberID int64) error {
-	member, err := s.orgRepo.GetMemberByID(memberID)
+func (s *MemberService) BlockMember(memberID int64) error {
+	_, err := s.orgRepo.GetMemberByID(memberID)
 	if err != nil {
 		return apperrors.ErrMemberNotFound
-	}
-
-	hasPermission, err := s.permissionSvc.UserHasPermission(actorUserID, member.OrganizationID, "members.manage")
-	if err != nil {
-		return err
-	}
-	if !hasPermission {
-		return apperrors.ErrAccessDenied
 	}
 
 	return s.orgRepo.UpdateMemberStatus(memberID, models.MemberBlocked)
 }
 
-func (s *MemberService) UnblockMember(actorUserID int64, memberID int64) error {
-	member, err := s.orgRepo.GetMemberByID(memberID)
+func (s *MemberService) UnblockMember(memberID int64) error {
+	_, err := s.orgRepo.GetMemberByID(memberID)
 	if err != nil {
 		return apperrors.ErrMemberNotFound
-	}
-
-	hasPermission, err := s.permissionSvc.UserHasPermission(actorUserID, member.OrganizationID, "members.manage")
-	if err != nil {
-		return err
-	}
-	if !hasPermission {
-		return apperrors.ErrAccessDenied
 	}
 
 	return s.orgRepo.UpdateMemberStatus(memberID, models.MemberActive)
 }
 
-func (s *MemberService) RemoveMember(actorUserID int64, memberID int64) error {
-	member, err := s.orgRepo.GetMemberByID(memberID)
+func (s *MemberService) RemoveMember(memberID int64) error {
+	_, err := s.orgRepo.GetMemberByID(memberID)
 	if err != nil {
 		return apperrors.ErrMemberNotFound
-	}
-
-	hasPermission, err := s.permissionSvc.UserHasPermission(actorUserID, member.OrganizationID, "members.manage")
-	if err != nil {
-		return err
-	}
-	if !hasPermission {
-		return apperrors.ErrAccessDenied
 	}
 
 	return s.orgRepo.DeleteMember(memberID)
