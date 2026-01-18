@@ -83,10 +83,8 @@ func (r *OrganizationRepository) GetMemberByUserAndOrgID(userID int64, orgID int
 	var member models.OrganizationMember
 	err := r.db.Where("user_id = ? AND organization_id = ?", userID, orgID).
 		Preload("User").
-		Preload("Permissions").
 		Preload("Employees").
 		Preload("Employees.Position").
-		Preload("Employees.Position.Permissions").
 		First(&member).Error
 	return &member, err
 }

@@ -32,6 +32,7 @@ func Start(cfg *config.Config) {
 	departmentRepo := repository.NewDepartmentRepository(dbConn)
 	positionRepo := repository.NewPositionRepository(dbConn)
 	permissionRepo := repository.NewPermissionRepository(dbConn)
+	permissionGrantRepo := repository.NewPermissionGrantRepository(dbConn)
 	employeeRepo := repository.NewEmployeeRepository(dbConn)
 
 	// Создание email сервиса
@@ -54,7 +55,7 @@ func Start(cfg *config.Config) {
 	)
 
 	// Создание сервиса прав
-	permissionService := services.NewPermissionService(permissionRepo, orgRepo, employeeRepo)
+	permissionService := services.NewPermissionService(permissionRepo, permissionGrantRepo, orgRepo, employeeRepo)
 
 	// Создание сервиса организаций
 	orgService := services.NewOrganizationService(orgRepo)

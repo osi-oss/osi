@@ -16,3 +16,11 @@ const (
 	MemberActive  MemberStatus = "active"
 	MemberBlocked MemberStatus = "blocked"
 )
+
+type ScopeType string
+
+const (
+	ScopeOrganization ScopeType = "organization"
+	ScopeLocation     ScopeType = "location"
+	ScopeDepartment   ScopeType = "department"
+)

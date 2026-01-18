@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/osi-oss/osi/internal/models"
 	"github.com/osi-oss/osi/internal/services"
 )
 
@@ -23,6 +24,30 @@ func NewPermissionMiddleware(permissionSvc *services.PermissionService) *Permiss
 // parseOrgID extracts organization ID from URL parameter
 func parseOrgID(c *gin.Context) (int64, error) {
 	return strconv.ParseInt(c.Param("orgId"), 10, 64)
+}
+
+// parseScopeID extracts scope ID from URL parameter based on scope type
+func parseScopeID(c *gin.Context, scopeType models.ScopeType) *int64 {
+	var paramName string
+	switch scopeType {
+	case models.ScopeLocation:
+		paramName = "locId"
+	case models.ScopeDepartment:
+		paramName = "deptId"
+	default:
+		return nil
+	}
+
+	idStr := c.Param(paramName)
+	if idStr == "" {
+		return nil
+	}
+
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		return nil
+	}
+	return &id
 }
 
 // RequireOrgAccess checks if user has access to organization (is founder or active member)
@@ -60,8 +85,17 @@ func (m *PermissionMiddleware) RequireOrgAccess(c *gin.Context) {
 	c.Next()
 }
 
-// RequirePermission returns a middleware that checks if user has specific permission
+// RequirePermission returns a middleware that checks org-level permission (no scope)
 func (m *PermissionMiddleware) RequirePermission(permissionCode string) gin.HandlerFunc {
+	return m.RequireScopedPermission(permissionCode, models.ScopeOrganization)
+}
+
+// RequireScopedPermission returns a middleware that checks scoped permission
+// scopeType determines which URL parameter to use for scope_id:
+// - ScopeOrganization: no scope_id needed
+// - ScopeLocation: uses :locId from URL
+// - ScopeDepartment: uses :deptId from URL
+func (m *PermissionMiddleware) RequireScopedPermission(permissionCode string, scopeType models.ScopeType) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID, exists := c.Get("userID")
 		if !exists {
@@ -94,8 +128,11 @@ func (m *PermissionMiddleware) RequirePermission(permissionCode string) gin.Hand
 			return
 		}
 
-		// Check specific permission
-		hasPermission, err := m.permissionSvc.UserHasPermission(userID.(int64), orgID, permissionCode)
+		// Parse scope ID from URL
+		scopeID := parseScopeID(c, scopeType)
+
+		// Check scoped permission
+		hasPermission, err := m.permissionSvc.UserHasScopedPermission(userID.(int64), orgID, permissionCode, scopeType, scopeID)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to check permission"})
 			c.Abort()
