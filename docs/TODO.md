@@ -53,7 +53,7 @@
 - [ ] **Caching**
   - Redis для сессий и временных данных
   - Cache для часто запрашиваемых данных
-  - Cache invalidation стратегии
+  - Cache invalidation стратегииx
 
 ## 📊 Monitoring и логирование
 

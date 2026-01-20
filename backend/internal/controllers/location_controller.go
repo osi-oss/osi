@@ -19,6 +19,19 @@ func NewLocationController(locationService *services.LocationService) *LocationC
 }
 
 // CreateLocation создает новую локацию
+// @Summary      Создание локации
+// @Description  Создаёт новую локацию в организации
+// @Tags         locations
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        orgId path int true "ID организации"
+// @Param        request body dto.CreateLocationRequest true "Данные локации"
+// @Success      201  {object}  dto.LocationResponse  "Локация создана"
+// @Failure      400  {object}  map[string]string  "Ошибка валидации"
+// @Failure      401  {object}  map[string]string  "Не авторизован"
+// @Failure      403  {object}  map[string]string  "Нет права locations.create"
+// @Router       /organizations/{orgId}/locations [post]
 func (ctrl *LocationController) CreateLocation(c *gin.Context) {
 	orgID, err := strconv.ParseInt(c.Param("orgId"), 10, 64)
 	if err != nil {
@@ -42,6 +55,17 @@ func (ctrl *LocationController) CreateLocation(c *gin.Context) {
 }
 
 // GetOrganizationLocations получает все локации организации
+// @Summary      Список локаций
+// @Description  Возвращает все локации организации
+// @Tags         locations
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        orgId path int true "ID организации"
+// @Success      200  {object}  map[string][]dto.LocationResponse  "Список локаций"
+// @Failure      401  {object}  map[string]string  "Не авторизован"
+// @Failure      403  {object}  map[string]string  "Нет доступа"
+// @Router       /organizations/{orgId}/locations [get]
 func (ctrl *LocationController) GetOrganizationLocations(c *gin.Context) {
 	orgID, err := strconv.ParseInt(c.Param("orgId"), 10, 64)
 	if err != nil {
@@ -59,6 +83,18 @@ func (ctrl *LocationController) GetOrganizationLocations(c *gin.Context) {
 }
 
 // GetLocation получает локацию по ID
+// @Summary      Получение локации
+// @Description  Возвращает локацию по ID
+// @Tags         locations
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        orgId path int true "ID организации"
+// @Param        locId path int true "ID локации"
+// @Success      200  {object}  dto.LocationResponse  "Локация"
+// @Failure      401  {object}  map[string]string  "Не авторизован"
+// @Failure      404  {object}  map[string]string  "Локация не найдена"
+// @Router       /organizations/{orgId}/locations/{locId} [get]
 func (ctrl *LocationController) GetLocation(c *gin.Context) {
 	locationID, err := strconv.ParseInt(c.Param("locId"), 10, 64)
 	if err != nil {
@@ -76,6 +112,20 @@ func (ctrl *LocationController) GetLocation(c *gin.Context) {
 }
 
 // UpdateLocation обновляет локацию
+// @Summary      Обновление локации
+// @Description  Обновляет данные локации
+// @Tags         locations
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        orgId path int true "ID организации"
+// @Param        locId path int true "ID локации"
+// @Param        request body dto.UpdateLocationRequest true "Новые данные"
+// @Success      200  {object}  dto.LocationResponse  "Локация обновлена"
+// @Failure      400  {object}  map[string]string  "Ошибка валидации"
+// @Failure      401  {object}  map[string]string  "Не авторизован"
+// @Failure      403  {object}  map[string]string  "Нет права locations.update"
+// @Router       /organizations/{orgId}/locations/{locId} [put]
 func (ctrl *LocationController) UpdateLocation(c *gin.Context) {
 	locationID, err := strconv.ParseInt(c.Param("locId"), 10, 64)
 	if err != nil {
@@ -99,6 +149,18 @@ func (ctrl *LocationController) UpdateLocation(c *gin.Context) {
 }
 
 // DeleteLocation удаляет локацию
+// @Summary      Удаление локации
+// @Description  Удаляет локацию из организации
+// @Tags         locations
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        orgId path int true "ID организации"
+// @Param        locId path int true "ID локации"
+// @Success      200  {object}  map[string]string  "Локация удалена"
+// @Failure      401  {object}  map[string]string  "Не авторизован"
+// @Failure      403  {object}  map[string]string  "Нет права locations.delete"
+// @Router       /organizations/{orgId}/locations/{locId} [delete]
 func (ctrl *LocationController) DeleteLocation(c *gin.Context) {
 	locationID, err := strconv.ParseInt(c.Param("locId"), 10, 64)
 	if err != nil {

@@ -19,6 +19,16 @@ func NewUserController(userService *services.UserService) *UserController {
 }
 
 // SignUp регистрирует нового пользователя
+// @Summary      Регистрация нового пользователя
+// @Description  Создаёт нового пользователя с email и паролем
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        request body dto.SignUpRequest true "Данные для регистрации"
+// @Success      201  {object}  map[string]interface{}  "Пользователь создан"
+// @Failure      400  {object}  map[string]string  "Ошибка валидации"
+// @Failure      409  {object}  map[string]string  "Email уже существует"
+// @Router       /signup [post]
 func (ctrl *UserController) SignUp(c *gin.Context) {
 	var req dto.SignUpRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -39,6 +49,16 @@ func (ctrl *UserController) SignUp(c *gin.Context) {
 }
 
 // LogIn авторизует пользователя
+// @Summary      Авторизация пользователя
+// @Description  Авторизует пользователя и возвращает JWT токен
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        request body dto.LoginRequest true "Данные для входа"
+// @Success      200  {object}  map[string]interface{}  "Успешная авторизация"
+// @Failure      400  {object}  map[string]string  "Ошибка валидации"
+// @Failure      401  {object}  map[string]string  "Неверные учетные данные"
+// @Router       /login [post]
 func (ctrl *UserController) LogIn(c *gin.Context) {
 	var req dto.LoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -59,6 +79,15 @@ func (ctrl *UserController) LogIn(c *gin.Context) {
 }
 
 // GetProfile возвращает профиль авторизованного пользователя
+// @Summary      Получение профиля
+// @Description  Возвращает профиль текущего авторизованного пользователя
+// @Tags         user
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200  {object}  dto.UserResponse  "Профиль пользователя"
+// @Failure      401  {object}  map[string]string  "Не авторизован"
+// @Router       /profile [get]
 func (ctrl *UserController) GetProfile(c *gin.Context) {
 	userID, err := helpers.GetUserID(c)
 	if err != nil {
@@ -78,13 +107,30 @@ func (ctrl *UserController) GetProfile(c *gin.Context) {
 	})
 }
 
-// Logout удаляет токен из куки
+// Logout выполняет выход пользователя
+// @Summary      Выход из системы
+// @Description  Удаляет токен авторизации
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200  {object}  map[string]string  "Успешный выход"
+// @Router       /logout [post]
 func (ctrl *UserController) Logout(c *gin.Context) {
 	c.SetCookie("auth_token", "", -1, "/", "", true, true)
 	helpers.RespondOK(c, gin.H{"message": "Logged out successfully"})
 }
 
 // RequestPasswordReset запрашивает восстановление пароля
+// @Summary      Запрос сброса пароля
+// @Description  Отправляет email с инструкциями по сбросу пароля
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        request body dto.PasswordResetRequest true "Email для сброса пароля"
+// @Success      200  {object}  map[string]string  "Инструкции отправлены"
+// @Failure      400  {object}  map[string]string  "Ошибка валидации"
+// @Router       /forgot-password [post]
 func (ctrl *UserController) RequestPasswordReset(c *gin.Context) {
 	var req dto.PasswordResetRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -103,6 +149,15 @@ func (ctrl *UserController) RequestPasswordReset(c *gin.Context) {
 }
 
 // ResetPassword сбрасывает пароль по токену
+// @Summary      Сброс пароля
+// @Description  Устанавливает новый пароль по токену из email
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        request body dto.ResetPasswordRequest true "Токен и новый пароль"
+// @Success      200  {object}  map[string]string  "Пароль успешно изменён"
+// @Failure      400  {object}  map[string]string  "Невалидный токен"
+// @Router       /reset-password [post]
 func (ctrl *UserController) ResetPassword(c *gin.Context) {
 	var req dto.ResetPasswordRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -119,6 +174,15 @@ func (ctrl *UserController) ResetPassword(c *gin.Context) {
 }
 
 // ValidateResetToken проверяет валидность токена
+// @Summary      Проверка токена сброса пароля
+// @Description  Проверяет, валиден ли токен для сброса пароля
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        token query string true "Токен сброса пароля"
+// @Success      200  {object}  map[string]interface{}  "Токен валиден"
+// @Failure      400  {object}  map[string]string  "Токен невалиден или истёк"
+// @Router       /reset-password/validate [get]
 func (ctrl *UserController) ValidateResetToken(c *gin.Context) {
 	token := c.Query("token")
 	if token == "" {
