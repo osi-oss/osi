@@ -18,16 +18,19 @@ func NewUserController(userService *services.UserService) *UserController {
 	return &UserController{userService: userService}
 }
 
-// SignUp регистрирует нового пользователя
+// SignUp godoc
 // @Summary      Регистрация нового пользователя
-// @Description  Создаёт нового пользователя с email и паролем
-// @Tags         auth
+// @Description  Создаёт нового пользователя в системе.
+// @Description  Email должен быть уникальным, пароль минимум 6 символов.
+// @Description  После успешной регистрации пользователь может авторизоваться через /login.
+// @Tags         Аутентификация
 // @Accept       json
 // @Produce      json
 // @Param        request body dto.SignUpRequest true "Данные для регистрации"
-// @Success      201  {object}  map[string]interface{}  "Пользователь создан"
-// @Failure      400  {object}  map[string]string  "Ошибка валидации"
-// @Failure      409  {object}  map[string]string  "Email уже существует"
+// @Success      201 {object} dto.SignUpResponse "Пользователь успешно создан"
+// @Failure      400 {object} dto.ErrorResponse "Ошибка валидации: неверный формат email или пароль короче 6 символов"
+// @Failure      409 {object} dto.ErrorResponse "Пользователь с таким email уже существует"
+// @Failure      500 {object} dto.ErrorResponse "Внутренняя ошибка сервера"
 // @Router       /signup [post]
 func (ctrl *UserController) SignUp(c *gin.Context) {
 	var req dto.SignUpRequest
@@ -48,16 +51,19 @@ func (ctrl *UserController) SignUp(c *gin.Context) {
 	})
 }
 
-// LogIn авторизует пользователя
+// LogIn godoc
 // @Summary      Авторизация пользователя
-// @Description  Авторизует пользователя и возвращает JWT токен
-// @Tags         auth
+// @Description  Авторизует пользователя по email и паролю.
+// @Description  Возвращает JWT токен, который нужно передавать в заголовке Authorization: Bearer <token>.
+// @Description  Токен действителен 24 часа.
+// @Tags         Аутентификация
 // @Accept       json
 // @Produce      json
-// @Param        request body dto.LoginRequest true "Данные для входа"
-// @Success      200  {object}  map[string]interface{}  "Успешная авторизация"
-// @Failure      400  {object}  map[string]string  "Ошибка валидации"
-// @Failure      401  {object}  map[string]string  "Неверные учетные данные"
+// @Param        request body dto.LoginRequest true "Учётные данные для входа"
+// @Success      200 {object} dto.LoginResponse "Успешная авторизация, возвращается JWT токен"
+// @Failure      400 {object} dto.ErrorResponse "Ошибка валидации: неверный формат запроса"
+// @Failure      401 {object} dto.ErrorResponse "Неверный email или пароль"
+// @Failure      500 {object} dto.ErrorResponse "Внутренняя ошибка сервера"
 // @Router       /login [post]
 func (ctrl *UserController) LogIn(c *gin.Context) {
 	var req dto.LoginRequest
@@ -78,15 +84,18 @@ func (ctrl *UserController) LogIn(c *gin.Context) {
 	})
 }
 
-// GetProfile возвращает профиль авторизованного пользователя
-// @Summary      Получение профиля
-// @Description  Возвращает профиль текущего авторизованного пользователя
-// @Tags         user
+// GetProfile godoc
+// @Summary      Получение профиля текущего пользователя
+// @Description  Возвращает данные профиля авторизованного пользователя.
+// @Description  Требует авторизацию через JWT токен.
+// @Tags         Пользователь
 // @Accept       json
 // @Produce      json
 // @Security     BearerAuth
-// @Success      200  {object}  dto.UserResponse  "Профиль пользователя"
-// @Failure      401  {object}  map[string]string  "Не авторизован"
+// @Success      200 {object} dto.ProfileResponse "Данные профиля пользователя"
+// @Failure      401 {object} dto.ErrorResponse "Отсутствует или невалидный токен авторизации"
+// @Failure      404 {object} dto.ErrorResponse "Пользователь не найден"
+// @Failure      500 {object} dto.ErrorResponse "Внутренняя ошибка сервера"
 // @Router       /profile [get]
 func (ctrl *UserController) GetProfile(c *gin.Context) {
 	userID, err := helpers.GetUserID(c)
@@ -107,29 +116,33 @@ func (ctrl *UserController) GetProfile(c *gin.Context) {
 	})
 }
 
-// Logout выполняет выход пользователя
+// Logout godoc
 // @Summary      Выход из системы
-// @Description  Удаляет токен авторизации
-// @Tags         auth
+// @Description  Завершает сессию пользователя.
+// @Description  Удаляет токен из cookies (auth_token).
+// @Description  После выхода JWT токен остаётся валидным до истечения срока.
+// @Tags         Аутентификация
 // @Accept       json
 // @Produce      json
 // @Security     BearerAuth
-// @Success      200  {object}  map[string]string  "Успешный выход"
+// @Success      200 {object} dto.MessageResponse "Успешный выход из системы"
 // @Router       /logout [post]
 func (ctrl *UserController) Logout(c *gin.Context) {
 	c.SetCookie("auth_token", "", -1, "/", "", true, true)
 	helpers.RespondOK(c, gin.H{"message": "Logged out successfully"})
 }
 
-// RequestPasswordReset запрашивает восстановление пароля
+// RequestPasswordReset godoc
 // @Summary      Запрос сброса пароля
-// @Description  Отправляет email с инструкциями по сбросу пароля
-// @Tags         auth
+// @Description  Отправляет письмо с инструкциями по сбросу пароля на указанный email.
+// @Description  В целях безопасности всегда возвращает успех, даже если email не найден.
+// @Description  Токен сброса действителен 1 час.
+// @Tags         Аутентификация
 // @Accept       json
 // @Produce      json
-// @Param        request body dto.PasswordResetRequest true "Email для сброса пароля"
-// @Success      200  {object}  map[string]string  "Инструкции отправлены"
-// @Failure      400  {object}  map[string]string  "Ошибка валидации"
+// @Param        request body dto.PasswordResetRequest true "Email для восстановления доступа"
+// @Success      200 {object} dto.MessageResponse "Инструкции отправлены (если email существует)"
+// @Failure      400 {object} dto.ErrorResponse "Неверный формат email"
 // @Router       /forgot-password [post]
 func (ctrl *UserController) RequestPasswordReset(c *gin.Context) {
 	var req dto.PasswordResetRequest
@@ -148,15 +161,18 @@ func (ctrl *UserController) RequestPasswordReset(c *gin.Context) {
 	})
 }
 
-// ResetPassword сбрасывает пароль по токену
+// ResetPassword godoc
 // @Summary      Сброс пароля
-// @Description  Устанавливает новый пароль по токену из email
-// @Tags         auth
+// @Description  Устанавливает новый пароль с использованием токена из письма.
+// @Description  Токен можно использовать только один раз.
+// @Description  Новый пароль должен быть не менее 6 символов.
+// @Tags         Аутентификация
 // @Accept       json
 // @Produce      json
-// @Param        request body dto.ResetPasswordRequest true "Токен и новый пароль"
-// @Success      200  {object}  map[string]string  "Пароль успешно изменён"
-// @Failure      400  {object}  map[string]string  "Невалидный токен"
+// @Param        request body dto.ResetPasswordRequest true "Токен сброса и новый пароль"
+// @Success      200 {object} dto.MessageResponse "Пароль успешно изменён"
+// @Failure      400 {object} dto.ErrorResponse "Невалидный или истёкший токен, или пароль слишком короткий"
+// @Failure      500 {object} dto.ErrorResponse "Внутренняя ошибка сервера"
 // @Router       /reset-password [post]
 func (ctrl *UserController) ResetPassword(c *gin.Context) {
 	var req dto.ResetPasswordRequest
@@ -173,15 +189,17 @@ func (ctrl *UserController) ResetPassword(c *gin.Context) {
 	helpers.RespondOK(c, gin.H{"message": "Password has been reset successfully"})
 }
 
-// ValidateResetToken проверяет валидность токена
+// ValidateResetToken godoc
 // @Summary      Проверка токена сброса пароля
-// @Description  Проверяет, валиден ли токен для сброса пароля
-// @Tags         auth
+// @Description  Проверяет, действителен ли токен для сброса пароля.
+// @Description  Используется для предварительной проверки перед отображением формы сброса.
+// @Tags         Аутентификация
 // @Accept       json
 // @Produce      json
-// @Param        token query string true "Токен сброса пароля"
-// @Success      200  {object}  map[string]interface{}  "Токен валиден"
-// @Failure      400  {object}  map[string]string  "Токен невалиден или истёк"
+// @Param        token query string true "Токен из письма для сброса пароля" example(abc123def456)
+// @Success      200 {object} dto.TokenValidationResponse "Токен валиден, можно сбрасывать пароль"
+// @Failure      400 {object} dto.ErrorResponse "Токен не указан, невалиден или истёк"
+// @Failure      500 {object} dto.ErrorResponse "Внутренняя ошибка сервера"
 // @Router       /reset-password/validate [get]
 func (ctrl *UserController) ValidateResetToken(c *gin.Context) {
 	token := c.Query("token")

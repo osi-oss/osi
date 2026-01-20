@@ -18,19 +18,24 @@ func NewPositionController(positionService *services.PositionService) *PositionC
 	return &PositionController{positionService: positionService}
 }
 
-// CreatePosition создает новую позицию
-// @Summary      Создание позиции
-// @Description  Создаёт новую позицию в организации
-// @Tags         positions
+// CreatePosition godoc
+// @Summary      Создание новой должности
+// @Description  Создаёт новую должность в организации.
+// @Description  Можно привязать к отделу (department_id) или оставить общей для организации.
+// @Description  Административные позиции (is_admin=true) имеют расширенные права.
+// @Description  Требуется право "positions.create" или статус основателя.
+// @Tags         Должности
 // @Accept       json
 // @Produce      json
 // @Security     BearerAuth
-// @Param        orgId path int true "ID организации"
-// @Param        request body dto.CreatePositionRequest true "Данные позиции"
-// @Success      201  {object}  dto.PositionResponse  "Позиция создана"
-// @Failure      400  {object}  map[string]string  "Ошибка валидации"
-// @Failure      401  {object}  map[string]string  "Не авторизован"
-// @Failure      403  {object}  map[string]string  "Нет права positions.create"
+// @Param        orgId path int true "ID организации" minimum(1) example(1)
+// @Param        request body dto.CreatePositionRequest true "Данные для создания должности"
+// @Success      201 {object} dto.PositionResponse "Должность успешно создана"
+// @Failure      400 {object} dto.ErrorResponse "Ошибка валидации: name обязательно"
+// @Failure      401 {object} dto.ErrorResponse "Отсутствует или невалидный токен авторизации"
+// @Failure      403 {object} dto.ErrorResponse "Нет права positions.create"
+// @Failure      404 {object} dto.ErrorResponse "Организация или отдел не найден"
+// @Failure      500 {object} dto.ErrorResponse "Внутренняя ошибка сервера"
 // @Router       /organizations/{orgId}/positions [post]
 func (ctrl *PositionController) CreatePosition(c *gin.Context) {
 	orgID, err := strconv.ParseInt(c.Param("orgId"), 10, 64)
@@ -54,16 +59,20 @@ func (ctrl *PositionController) CreatePosition(c *gin.Context) {
 	helpers.RespondCreated(c, dto.ToPositionResponse(position))
 }
 
-// GetOrganizationPositions получает все позиции организации
-// @Summary      Список позиций организации
-// @Description  Возвращает все позиции организации
-// @Tags         positions
+// GetOrganizationPositions godoc
+// @Summary      Список всех должностей организации
+// @Description  Возвращает все должности организации.
+// @Description  Включает как привязанные к отделам, так и общие позиции.
+// @Description  Требуется доступ к организации.
+// @Tags         Должности
 // @Accept       json
 // @Produce      json
 // @Security     BearerAuth
-// @Param        orgId path int true "ID организации"
-// @Success      200  {object}  map[string][]dto.PositionResponse  "Список позиций"
-// @Failure      401  {object}  map[string]string  "Не авторизован"
+// @Param        orgId path int true "ID организации" minimum(1) example(1)
+// @Success      200 {object} dto.PositionsListResponse "Список должностей организации"
+// @Failure      400 {object} dto.ErrorResponse "Неверный формат ID организации"
+// @Failure      401 {object} dto.ErrorResponse "Отсутствует или невалидный токен авторизации"
+// @Failure      500 {object} dto.ErrorResponse "Внутренняя ошибка сервера"
 // @Router       /organizations/{orgId}/positions [get]
 func (ctrl *PositionController) GetOrganizationPositions(c *gin.Context) {
 	orgID, err := strconv.ParseInt(c.Param("orgId"), 10, 64)
@@ -81,18 +90,21 @@ func (ctrl *PositionController) GetOrganizationPositions(c *gin.Context) {
 	helpers.RespondOK(c, gin.H{"positions": dto.ToPositionResponses(positions)})
 }
 
-// GetDepartmentPositions получает все позиции отдела
-// @Summary      Список позиций отдела
-// @Description  Возвращает все позиции конкретного отдела
-// @Tags         positions
+// GetDepartmentPositions godoc
+// @Summary      Список должностей отдела
+// @Description  Возвращает все должности, привязанные к конкретному отделу.
+// @Description  Требуется доступ к организации.
+// @Tags         Должности
 // @Accept       json
 // @Produce      json
 // @Security     BearerAuth
-// @Param        orgId path int true "ID организации"
-// @Param        locId path int true "ID локации"
-// @Param        deptId path int true "ID отдела"
-// @Success      200  {object}  map[string][]dto.PositionResponse  "Список позиций"
-// @Failure      401  {object}  map[string]string  "Не авторизован"
+// @Param        orgId path int true "ID организации" minimum(1) example(1)
+// @Param        locId path int true "ID локации" minimum(1) example(1)
+// @Param        deptId path int true "ID отдела" minimum(1) example(1)
+// @Success      200 {object} dto.PositionsListResponse "Список должностей отдела"
+// @Failure      400 {object} dto.ErrorResponse "Неверный формат ID"
+// @Failure      401 {object} dto.ErrorResponse "Отсутствует или невалидный токен авторизации"
+// @Failure      500 {object} dto.ErrorResponse "Внутренняя ошибка сервера"
 // @Router       /organizations/{orgId}/locations/{locId}/departments/{deptId}/positions [get]
 func (ctrl *PositionController) GetDepartmentPositions(c *gin.Context) {
 	deptID, err := strconv.ParseInt(c.Param("deptId"), 10, 64)
@@ -110,18 +122,21 @@ func (ctrl *PositionController) GetDepartmentPositions(c *gin.Context) {
 	helpers.RespondOK(c, gin.H{"positions": dto.ToPositionResponses(positions)})
 }
 
-// GetPosition получает позицию по ID
-// @Summary      Получение позиции
-// @Description  Возвращает позицию по ID
-// @Tags         positions
+// GetPosition godoc
+// @Summary      Получение должности по ID
+// @Description  Возвращает полную информацию о должности.
+// @Description  Требуется доступ к организации.
+// @Tags         Должности
 // @Accept       json
 // @Produce      json
 // @Security     BearerAuth
-// @Param        orgId path int true "ID организации"
-// @Param        posId path int true "ID позиции"
-// @Success      200  {object}  dto.PositionResponse  "Позиция"
-// @Failure      401  {object}  map[string]string  "Не авторизован"
-// @Failure      404  {object}  map[string]string  "Позиция не найдена"
+// @Param        orgId path int true "ID организации" minimum(1) example(1)
+// @Param        posId path int true "ID должности" minimum(1) example(1)
+// @Success      200 {object} dto.PositionResponse "Данные должности"
+// @Failure      400 {object} dto.ErrorResponse "Неверный формат ID"
+// @Failure      401 {object} dto.ErrorResponse "Отсутствует или невалидный токен авторизации"
+// @Failure      404 {object} dto.ErrorResponse "Должность не найдена"
+// @Failure      500 {object} dto.ErrorResponse "Внутренняя ошибка сервера"
 // @Router       /organizations/{orgId}/positions/{posId} [get]
 func (ctrl *PositionController) GetPosition(c *gin.Context) {
 	posID, err := strconv.ParseInt(c.Param("posId"), 10, 64)
@@ -139,20 +154,24 @@ func (ctrl *PositionController) GetPosition(c *gin.Context) {
 	helpers.RespondOK(c, dto.ToPositionResponse(position))
 }
 
-// UpdatePosition обновляет позицию
-// @Summary      Обновление позиции
-// @Description  Обновляет данные позиции
-// @Tags         positions
+// UpdatePosition godoc
+// @Summary      Обновление должности
+// @Description  Обновляет данные должности.
+// @Description  Можно изменить название, описание, привязку к отделу и административный статус.
+// @Description  Требуется право "positions.update" или статус основателя.
+// @Tags         Должности
 // @Accept       json
 // @Produce      json
 // @Security     BearerAuth
-// @Param        orgId path int true "ID организации"
-// @Param        posId path int true "ID позиции"
-// @Param        request body dto.UpdatePositionRequest true "Новые данные"
-// @Success      200  {object}  dto.PositionResponse  "Позиция обновлена"
-// @Failure      400  {object}  map[string]string  "Ошибка валидации"
-// @Failure      401  {object}  map[string]string  "Не авторизован"
-// @Failure      403  {object}  map[string]string  "Нет права positions.update"
+// @Param        orgId path int true "ID организации" minimum(1) example(1)
+// @Param        posId path int true "ID должности" minimum(1) example(1)
+// @Param        request body dto.UpdatePositionRequest true "Новые данные должности"
+// @Success      200 {object} dto.PositionResponse "Должность успешно обновлена"
+// @Failure      400 {object} dto.ErrorResponse "Ошибка валидации данных"
+// @Failure      401 {object} dto.ErrorResponse "Отсутствует или невалидный токен авторизации"
+// @Failure      403 {object} dto.ErrorResponse "Нет права positions.update"
+// @Failure      404 {object} dto.ErrorResponse "Должность не найдена"
+// @Failure      500 {object} dto.ErrorResponse "Внутренняя ошибка сервера"
 // @Router       /organizations/{orgId}/positions/{posId} [put]
 func (ctrl *PositionController) UpdatePosition(c *gin.Context) {
 	posID, err := strconv.ParseInt(c.Param("posId"), 10, 64)
@@ -176,18 +195,23 @@ func (ctrl *PositionController) UpdatePosition(c *gin.Context) {
 	helpers.RespondOK(c, dto.ToPositionResponse(position))
 }
 
-// DeletePosition удаляет позицию
-// @Summary      Удаление позиции
-// @Description  Удаляет позицию из организации
-// @Tags         positions
+// DeletePosition godoc
+// @Summary      Удаление должности
+// @Description  Удаляет должность из организации.
+// @Description  **ВНИМАНИЕ**: Нельзя удалить должность, если на ней есть сотрудники.
+// @Description  Требуется право "positions.delete" или статус основателя.
+// @Tags         Должности
 // @Accept       json
 // @Produce      json
 // @Security     BearerAuth
-// @Param        orgId path int true "ID организации"
-// @Param        posId path int true "ID позиции"
-// @Success      200  {object}  map[string]string  "Позиция удалена"
-// @Failure      401  {object}  map[string]string  "Не авторизован"
-// @Failure      403  {object}  map[string]string  "Нет права positions.delete"
+// @Param        orgId path int true "ID организации" minimum(1) example(1)
+// @Param        posId path int true "ID должности" minimum(1) example(1)
+// @Success      200 {object} dto.MessageResponse "Должность успешно удалена"
+// @Failure      400 {object} dto.ErrorResponse "Неверный формат ID"
+// @Failure      401 {object} dto.ErrorResponse "Отсутствует или невалидный токен авторизации"
+// @Failure      403 {object} dto.ErrorResponse "Нет права positions.delete"
+// @Failure      404 {object} dto.ErrorResponse "Должность не найдена"
+// @Failure      500 {object} dto.ErrorResponse "Внутренняя ошибка сервера"
 // @Router       /organizations/{orgId}/positions/{posId} [delete]
 func (ctrl *PositionController) DeletePosition(c *gin.Context) {
 	posID, err := strconv.ParseInt(c.Param("posId"), 10, 64)

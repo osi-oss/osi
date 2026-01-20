@@ -1,243 +1,722 @@
 basePath: /api
 definitions:
   github_com_osi-oss_osi_internal_dto.CreateDepartmentRequest:
+    description: Данные для создания нового отдела в локации
     properties:
       description:
+        description: |-
+          Описание отдела
+          Example: Отдел занимается продажами и работой с клиентами
+        example: Отдел занимается продажами и работой с клиентами
         type: string
       name:
+        description: |-
+          Название отдела (обязательное)
+          Example: Отдел продаж
+        example: Отдел продаж
         type: string
       parent_id:
+        description: |-
+          ID родительского отдела (для создания иерархии)
+          Example: 1
+        example: 1
         type: integer
     required:
     - name
     type: object
   github_com_osi-oss_osi_internal_dto.CreateLocationRequest:
+    description: Данные для создания новой локации (офиса, филиала, склада и т.д.)
     properties:
       address:
+        description: |-
+          Физический адрес локации
+          Example: г. Москва, ул. Ленина, д. 10
+        example: г. Москва, ул. Ленина, д. 10
         type: string
       is_verified:
+        description: |-
+          Подтверждена ли локация
+          Example: false
+        example: false
         type: boolean
       name:
+        description: |-
+          Название локации (обязательное)
+          Example: Главный офис
+        example: Главный офис
         type: string
       source:
+        description: |-
+          Источник данных: manual, egrul, api
+          Example: manual
+        enum:
+        - manual
+        - egrul
+        - api
+        example: manual
         type: string
     required:
     - name
     - source
     type: object
   github_com_osi-oss_osi_internal_dto.CreateOrganizationRequest:
+    description: Данные для создания новой организации
     properties:
       inn:
+        description: |-
+          ИНН организации (10 или 12 цифр)
+          Example: 7707083893
+        example: "7707083893"
         type: string
       kpp:
+        description: |-
+          КПП организации (9 цифр)
+          Example: 770701001
+        example: "770701001"
         type: string
       legal_address:
+        description: |-
+          Юридический адрес организации
+          Example: г. Москва, ул. Тверская, д. 1
+        example: г. Москва, ул. Тверская, д. 1
         type: string
       legal_name:
+        description: |-
+          Полное юридическое название
+          Example: Общество с ограниченной ответственностью "Ромашка"
+        example: Общество с ограниченной ответственностью Ромашка
         type: string
       name:
+        description: |-
+          Название организации (обязательное)
+          Example: ООО "Ромашка"
+        example: ООО Ромашка
         type: string
       ogrn:
+        description: |-
+          ОГРН организации (13 цифр)
+          Example: 1027700132195
+        example: "1027700132195"
         type: string
       share_percent:
+        description: |-
+          Доля владения (в процентах, от 0 до 100)
+          Example: 100.0
+        example: 100
         type: number
     required:
     - name
     type: object
   github_com_osi-oss_osi_internal_dto.CreatePositionRequest:
+    description: Данные для создания новой должности в организации
     properties:
       department_id:
+        description: |-
+          ID отдела для привязки (опционально)
+          Example: 1
+        example: 1
         type: integer
       description:
+        description: |-
+          Описание должностных обязанностей
+          Example: Работа с клиентами, заключение договоров
+        example: Работа с клиентами, заключение договоров
         type: string
       is_admin:
+        description: |-
+          Является ли позиция административной (имеет расширенные права)
+          Example: false
+        example: false
         type: boolean
       name:
+        description: |-
+          Название должности (обязательное)
+          Example: Менеджер по продажам
+        example: Менеджер по продажам
         type: string
     required:
     - name
     type: object
   github_com_osi-oss_osi_internal_dto.DepartmentResponse:
+    description: Полная информация об отделе
     properties:
       created_at:
+        description: |-
+          Дата создания
+          Example: 2024-01-15T10:30:00Z
+        example: "2024-01-15T10:30:00Z"
         type: string
       description:
+        description: |-
+          Описание отдела
+          Example: Отдел занимается продажами
+        example: Отдел занимается продажами
         type: string
       id:
+        description: |-
+          Уникальный идентификатор отдела
+          Example: 1
+        example: 1
         type: integer
       location_id:
+        description: |-
+          ID локации, в которой находится отдел
+          Example: 1
+        example: 1
         type: integer
       name:
+        description: |-
+          Название отдела
+          Example: Отдел продаж
+        example: Отдел продаж
         type: string
       parent_id:
+        description: ID родительского отдела (может быть пустым для корневых отделов)
         type: integer
       updated_at:
+        description: |-
+          Дата последнего обновления
+          Example: 2024-01-20T15:45:00Z
+        example: "2024-01-20T15:45:00Z"
+        type: string
+    type: object
+  github_com_osi-oss_osi_internal_dto.DepartmentsListResponse:
+    description: Список отделов локации
+    properties:
+      departments:
+        description: Массив отделов
+        items:
+          $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.DepartmentResponse'
+        type: array
+    type: object
+  github_com_osi-oss_osi_internal_dto.ErrorResponse:
+    description: Стандартный формат ответа при ошибке
+    properties:
+      error:
+        description: |-
+          Сообщение об ошибке
+          Example: invalid email or password
+        example: invalid email or password
         type: string
     type: object
   github_com_osi-oss_osi_internal_dto.LocationResponse:
+    description: Полная информация о локации
     properties:
       address:
+        description: |-
+          Физический адрес
+          Example: г. Москва, ул. Ленина, д. 10
+        example: г. Москва, ул. Ленина, д. 10
         type: string
       created_at:
+        description: |-
+          Дата создания
+          Example: 2024-01-15T10:30:00Z
+        example: "2024-01-15T10:30:00Z"
         type: string
       id:
+        description: |-
+          Уникальный идентификатор локации
+          Example: 1
+        example: 1
         type: integer
       is_active:
+        description: |-
+          Активна ли локация
+          Example: true
+        example: true
         type: boolean
       is_verified:
+        description: |-
+          Подтверждена ли локация
+          Example: true
+        example: true
         type: boolean
       name:
+        description: |-
+          Название локации
+          Example: Главный офис
+        example: Главный офис
         type: string
       organization_id:
+        description: |-
+          ID организации, которой принадлежит локация
+          Example: 1
+        example: 1
         type: integer
       source:
+        description: |-
+          Источник данных
+          Example: manual
+        enum:
+        - manual
+        - egrul
+        - api
+        example: manual
         type: string
       updated_at:
+        description: |-
+          Дата последнего обновления
+          Example: 2024-01-20T15:45:00Z
+        example: "2024-01-20T15:45:00Z"
         type: string
     type: object
+  github_com_osi-oss_osi_internal_dto.LocationsListResponse:
+    description: Список локаций организации
+    properties:
+      locations:
+        description: Массив локаций
+        items:
+          $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.LocationResponse'
+        type: array
+    type: object
   github_com_osi-oss_osi_internal_dto.LoginRequest:
+    description: Учётные данные для входа в систему
     properties:
       email:
+        description: |-
+          Email пользователя
+          Example: user@example.com
+        example: user@example.com
         type: string
       password:
+        description: |-
+          Пароль пользователя
+          Example: SecurePass123
+        example: SecurePass123
         minLength: 6
         type: string
     required:
     - email
     - password
     type: object
-  github_com_osi-oss_osi_internal_dto.OrganizationResponse:
+  github_com_osi-oss_osi_internal_dto.LoginResponse:
+    description: Ответ при успешной авторизации с JWT токеном
     properties:
-      created_at:
+      message:
+        description: |-
+          Сообщение о результате
+          Example: Login successful
+        example: Login successful
         type: string
-      id:
-        type: integer
-      inn:
-        type: string
-      kpp:
-        type: string
-      legal_address:
-        type: string
-      legal_name:
-        type: string
-      name:
-        type: string
-      ogrn:
-        type: string
-      status:
-        type: string
-      updated_at:
+      token:
+        description: |-
+          JWT токен для авторизации запросов
+          Example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ
         type: string
     type: object
+  github_com_osi-oss_osi_internal_dto.MessageResponse:
+    description: Стандартный формат успешного ответа с сообщением
+    properties:
+      message:
+        description: |-
+          Сообщение о результате операции
+          Example: operation completed successfully
+        example: operation completed successfully
+        type: string
+    type: object
+  github_com_osi-oss_osi_internal_dto.OrganizationResponse:
+    description: Полная информация об организации
+    properties:
+      created_at:
+        description: |-
+          Дата создания
+          Example: 2024-01-15T10:30:00Z
+        example: "2024-01-15T10:30:00Z"
+        type: string
+      id:
+        description: |-
+          Уникальный идентификатор организации
+          Example: 1
+        example: 1
+        type: integer
+      inn:
+        description: |-
+          ИНН организации
+          Example: 7707083893
+        example: "7707083893"
+        type: string
+      kpp:
+        description: |-
+          КПП организации
+          Example: 770701001
+        example: "770701001"
+        type: string
+      legal_address:
+        description: |-
+          Юридический адрес
+          Example: г. Москва, ул. Тверская, д. 1
+        example: г. Москва, ул. Тверская, д. 1
+        type: string
+      legal_name:
+        description: |-
+          Полное юридическое название
+          Example: Общество с ограниченной ответственностью "Ромашка"
+        example: Общество с ограниченной ответственностью Ромашка
+        type: string
+      name:
+        description: |-
+          Название организации
+          Example: ООО "Ромашка"
+        example: ООО Ромашка
+        type: string
+      ogrn:
+        description: |-
+          ОГРН организации
+          Example: 1027700132195
+        example: "1027700132195"
+        type: string
+      status:
+        description: |-
+          Статус организации: draft, pending, approved, rejected
+          Example: approved
+        enum:
+        - draft
+        - pending
+        - approved
+        - rejected
+        example: approved
+        type: string
+      updated_at:
+        description: |-
+          Дата последнего обновления
+          Example: 2024-01-20T15:45:00Z
+        example: "2024-01-20T15:45:00Z"
+        type: string
+    type: object
+  github_com_osi-oss_osi_internal_dto.OrganizationsListResponse:
+    description: Список организаций пользователя
+    properties:
+      organizations:
+        description: Массив организаций
+        items:
+          $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.OrganizationResponse'
+        type: array
+    type: object
   github_com_osi-oss_osi_internal_dto.PasswordResetRequest:
+    description: Email для отправки инструкций по сбросу пароля
     properties:
       email:
+        description: |-
+          Email пользователя для восстановления доступа
+          Example: user@example.com
+        example: user@example.com
         type: string
     required:
     - email
     type: object
   github_com_osi-oss_osi_internal_dto.PositionResponse:
+    description: Полная информация о должности
     properties:
       created_at:
+        description: |-
+          Дата создания
+          Example: 2024-01-15T10:30:00Z
+        example: "2024-01-15T10:30:00Z"
         type: string
       department_id:
+        description: |-
+          ID отдела (null если не привязана к отделу)
+          Example: 1
+        example: 1
         type: integer
       description:
+        description: |-
+          Описание должности
+          Example: Работа с клиентами
+        example: Работа с клиентами
         type: string
       id:
+        description: |-
+          Уникальный идентификатор позиции
+          Example: 1
+        example: 1
         type: integer
       is_admin:
+        description: |-
+          Является ли административной
+          Example: false
+        example: false
         type: boolean
       name:
+        description: |-
+          Название должности
+          Example: Менеджер по продажам
+        example: Менеджер по продажам
         type: string
       organization_id:
+        description: |-
+          ID организации
+          Example: 1
+        example: 1
         type: integer
       updated_at:
+        description: |-
+          Дата последнего обновления
+          Example: 2024-01-20T15:45:00Z
+        example: "2024-01-20T15:45:00Z"
         type: string
     type: object
+  github_com_osi-oss_osi_internal_dto.PositionsListResponse:
+    description: Список позиций организации или отдела
+    properties:
+      positions:
+        description: Массив позиций
+        items:
+          $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.PositionResponse'
+        type: array
+    type: object
+  github_com_osi-oss_osi_internal_dto.ProfileResponse:
+    description: Ответ с данными профиля пользователя
+    properties:
+      message:
+        description: |-
+          Сообщение о результате
+          Example: Profile retrieved successfully
+        example: Profile retrieved successfully
+        type: string
+      user:
+        allOf:
+        - $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.UserResponse'
+        description: Данные пользователя
+    type: object
   github_com_osi-oss_osi_internal_dto.ResetPasswordRequest:
+    description: Токен сброса и новый пароль
     properties:
       new_password:
+        description: |-
+          Новый пароль (минимум 6 символов)
+          Example: NewSecurePass456
+        example: NewSecurePass456
         minLength: 6
         type: string
       token:
+        description: |-
+          Токен из письма для сброса пароля
+          Example: a1b2c3d4e5f6g7h8i9j0
+        example: a1b2c3d4e5f6g7h8i9j0
         type: string
     required:
     - new_password
     - token
     type: object
   github_com_osi-oss_osi_internal_dto.SignUpRequest:
+    description: Данные для регистрации нового пользователя в системе
     properties:
       email:
+        description: |-
+          Email пользователя (должен быть уникальным)
+          Example: user@example.com
+        example: user@example.com
         type: string
       password:
+        description: |-
+          Пароль (минимум 6 символов)
+          Example: SecurePass123
+        example: SecurePass123
         minLength: 6
         type: string
     required:
     - email
     - password
     type: object
+  github_com_osi-oss_osi_internal_dto.SignUpResponse:
+    description: Ответ при успешной регистрации пользователя
+    properties:
+      message:
+        description: |-
+          Сообщение о результате
+          Example: User created successfully
+        example: User created successfully
+        type: string
+      user:
+        allOf:
+        - $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.UserResponse'
+        description: Данные созданного пользователя
+    type: object
+  github_com_osi-oss_osi_internal_dto.TokenValidationResponse:
+    description: Результат проверки токена сброса пароля
+    properties:
+      message:
+        description: |-
+          Сообщение о результате
+          Example: Token is valid
+        example: Token is valid
+        type: string
+      valid:
+        description: |-
+          Валиден ли токен
+          Example: true
+        example: true
+        type: boolean
+    type: object
   github_com_osi-oss_osi_internal_dto.UpdateDepartmentRequest:
+    description: Данные для обновления отдела
     properties:
       description:
+        description: |-
+          Новое описание
+          Example: Отдел работает с корпоративными клиентами
+        example: Отдел работает с корпоративными клиентами
         type: string
       name:
+        description: |-
+          Новое название отдела
+          Example: Отдел корпоративных продаж
+        example: Отдел корпоративных продаж
         type: string
       parent_id:
+        description: |-
+          Новый родительский отдел
+          Example: 2
+        example: 2
         type: integer
     type: object
   github_com_osi-oss_osi_internal_dto.UpdateLocationRequest:
+    description: Данные для обновления локации
     properties:
       address:
+        description: |-
+          Новый адрес
+          Example: г. Москва, ул. Пушкина, д. 5
+        example: г. Москва, ул. Пушкина, д. 5
         type: string
       is_active:
+        description: |-
+          Активна ли локация
+          Example: true
+        example: true
         type: boolean
       is_verified:
+        description: |-
+          Статус верификации
+          Example: true
+        example: true
         type: boolean
       name:
+        description: |-
+          Новое название локации
+          Example: Центральный офис
+        example: Центральный офис
         type: string
       source:
+        description: |-
+          Источник данных
+          Example: manual
+        enum:
+        - manual
+        - egrul
+        - api
+        example: manual
         type: string
     type: object
   github_com_osi-oss_osi_internal_dto.UpdateOrganizationRequest:
+    description: Данные для обновления организации (передаются только изменяемые поля)
     properties:
       inn:
+        description: |-
+          ИНН организации
+          Example: 7707083893
+        example: "7707083893"
         type: string
       kpp:
+        description: |-
+          КПП организации
+          Example: 770701001
+        example: "770701001"
         type: string
       legal_address:
+        description: |-
+          Юридический адрес
+          Example: г. Москва, ул. Тверская, д. 2
+        example: г. Москва, ул. Тверская, д. 2
         type: string
       legal_name:
+        description: |-
+          Полное юридическое название
+          Example: Общество с ограниченной ответственностью "Ромашка Плюс"
+        example: Общество с ограниченной ответственностью Ромашка Плюс
         type: string
       name:
+        description: |-
+          Новое название организации
+          Example: ООО "Ромашка Плюс"
+        example: ООО Ромашка Плюс
         type: string
       ogrn:
+        description: |-
+          ОГРН организации
+          Example: 1027700132195
+        example: "1027700132195"
         type: string
     type: object
   github_com_osi-oss_osi_internal_dto.UpdatePositionRequest:
+    description: Данные для обновления должности
     properties:
       department_id:
+        description: |-
+          Новый ID отдела
+          Example: 2
+        example: 2
         type: integer
       description:
+        description: |-
+          Новое описание
+          Example: Руководство отделом продаж
+        example: Руководство отделом продаж
         type: string
       is_admin:
+        description: |-
+          Административная позиция
+          Example: true
+        example: true
         type: boolean
       name:
+        description: |-
+          Новое название должности
+          Example: Старший менеджер по продажам
+        example: Старший менеджер по продажам
         type: string
     type: object
   github_com_osi-oss_osi_internal_dto.UserResponse:
+    description: Публичные данные пользователя
     properties:
       created_at:
+        description: |-
+          Дата регистрации
+          Example: 2024-01-15T10:30:00Z
+        example: "2024-01-15T10:30:00Z"
         type: string
       email:
+        description: |-
+          Email пользователя
+          Example: user@example.com
+        example: user@example.com
         type: string
       email_verified:
+        description: |-
+          Подтверждён ли email
+          Example: true
+        example: true
         type: boolean
       first_name:
+        description: |-
+          Имя пользователя
+          Example: Иван
+        example: Иван
         type: string
       id:
+        description: |-
+          Уникальный идентификатор пользователя
+          Example: 1
+        example: 1
         type: integer
       last_name:
+        description: |-
+          Фамилия пользователя
+          Example: Петров
+        example: Петров
         type: string
     type: object
 host: localhost:8080
@@ -258,9 +737,12 @@ paths:
     post:
       consumes:
       - application/json
-      description: Отправляет email с инструкциями по сбросу пароля
+      description: |-
+        Отправляет письмо с инструкциями по сбросу пароля на указанный email.
+        В целях безопасности всегда возвращает успех, даже если email не найден.
+        Токен сброса действителен 1 час.
       parameters:
-      - description: Email для сброса пароля
+      - description: Email для восстановления доступа
         in: body
         name: request
         required: true
@@ -270,27 +752,26 @@ paths:
       - application/json
       responses:
         "200":
-          description: Инструкции отправлены
+          description: Инструкции отправлены (если email существует)
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.MessageResponse'
         "400":
-          description: Ошибка валидации
+          description: Неверный формат email
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
       summary: Запрос сброса пароля
       tags:
-      - auth
+      - Аутентификация
   /login:
     post:
       consumes:
       - application/json
-      description: Авторизует пользователя и возвращает JWT токен
+      description: |-
+        Авторизует пользователя по email и паролю.
+        Возвращает JWT токен, который нужно передавать в заголовке Authorization: Bearer <token>.
+        Токен действителен 24 часа.
       parameters:
-      - description: Данные для входа
+      - description: Учётные данные для входа
         in: body
         name: request
         required: true
@@ -300,77 +781,81 @@ paths:
       - application/json
       responses:
         "200":
-          description: Успешная авторизация
+          description: Успешная авторизация, возвращается JWT токен
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.LoginResponse'
         "400":
-          description: Ошибка валидации
+          description: 'Ошибка валидации: неверный формат запроса'
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
         "401":
-          description: Неверные учетные данные
+          description: Неверный email или пароль
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
       summary: Авторизация пользователя
       tags:
-      - auth
+      - Аутентификация
   /logout:
     post:
       consumes:
       - application/json
-      description: Удаляет токен авторизации
+      description: |-
+        Завершает сессию пользователя.
+        Удаляет токен из cookies (auth_token).
+        После выхода JWT токен остаётся валидным до истечения срока.
       produces:
       - application/json
       responses:
         "200":
-          description: Успешный выход
+          description: Успешный выход из системы
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.MessageResponse'
       security:
       - BearerAuth: []
       summary: Выход из системы
       tags:
-      - auth
+      - Аутентификация
   /organizations:
     get:
       consumes:
       - application/json
-      description: Возвращает все организации, в которых состоит пользователь
+      description: |-
+        Возвращает все организации, в которых пользователь является участником или основателем.
+        Включает организации со всеми статусами (draft, pending, approved, rejected).
       produces:
       - application/json
       responses:
         "200":
-          description: Список организаций
+          description: Список организаций пользователя
           schema:
-            additionalProperties:
-              items:
-                $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.OrganizationResponse'
-              type: array
-            type: object
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.OrganizationsListResponse'
         "401":
-          description: Не авторизован
+          description: Отсутствует или невалидный токен авторизации
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
       security:
       - BearerAuth: []
-      summary: Список организаций пользователя
+      summary: Список организаций текущего пользователя
       tags:
-      - organizations
+      - Организации
     post:
       consumes:
       - application/json
-      description: Создаёт новую организацию. Пользователь становится основателем.
+      description: |-
+        Создаёт новую организацию в системе.
+        Текущий пользователь автоматически становится основателем (founder) организации.
+        Основатель имеет полные права на управление организацией.
+        Новая организация создаётся со статусом "draft".
       parameters:
-      - description: Данные организации
+      - description: Данные для создания организации
         in: body
         name: request
         required: true
@@ -380,34 +865,42 @@ paths:
       - application/json
       responses:
         "201":
-          description: Организация создана
+          description: Организация успешно создана
           schema:
             $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.OrganizationResponse'
         "400":
-          description: Ошибка валидации
+          description: 'Ошибка валидации: название обязательно'
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
         "401":
-          description: Не авторизован
+          description: Отсутствует или невалидный токен авторизации
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
       security:
       - BearerAuth: []
-      summary: Создание организации
+      summary: Создание новой организации
       tags:
-      - organizations
+      - Организации
   /organizations/{orgId}:
     delete:
       consumes:
       - application/json
-      description: Удаляет организацию. Только для основателей.
+      description: |-
+        Полностью удаляет организацию из системы.
+        Доступно только основателям организации.
+        **ВНИМАНИЕ**: Удаление безвозвратно удаляет все связанные данные:
+        - Все локации организации
+        - Все отделы и позиции
+        - Все данные об участниках и сотрудниках
       parameters:
-      - description: ID организации
+      - description: ID удаляемой организации
+        example: 1
         in: path
+        minimum: 1
         name: orgId
         required: true
         type: integer
@@ -415,41 +908,45 @@ paths:
       - application/json
       responses:
         "200":
-          description: Организация удалена
+          description: Организация успешно удалена
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.MessageResponse'
+        "400":
+          description: Неверный формат ID организации
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
         "401":
-          description: Не авторизован
+          description: Отсутствует или невалидный токен авторизации
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
         "403":
-          description: Нет доступа
+          description: Только основатель может удалить организацию
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
         "404":
           description: Организация не найдена
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Удаление организации
       tags:
-      - organizations
+      - Организации
     get:
       consumes:
       - application/json
-      description: Возвращает организацию по ID
+      description: |-
+        Возвращает полную информацию об организации.
+        Доступ имеют только участники организации (члены или основатели).
       parameters:
       - description: ID организации
+        example: 1
         in: path
+        minimum: 1
         name: orgId
         required: true
         type: integer
@@ -457,43 +954,50 @@ paths:
       - application/json
       responses:
         "200":
-          description: Организация
+          description: Данные организации
           schema:
             $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.OrganizationResponse'
+        "400":
+          description: Неверный формат ID организации
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
         "401":
-          description: Не авторизован
+          description: Отсутствует или невалидный токен авторизации
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
         "403":
-          description: Нет доступа
+          description: Нет доступа к организации
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
         "404":
           description: Организация не найдена
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
       security:
       - BearerAuth: []
-      summary: Получение организации
+      summary: Получение организации по ID
       tags:
-      - organizations
+      - Организации
     put:
       consumes:
       - application/json
-      description: Обновляет данные организации
+      description: |-
+        Обновляет информацию об организации.
+        Можно обновлять только те поля, которые переданы в запросе.
+        Требует доступа к организации (основатель или участник с соответствующими правами).
       parameters:
       - description: ID организации
+        example: 1
         in: path
+        minimum: 1
         name: orgId
         required: true
         type: integer
-      - description: Новые данные
+      - description: Новые данные организации
         in: body
         name: request
         required: true
@@ -503,46 +1007,46 @@ paths:
       - application/json
       responses:
         "200":
-          description: Организация обновлена
+          description: Организация успешно обновлена
           schema:
             $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.OrganizationResponse'
         "400":
-          description: Ошибка валидации
+          description: Ошибка валидации данных
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
         "401":
-          description: Не авторизован
+          description: Отсутствует или невалидный токен авторизации
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
         "403":
-          description: Нет доступа
+          description: Нет прав на редактирование организации
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
         "404":
           description: Организация не найдена
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
       security:
       - BearerAuth: []
-      summary: Обновление организации
+      summary: Обновление данных организации
       tags:
-      - organizations
+      - Организации
   /organizations/{orgId}/locations:
     get:
       consumes:
       - application/json
-      description: Возвращает все локации организации
+      description: |-
+        Возвращает все локации организации (активные и неактивные).
+        Требуется доступ к организации (участник или основатель).
       parameters:
       - description: ID организации
+        example: 1
         in: path
+        minimum: 1
         name: orgId
         required: true
         type: integer
@@ -550,41 +1054,46 @@ paths:
       - application/json
       responses:
         "200":
-          description: Список локаций
+          description: Список локаций организации
           schema:
-            additionalProperties:
-              items:
-                $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.LocationResponse'
-              type: array
-            type: object
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.LocationsListResponse'
+        "400":
+          description: Неверный формат ID организации
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
         "401":
-          description: Не авторизован
+          description: Отсутствует или невалидный токен авторизации
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
         "403":
-          description: Нет доступа
+          description: Нет доступа к организации
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
       security:
       - BearerAuth: []
-      summary: Список локаций
+      summary: Список локаций организации
       tags:
-      - locations
+      - Локации
     post:
       consumes:
       - application/json
-      description: Создаёт новую локацию в организации
+      description: |-
+        Создаёт новую локацию (офис, филиал, склад и т.д.) в организации.
+        Требуется право "locations.create" или статус основателя.
+        Поле source указывает источник данных: manual (вручную), egrul (из ЕГРЮЛ), api (через API).
       parameters:
       - description: ID организации
+        example: 1
         in: path
+        minimum: 1
         name: orgId
         required: true
         type: integer
-      - description: Данные локации
+      - description: Данные для создания локации
         in: body
         name: request
         required: true
@@ -594,45 +1103,54 @@ paths:
       - application/json
       responses:
         "201":
-          description: Локация создана
+          description: Локация успешно создана
           schema:
             $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.LocationResponse'
         "400":
-          description: Ошибка валидации
+          description: 'Ошибка валидации: name и source обязательны'
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
         "401":
-          description: Не авторизован
+          description: Отсутствует или невалидный токен авторизации
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
         "403":
           description: Нет права locations.create
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "404":
+          description: Организация не найдена
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
       security:
       - BearerAuth: []
-      summary: Создание локации
+      summary: Создание новой локации
       tags:
-      - locations
+      - Локации
   /organizations/{orgId}/locations/{locId}:
     delete:
       consumes:
       - application/json
-      description: Удаляет локацию из организации
+      description: |-
+        Удаляет локацию из организации.
+        **ВНИМАНИЕ**: Удаление локации удалит все связанные отделы.
+        Требуется право "locations.delete" или статус основателя.
       parameters:
       - description: ID организации
+        example: 1
         in: path
+        minimum: 1
         name: orgId
         required: true
         type: integer
       - description: ID локации
+        example: 1
         in: path
+        minimum: 1
         name: locId
         required: true
         type: integer
@@ -640,40 +1158,52 @@ paths:
       - application/json
       responses:
         "200":
-          description: Локация удалена
+          description: Локация успешно удалена
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.MessageResponse'
+        "400":
+          description: Неверный формат ID
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
         "401":
-          description: Не авторизован
+          description: Отсутствует или невалидный токен авторизации
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
         "403":
           description: Нет права locations.delete
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "404":
+          description: Локация не найдена
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Удаление локации
       tags:
-      - locations
+      - Локации
     get:
       consumes:
       - application/json
-      description: Возвращает локацию по ID
+      description: |-
+        Возвращает полную информацию о локации.
+        Требуется доступ к организации.
       parameters:
       - description: ID организации
+        example: 1
         in: path
+        minimum: 1
         name: orgId
         required: true
         type: integer
       - description: ID локации
+        example: 1
         in: path
+        minimum: 1
         name: locId
         required: true
         type: integer
@@ -681,42 +1211,53 @@ paths:
       - application/json
       responses:
         "200":
-          description: Локация
+          description: Данные локации
           schema:
             $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.LocationResponse'
-        "401":
-          description: Не авторизован
+        "400":
+          description: Неверный формат ID
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "401":
+          description: Отсутствует или невалидный токен авторизации
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
         "404":
           description: Локация не найдена
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
       security:
       - BearerAuth: []
-      summary: Получение локации
+      summary: Получение локации по ID
       tags:
-      - locations
+      - Локации
     put:
       consumes:
       - application/json
-      description: Обновляет данные локации
+      description: |-
+        Обновляет данные локации.
+        Можно обновить название, адрес, источник, статус верификации и активность.
+        Требуется право "locations.update" или статус основателя.
       parameters:
       - description: ID организации
+        example: 1
         in: path
+        minimum: 1
         name: orgId
         required: true
         type: integer
       - description: ID локации
+        example: 1
         in: path
+        minimum: 1
         name: locId
         required: true
         type: integer
-      - description: Новые данные
+      - description: Новые данные локации
         in: body
         name: request
         required: true
@@ -726,45 +1267,54 @@ paths:
       - application/json
       responses:
         "200":
-          description: Локация обновлена
+          description: Локация успешно обновлена
           schema:
             $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.LocationResponse'
         "400":
-          description: Ошибка валидации
+          description: Ошибка валидации данных
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
         "401":
-          description: Не авторизован
+          description: Отсутствует или невалидный токен авторизации
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
         "403":
           description: Нет права locations.update
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "404":
+          description: Локация не найдена
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Обновление локации
       tags:
-      - locations
+      - Локации
   /organizations/{orgId}/locations/{locId}/departments:
     get:
       consumes:
       - application/json
-      description: Возвращает все отделы локации
+      description: |-
+        Возвращает все отделы указанной локации.
+        Включает как корневые, так и вложенные отделы.
+        Требуется доступ к организации.
       parameters:
       - description: ID организации
+        example: 1
         in: path
+        minimum: 1
         name: orgId
         required: true
         type: integer
       - description: ID локации
+        example: 1
         in: path
+        minimum: 1
         name: locId
         required: true
         type: integer
@@ -772,40 +1322,49 @@ paths:
       - application/json
       responses:
         "200":
-          description: Список отделов
+          description: Список отделов локации
           schema:
-            additionalProperties:
-              items:
-                $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.DepartmentResponse'
-              type: array
-            type: object
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.DepartmentsListResponse'
+        "400":
+          description: Неверный формат ID
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
         "401":
-          description: Не авторизован
+          description: Отсутствует или невалидный токен авторизации
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
       security:
       - BearerAuth: []
-      summary: Список отделов
+      summary: Список отделов локации
       tags:
-      - departments
+      - Отделы
     post:
       consumes:
       - application/json
-      description: Создаёт новый отдел в локации
+      description: |-
+        Создаёт новый отдел в указанной локации.
+        Отделы могут иметь иерархическую структуру (указывается parent_id).
+        Требуется право "departments.create" или статус основателя.
       parameters:
       - description: ID организации
+        example: 1
         in: path
+        minimum: 1
         name: orgId
         required: true
         type: integer
       - description: ID локации
+        example: 1
         in: path
+        minimum: 1
         name: locId
         required: true
         type: integer
-      - description: Данные отдела
+      - description: Данные для создания отдела
         in: body
         name: request
         required: true
@@ -815,50 +1374,61 @@ paths:
       - application/json
       responses:
         "201":
-          description: Отдел создан
+          description: Отдел успешно создан
           schema:
             $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.DepartmentResponse'
         "400":
-          description: Ошибка валидации
+          description: 'Ошибка валидации: name обязательно'
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
         "401":
-          description: Не авторизован
+          description: Отсутствует или невалидный токен авторизации
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
         "403":
           description: Нет права departments.create
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "404":
+          description: Локация не найдена
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
       security:
       - BearerAuth: []
-      summary: Создание отдела
+      summary: Создание нового отдела
       tags:
-      - departments
+      - Отделы
   /organizations/{orgId}/locations/{locId}/departments/{deptId}:
     delete:
       consumes:
       - application/json
-      description: Удаляет отдел из локации
+      description: |-
+        Удаляет отдел из локации.
+        **ВНИМАНИЕ**: Удаление отдела удалит все дочерние отделы.
+        Требуется право "departments.delete" или статус основателя.
       parameters:
       - description: ID организации
+        example: 1
         in: path
+        minimum: 1
         name: orgId
         required: true
         type: integer
       - description: ID локации
+        example: 1
         in: path
+        minimum: 1
         name: locId
         required: true
         type: integer
       - description: ID отдела
+        example: 1
         in: path
+        minimum: 1
         name: deptId
         required: true
         type: integer
@@ -866,45 +1436,59 @@ paths:
       - application/json
       responses:
         "200":
-          description: Отдел удалён
+          description: Отдел успешно удалён
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.MessageResponse'
+        "400":
+          description: Неверный формат ID
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
         "401":
-          description: Не авторизован
+          description: Отсутствует или невалидный токен авторизации
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
         "403":
           description: Нет права departments.delete
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "404":
+          description: Отдел не найден
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Удаление отдела
       tags:
-      - departments
+      - Отделы
     get:
       consumes:
       - application/json
-      description: Возвращает отдел по ID
+      description: |-
+        Возвращает полную информацию об отделе.
+        Требуется доступ к организации.
       parameters:
       - description: ID организации
+        example: 1
         in: path
+        minimum: 1
         name: orgId
         required: true
         type: integer
       - description: ID локации
+        example: 1
         in: path
+        minimum: 1
         name: locId
         required: true
         type: integer
       - description: ID отдела
+        example: 1
         in: path
+        minimum: 1
         name: deptId
         required: true
         type: integer
@@ -912,47 +1496,60 @@ paths:
       - application/json
       responses:
         "200":
-          description: Отдел
+          description: Данные отдела
           schema:
             $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.DepartmentResponse'
-        "401":
-          description: Не авторизован
+        "400":
+          description: Неверный формат ID
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "401":
+          description: Отсутствует или невалидный токен авторизации
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
         "404":
           description: Отдел не найден
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
       security:
       - BearerAuth: []
-      summary: Получение отдела
+      summary: Получение отдела по ID
       tags:
-      - departments
+      - Отделы
     put:
       consumes:
       - application/json
-      description: Обновляет данные отдела
+      description: |-
+        Обновляет данные отдела.
+        Можно изменить название, описание и родительский отдел.
+        Требуется право "departments.update" или статус основателя.
       parameters:
       - description: ID организации
+        example: 1
         in: path
+        minimum: 1
         name: orgId
         required: true
         type: integer
       - description: ID локации
+        example: 1
         in: path
+        minimum: 1
         name: locId
         required: true
         type: integer
       - description: ID отдела
+        example: 1
         in: path
+        minimum: 1
         name: deptId
         required: true
         type: integer
-      - description: Новые данные
+      - description: Новые данные отдела
         in: body
         name: request
         required: true
@@ -962,50 +1559,60 @@ paths:
       - application/json
       responses:
         "200":
-          description: Отдел обновлён
+          description: Отдел успешно обновлён
           schema:
             $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.DepartmentResponse'
         "400":
-          description: Ошибка валидации
+          description: Ошибка валидации данных
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
         "401":
-          description: Не авторизован
+          description: Отсутствует или невалидный токен авторизации
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
         "403":
           description: Нет права departments.update
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "404":
+          description: Отдел не найден
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Обновление отдела
       tags:
-      - departments
+      - Отделы
   /organizations/{orgId}/locations/{locId}/departments/{deptId}/positions:
     get:
       consumes:
       - application/json
-      description: Возвращает все позиции конкретного отдела
+      description: |-
+        Возвращает все должности, привязанные к конкретному отделу.
+        Требуется доступ к организации.
       parameters:
       - description: ID организации
+        example: 1
         in: path
+        minimum: 1
         name: orgId
         required: true
         type: integer
       - description: ID локации
+        example: 1
         in: path
+        minimum: 1
         name: locId
         required: true
         type: integer
       - description: ID отдела
+        example: 1
         in: path
+        minimum: 1
         name: deptId
         required: true
         type: integer
@@ -1013,32 +1620,39 @@ paths:
       - application/json
       responses:
         "200":
-          description: Список позиций
+          description: Список должностей отдела
           schema:
-            additionalProperties:
-              items:
-                $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.PositionResponse'
-              type: array
-            type: object
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.PositionsListResponse'
+        "400":
+          description: Неверный формат ID
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
         "401":
-          description: Не авторизован
+          description: Отсутствует или невалидный токен авторизации
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
       security:
       - BearerAuth: []
-      summary: Список позиций отдела
+      summary: Список должностей отдела
       tags:
-      - positions
+      - Должности
   /organizations/{orgId}/positions:
     get:
       consumes:
       - application/json
-      description: Возвращает все позиции организации
+      description: |-
+        Возвращает все должности организации.
+        Включает как привязанные к отделам, так и общие позиции.
+        Требуется доступ к организации.
       parameters:
       - description: ID организации
+        example: 1
         in: path
+        minimum: 1
         name: orgId
         required: true
         type: integer
@@ -1046,35 +1660,43 @@ paths:
       - application/json
       responses:
         "200":
-          description: Список позиций
+          description: Список должностей организации
           schema:
-            additionalProperties:
-              items:
-                $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.PositionResponse'
-              type: array
-            type: object
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.PositionsListResponse'
+        "400":
+          description: Неверный формат ID организации
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
         "401":
-          description: Не авторизован
+          description: Отсутствует или невалидный токен авторизации
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
       security:
       - BearerAuth: []
-      summary: Список позиций организации
+      summary: Список всех должностей организации
       tags:
-      - positions
+      - Должности
     post:
       consumes:
       - application/json
-      description: Создаёт новую позицию в организации
+      description: |-
+        Создаёт новую должность в организации.
+        Можно привязать к отделу (department_id) или оставить общей для организации.
+        Административные позиции (is_admin=true) имеют расширенные права.
+        Требуется право "positions.create" или статус основателя.
       parameters:
       - description: ID организации
+        example: 1
         in: path
+        minimum: 1
         name: orgId
         required: true
         type: integer
-      - description: Данные позиции
+      - description: Данные для создания должности
         in: body
         name: request
         required: true
@@ -1084,45 +1706,54 @@ paths:
       - application/json
       responses:
         "201":
-          description: Позиция создана
+          description: Должность успешно создана
           schema:
             $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.PositionResponse'
         "400":
-          description: Ошибка валидации
+          description: 'Ошибка валидации: name обязательно'
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
         "401":
-          description: Не авторизован
+          description: Отсутствует или невалидный токен авторизации
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
         "403":
           description: Нет права positions.create
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "404":
+          description: Организация или отдел не найден
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
       security:
       - BearerAuth: []
-      summary: Создание позиции
+      summary: Создание новой должности
       tags:
-      - positions
+      - Должности
   /organizations/{orgId}/positions/{posId}:
     delete:
       consumes:
       - application/json
-      description: Удаляет позицию из организации
+      description: |-
+        Удаляет должность из организации.
+        **ВНИМАНИЕ**: Нельзя удалить должность, если на ней есть сотрудники.
+        Требуется право "positions.delete" или статус основателя.
       parameters:
       - description: ID организации
+        example: 1
         in: path
+        minimum: 1
         name: orgId
         required: true
         type: integer
-      - description: ID позиции
+      - description: ID должности
+        example: 1
         in: path
+        minimum: 1
         name: posId
         required: true
         type: integer
@@ -1130,40 +1761,52 @@ paths:
       - application/json
       responses:
         "200":
-          description: Позиция удалена
+          description: Должность успешно удалена
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.MessageResponse'
+        "400":
+          description: Неверный формат ID
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
         "401":
-          description: Не авторизован
+          description: Отсутствует или невалидный токен авторизации
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
         "403":
           description: Нет права positions.delete
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "404":
+          description: Должность не найдена
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
       security:
       - BearerAuth: []
-      summary: Удаление позиции
+      summary: Удаление должности
       tags:
-      - positions
+      - Должности
     get:
       consumes:
       - application/json
-      description: Возвращает позицию по ID
+      description: |-
+        Возвращает полную информацию о должности.
+        Требуется доступ к организации.
       parameters:
       - description: ID организации
+        example: 1
         in: path
+        minimum: 1
         name: orgId
         required: true
         type: integer
-      - description: ID позиции
+      - description: ID должности
+        example: 1
         in: path
+        minimum: 1
         name: posId
         required: true
         type: integer
@@ -1171,42 +1814,53 @@ paths:
       - application/json
       responses:
         "200":
-          description: Позиция
+          description: Данные должности
           schema:
             $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.PositionResponse'
+        "400":
+          description: Неверный формат ID
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
         "401":
-          description: Не авторизован
+          description: Отсутствует или невалидный токен авторизации
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
         "404":
-          description: Позиция не найдена
+          description: Должность не найдена
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
       security:
       - BearerAuth: []
-      summary: Получение позиции
+      summary: Получение должности по ID
       tags:
-      - positions
+      - Должности
     put:
       consumes:
       - application/json
-      description: Обновляет данные позиции
+      description: |-
+        Обновляет данные должности.
+        Можно изменить название, описание, привязку к отделу и административный статус.
+        Требуется право "positions.update" или статус основателя.
       parameters:
       - description: ID организации
+        example: 1
         in: path
+        minimum: 1
         name: orgId
         required: true
         type: integer
-      - description: ID позиции
+      - description: ID должности
+        example: 1
         in: path
+        minimum: 1
         name: posId
         required: true
         type: integer
-      - description: Новые данные
+      - description: Новые данные должности
         in: body
         name: request
         required: true
@@ -1216,62 +1870,75 @@ paths:
       - application/json
       responses:
         "200":
-          description: Позиция обновлена
+          description: Должность успешно обновлена
           schema:
             $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.PositionResponse'
         "400":
-          description: Ошибка валидации
+          description: Ошибка валидации данных
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
         "401":
-          description: Не авторизован
+          description: Отсутствует или невалидный токен авторизации
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
         "403":
           description: Нет права positions.update
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "404":
+          description: Должность не найдена
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
       security:
       - BearerAuth: []
-      summary: Обновление позиции
+      summary: Обновление должности
       tags:
-      - positions
+      - Должности
   /profile:
     get:
       consumes:
       - application/json
-      description: Возвращает профиль текущего авторизованного пользователя
+      description: |-
+        Возвращает данные профиля авторизованного пользователя.
+        Требует авторизацию через JWT токен.
       produces:
       - application/json
       responses:
         "200":
-          description: Профиль пользователя
+          description: Данные профиля пользователя
           schema:
-            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.UserResponse'
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ProfileResponse'
         "401":
-          description: Не авторизован
+          description: Отсутствует или невалидный токен авторизации
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "404":
+          description: Пользователь не найден
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
       security:
       - BearerAuth: []
-      summary: Получение профиля
+      summary: Получение профиля текущего пользователя
       tags:
-      - user
+      - Пользователь
   /reset-password:
     post:
       consumes:
       - application/json
-      description: Устанавливает новый пароль по токену из email
+      description: |-
+        Устанавливает новый пароль с использованием токена из письма.
+        Токен можно использовать только один раз.
+        Новый пароль должен быть не менее 6 символов.
       parameters:
-      - description: Токен и новый пароль
+      - description: Токен сброса и новый пароль
         in: body
         name: request
         required: true
@@ -1283,25 +1950,28 @@ paths:
         "200":
           description: Пароль успешно изменён
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.MessageResponse'
         "400":
-          description: Невалидный токен
+          description: Невалидный или истёкший токен, или пароль слишком короткий
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
       summary: Сброс пароля
       tags:
-      - auth
+      - Аутентификация
   /reset-password/validate:
     get:
       consumes:
       - application/json
-      description: Проверяет, валиден ли токен для сброса пароля
+      description: |-
+        Проверяет, действителен ли токен для сброса пароля.
+        Используется для предварительной проверки перед отображением формы сброса.
       parameters:
-      - description: Токен сброса пароля
+      - description: Токен из письма для сброса пароля
+        example: abc123def456
         in: query
         name: token
         required: true
@@ -1310,24 +1980,28 @@ paths:
       - application/json
       responses:
         "200":
-          description: Токен валиден
+          description: Токен валиден, можно сбрасывать пароль
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.TokenValidationResponse'
         "400":
-          description: Токен невалиден или истёк
+          description: Токен не указан, невалиден или истёк
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
       summary: Проверка токена сброса пароля
       tags:
-      - auth
+      - Аутентификация
   /signup:
     post:
       consumes:
       - application/json
-      description: Создаёт нового пользователя с email и паролем
+      description: |-
+        Создаёт нового пользователя в системе.
+        Email должен быть уникальным, пароль минимум 6 символов.
+        После успешной регистрации пользователь может авторизоваться через /login.
       parameters:
       - description: Данные для регистрации
         in: body
@@ -1339,25 +2013,25 @@ paths:
       - application/json
       responses:
         "201":
-          description: Пользователь создан
+          description: Пользователь успешно создан
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.SignUpResponse'
         "400":
-          description: Ошибка валидации
+          description: 'Ошибка валидации: неверный формат email или пароль короче
+            6 символов'
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
         "409":
-          description: Email уже существует
+          description: Пользователь с таким email уже существует
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
       summary: Регистрация нового пользователя
       tags:
-      - auth
+      - Аутентификация
 securityDefinitions:
   BearerAuth:
     description: Type "Bearer" followed by a space and JWT token.

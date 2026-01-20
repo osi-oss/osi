@@ -18,19 +18,23 @@ func NewLocationController(locationService *services.LocationService) *LocationC
 	return &LocationController{locationService: locationService}
 }
 
-// CreateLocation создает новую локацию
-// @Summary      Создание локации
-// @Description  Создаёт новую локацию в организации
-// @Tags         locations
+// CreateLocation godoc
+// @Summary      Создание новой локации
+// @Description  Создаёт новую локацию (офис, филиал, склад и т.д.) в организации.
+// @Description  Требуется право "locations.create" или статус основателя.
+// @Description  Поле source указывает источник данных: manual (вручную), egrul (из ЕГРЮЛ), api (через API).
+// @Tags         Локации
 // @Accept       json
 // @Produce      json
 // @Security     BearerAuth
-// @Param        orgId path int true "ID организации"
-// @Param        request body dto.CreateLocationRequest true "Данные локации"
-// @Success      201  {object}  dto.LocationResponse  "Локация создана"
-// @Failure      400  {object}  map[string]string  "Ошибка валидации"
-// @Failure      401  {object}  map[string]string  "Не авторизован"
-// @Failure      403  {object}  map[string]string  "Нет права locations.create"
+// @Param        orgId path int true "ID организации" minimum(1) example(1)
+// @Param        request body dto.CreateLocationRequest true "Данные для создания локации"
+// @Success      201 {object} dto.LocationResponse "Локация успешно создана"
+// @Failure      400 {object} dto.ErrorResponse "Ошибка валидации: name и source обязательны"
+// @Failure      401 {object} dto.ErrorResponse "Отсутствует или невалидный токен авторизации"
+// @Failure      403 {object} dto.ErrorResponse "Нет права locations.create"
+// @Failure      404 {object} dto.ErrorResponse "Организация не найдена"
+// @Failure      500 {object} dto.ErrorResponse "Внутренняя ошибка сервера"
 // @Router       /organizations/{orgId}/locations [post]
 func (ctrl *LocationController) CreateLocation(c *gin.Context) {
 	orgID, err := strconv.ParseInt(c.Param("orgId"), 10, 64)
@@ -54,17 +58,20 @@ func (ctrl *LocationController) CreateLocation(c *gin.Context) {
 	helpers.RespondCreated(c, dto.ToLocationResponse(location))
 }
 
-// GetOrganizationLocations получает все локации организации
-// @Summary      Список локаций
-// @Description  Возвращает все локации организации
-// @Tags         locations
+// GetOrganizationLocations godoc
+// @Summary      Список локаций организации
+// @Description  Возвращает все локации организации (активные и неактивные).
+// @Description  Требуется доступ к организации (участник или основатель).
+// @Tags         Локации
 // @Accept       json
 // @Produce      json
 // @Security     BearerAuth
-// @Param        orgId path int true "ID организации"
-// @Success      200  {object}  map[string][]dto.LocationResponse  "Список локаций"
-// @Failure      401  {object}  map[string]string  "Не авторизован"
-// @Failure      403  {object}  map[string]string  "Нет доступа"
+// @Param        orgId path int true "ID организации" minimum(1) example(1)
+// @Success      200 {object} dto.LocationsListResponse "Список локаций организации"
+// @Failure      400 {object} dto.ErrorResponse "Неверный формат ID организации"
+// @Failure      401 {object} dto.ErrorResponse "Отсутствует или невалидный токен авторизации"
+// @Failure      403 {object} dto.ErrorResponse "Нет доступа к организации"
+// @Failure      500 {object} dto.ErrorResponse "Внутренняя ошибка сервера"
 // @Router       /organizations/{orgId}/locations [get]
 func (ctrl *LocationController) GetOrganizationLocations(c *gin.Context) {
 	orgID, err := strconv.ParseInt(c.Param("orgId"), 10, 64)
@@ -82,18 +89,21 @@ func (ctrl *LocationController) GetOrganizationLocations(c *gin.Context) {
 	helpers.RespondOK(c, gin.H{"locations": dto.ToLocationResponses(locations)})
 }
 
-// GetLocation получает локацию по ID
-// @Summary      Получение локации
-// @Description  Возвращает локацию по ID
-// @Tags         locations
+// GetLocation godoc
+// @Summary      Получение локации по ID
+// @Description  Возвращает полную информацию о локации.
+// @Description  Требуется доступ к организации.
+// @Tags         Локации
 // @Accept       json
 // @Produce      json
 // @Security     BearerAuth
-// @Param        orgId path int true "ID организации"
-// @Param        locId path int true "ID локации"
-// @Success      200  {object}  dto.LocationResponse  "Локация"
-// @Failure      401  {object}  map[string]string  "Не авторизован"
-// @Failure      404  {object}  map[string]string  "Локация не найдена"
+// @Param        orgId path int true "ID организации" minimum(1) example(1)
+// @Param        locId path int true "ID локации" minimum(1) example(1)
+// @Success      200 {object} dto.LocationResponse "Данные локации"
+// @Failure      400 {object} dto.ErrorResponse "Неверный формат ID"
+// @Failure      401 {object} dto.ErrorResponse "Отсутствует или невалидный токен авторизации"
+// @Failure      404 {object} dto.ErrorResponse "Локация не найдена"
+// @Failure      500 {object} dto.ErrorResponse "Внутренняя ошибка сервера"
 // @Router       /organizations/{orgId}/locations/{locId} [get]
 func (ctrl *LocationController) GetLocation(c *gin.Context) {
 	locationID, err := strconv.ParseInt(c.Param("locId"), 10, 64)
@@ -111,20 +121,24 @@ func (ctrl *LocationController) GetLocation(c *gin.Context) {
 	helpers.RespondOK(c, dto.ToLocationResponse(location))
 }
 
-// UpdateLocation обновляет локацию
+// UpdateLocation godoc
 // @Summary      Обновление локации
-// @Description  Обновляет данные локации
-// @Tags         locations
+// @Description  Обновляет данные локации.
+// @Description  Можно обновить название, адрес, источник, статус верификации и активность.
+// @Description  Требуется право "locations.update" или статус основателя.
+// @Tags         Локации
 // @Accept       json
 // @Produce      json
 // @Security     BearerAuth
-// @Param        orgId path int true "ID организации"
-// @Param        locId path int true "ID локации"
-// @Param        request body dto.UpdateLocationRequest true "Новые данные"
-// @Success      200  {object}  dto.LocationResponse  "Локация обновлена"
-// @Failure      400  {object}  map[string]string  "Ошибка валидации"
-// @Failure      401  {object}  map[string]string  "Не авторизован"
-// @Failure      403  {object}  map[string]string  "Нет права locations.update"
+// @Param        orgId path int true "ID организации" minimum(1) example(1)
+// @Param        locId path int true "ID локации" minimum(1) example(1)
+// @Param        request body dto.UpdateLocationRequest true "Новые данные локации"
+// @Success      200 {object} dto.LocationResponse "Локация успешно обновлена"
+// @Failure      400 {object} dto.ErrorResponse "Ошибка валидации данных"
+// @Failure      401 {object} dto.ErrorResponse "Отсутствует или невалидный токен авторизации"
+// @Failure      403 {object} dto.ErrorResponse "Нет права locations.update"
+// @Failure      404 {object} dto.ErrorResponse "Локация не найдена"
+// @Failure      500 {object} dto.ErrorResponse "Внутренняя ошибка сервера"
 // @Router       /organizations/{orgId}/locations/{locId} [put]
 func (ctrl *LocationController) UpdateLocation(c *gin.Context) {
 	locationID, err := strconv.ParseInt(c.Param("locId"), 10, 64)
@@ -148,18 +162,23 @@ func (ctrl *LocationController) UpdateLocation(c *gin.Context) {
 	helpers.RespondOK(c, dto.ToLocationResponse(location))
 }
 
-// DeleteLocation удаляет локацию
+// DeleteLocation godoc
 // @Summary      Удаление локации
-// @Description  Удаляет локацию из организации
-// @Tags         locations
+// @Description  Удаляет локацию из организации.
+// @Description  **ВНИМАНИЕ**: Удаление локации удалит все связанные отделы.
+// @Description  Требуется право "locations.delete" или статус основателя.
+// @Tags         Локации
 // @Accept       json
 // @Produce      json
 // @Security     BearerAuth
-// @Param        orgId path int true "ID организации"
-// @Param        locId path int true "ID локации"
-// @Success      200  {object}  map[string]string  "Локация удалена"
-// @Failure      401  {object}  map[string]string  "Не авторизован"
-// @Failure      403  {object}  map[string]string  "Нет права locations.delete"
+// @Param        orgId path int true "ID организации" minimum(1) example(1)
+// @Param        locId path int true "ID локации" minimum(1) example(1)
+// @Success      200 {object} dto.MessageResponse "Локация успешно удалена"
+// @Failure      400 {object} dto.ErrorResponse "Неверный формат ID"
+// @Failure      401 {object} dto.ErrorResponse "Отсутствует или невалидный токен авторизации"
+// @Failure      403 {object} dto.ErrorResponse "Нет права locations.delete"
+// @Failure      404 {object} dto.ErrorResponse "Локация не найдена"
+// @Failure      500 {object} dto.ErrorResponse "Внутренняя ошибка сервера"
 // @Router       /organizations/{orgId}/locations/{locId} [delete]
 func (ctrl *LocationController) DeleteLocation(c *gin.Context) {
 	locationID, err := strconv.ParseInt(c.Param("locId"), 10, 64)
