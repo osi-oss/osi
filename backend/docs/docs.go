@@ -26,7 +26,7 @@ const docTemplate = `{
     "paths": {
         "/forgot-password": {
             "post": {
-                "description": "Отправляет email с инструкциями по сбросу пароля",
+                "description": "Отправляет письмо с инструкциями по сбросу пароля на указанный email.\nВ целях безопасности всегда возвращает успех, даже если email не найден.\nТокен сброса действителен 1 час.",
                 "consumes": [
                     "application/json"
                 ],
@@ -34,12 +34,12 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "auth"
+                    "Аутентификация"
                 ],
                 "summary": "Запрос сброса пароля",
                 "parameters": [
                     {
-                        "description": "Email для сброса пароля",
+                        "description": "Email для восстановления доступа",
                         "name": "request",
                         "in": "body",
                         "required": true,
@@ -50,21 +50,15 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Инструкции отправлены",
+                        "description": "Инструкции отправлены (если email существует)",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.MessageResponse"
                         }
                     },
                     "400": {
-                        "description": "Ошибка валидации",
+                        "description": "Неверный формат email",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
                         }
                     }
                 }
@@ -72,7 +66,7 @@ const docTemplate = `{
         },
         "/login": {
             "post": {
-                "description": "Авторизует пользователя и возвращает JWT токен",
+                "description": "Авторизует пользователя по email и паролю.\nВозвращает JWT токен, который нужно передавать в заголовке Authorization: Bearer \u003ctoken\u003e.\nТокен действителен 24 часа.",
                 "consumes": [
                     "application/json"
                 ],
@@ -80,12 +74,12 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "auth"
+                    "Аутентификация"
                 ],
                 "summary": "Авторизация пользователя",
                 "parameters": [
                     {
-                        "description": "Данные для входа",
+                        "description": "Учётные данные для входа",
                         "name": "request",
                         "in": "body",
                         "required": true,
@@ -96,28 +90,27 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Успешная авторизация",
+                        "description": "Успешная авторизация, возвращается JWT токен",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.LoginResponse"
                         }
                     },
                     "400": {
-                        "description": "Ошибка валидации",
+                        "description": "Ошибка валидации: неверный формат запроса",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
                         }
                     },
                     "401": {
-                        "description": "Неверные учетные данные",
+                        "description": "Неверный email или пароль",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
                         }
                     }
                 }
@@ -130,7 +123,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Удаляет токен авторизации",
+                "description": "Завершает сессию пользователя.\nУдаляет токен из cookies (auth_token).\nПосле выхода JWT токен остаётся валидным до истечения срока.",
                 "consumes": [
                     "application/json"
                 ],
@@ -138,17 +131,14 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "auth"
+                    "Аутентификация"
                 ],
                 "summary": "Выход из системы",
                 "responses": {
                     "200": {
-                        "description": "Успешный выход",
+                        "description": "Успешный выход из системы",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.MessageResponse"
                         }
                     }
                 }
@@ -161,7 +151,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Возвращает все организации, в которых состоит пользователь",
+                "description": "Возвращает все организации, в которых пользователь является участником или основателем.\nВключает организации со всеми статусами (draft, pending, approved, rejected).",
                 "consumes": [
                     "application/json"
                 ],
@@ -169,29 +159,26 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "organizations"
+                    "Организации"
                 ],
-                "summary": "Список организаций пользователя",
+                "summary": "Список организаций текущего пользователя",
                 "responses": {
                     "200": {
-                        "description": "Список организаций",
+                        "description": "Список организаций пользователя",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "array",
-                                "items": {
-                                    "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.OrganizationResponse"
-                                }
-                            }
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.OrganizationsListResponse"
                         }
                     },
                     "401": {
-                        "description": "Не авторизован",
+                        "description": "Отсутствует или невалидный токен авторизации",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
                         }
                     }
                 }
@@ -202,7 +189,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Создаёт новую организацию. Пользователь становится основателем.",
+                "description": "Создаёт новую организацию в системе.\nТекущий пользователь автоматически становится основателем (founder) организации.\nОснователь имеет полные права на управление организацией.\nНовая организация создаётся со статусом \"draft\".",
                 "consumes": [
                     "application/json"
                 ],
@@ -210,12 +197,12 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "organizations"
+                    "Организации"
                 ],
-                "summary": "Создание организации",
+                "summary": "Создание новой организации",
                 "parameters": [
                     {
-                        "description": "Данные организации",
+                        "description": "Данные для создания организации",
                         "name": "request",
                         "in": "body",
                         "required": true,
@@ -226,27 +213,27 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "201": {
-                        "description": "Организация создана",
+                        "description": "Организация успешно создана",
                         "schema": {
                             "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.OrganizationResponse"
                         }
                     },
                     "400": {
-                        "description": "Ошибка валидации",
+                        "description": "Ошибка валидации: название обязательно",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
                         }
                     },
                     "401": {
-                        "description": "Не авторизован",
+                        "description": "Отсутствует или невалидный токен авторизации",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
                         }
                     }
                 }
@@ -259,7 +246,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Возвращает организацию по ID",
+                "description": "Возвращает полную информацию об организации.\nДоступ имеют только участники организации (члены или основатели).",
                 "consumes": [
                     "application/json"
                 ],
@@ -267,12 +254,14 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "organizations"
+                    "Организации"
                 ],
-                "summary": "Получение организации",
+                "summary": "Получение организации по ID",
                 "parameters": [
                     {
+                        "minimum": 1,
                         "type": "integer",
+                        "example": 1,
                         "description": "ID организации",
                         "name": "orgId",
                         "in": "path",
@@ -281,36 +270,39 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Организация",
+                        "description": "Данные организации",
                         "schema": {
                             "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.OrganizationResponse"
                         }
                     },
-                    "401": {
-                        "description": "Не авторизован",
+                    "400": {
+                        "description": "Неверный формат ID организации",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Отсутствует или невалидный токен авторизации",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
                         }
                     },
                     "403": {
-                        "description": "Нет доступа",
+                        "description": "Нет доступа к организации",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Организация не найдена",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
                         }
                     }
                 }
@@ -321,7 +313,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Обновляет данные организации",
+                "description": "Обновляет информацию об организации.\nМожно обновлять только те поля, которые переданы в запросе.\nТребует доступа к организации (основатель или участник с соответствующими правами).",
                 "consumes": [
                     "application/json"
                 ],
@@ -329,19 +321,21 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "organizations"
+                    "Организации"
                 ],
-                "summary": "Обновление организации",
+                "summary": "Обновление данных организации",
                 "parameters": [
                     {
+                        "minimum": 1,
                         "type": "integer",
+                        "example": 1,
                         "description": "ID организации",
                         "name": "orgId",
                         "in": "path",
                         "required": true
                     },
                     {
-                        "description": "Новые данные",
+                        "description": "Новые данные организации",
                         "name": "request",
                         "in": "body",
                         "required": true,
@@ -352,45 +346,39 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Организация обновлена",
+                        "description": "Организация успешно обновлена",
                         "schema": {
                             "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.OrganizationResponse"
                         }
                     },
                     "400": {
-                        "description": "Ошибка валидации",
+                        "description": "Ошибка валидации данных",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
                         }
                     },
                     "401": {
-                        "description": "Не авторизован",
+                        "description": "Отсутствует или невалидный токен авторизации",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
                         }
                     },
                     "403": {
-                        "description": "Нет доступа",
+                        "description": "Нет прав на редактирование организации",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Организация не найдена",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
                         }
                     }
                 }
@@ -401,7 +389,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Удаляет организацию. Только для основателей.",
+                "description": "Полностью удаляет организацию из системы.\nДоступно только основателям организации.\n**ВНИМАНИЕ**: Удаление безвозвратно удаляет все связанные данные:\n- Все локации организации\n- Все отделы и позиции\n- Все данные об участниках и сотрудниках",
                 "consumes": [
                     "application/json"
                 ],
@@ -409,13 +397,15 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "organizations"
+                    "Организации"
                 ],
                 "summary": "Удаление организации",
                 "parameters": [
                     {
+                        "minimum": 1,
                         "type": "integer",
-                        "description": "ID организации",
+                        "example": 1,
+                        "description": "ID удаляемой организации",
                         "name": "orgId",
                         "in": "path",
                         "required": true
@@ -423,39 +413,39 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Организация удалена",
+                        "description": "Организация успешно удалена",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.MessageResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Неверный формат ID организации",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
                         }
                     },
                     "401": {
-                        "description": "Не авторизован",
+                        "description": "Отсутствует или невалидный токен авторизации",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
                         }
                     },
                     "403": {
-                        "description": "Нет доступа",
+                        "description": "Только основатель может удалить организацию",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Организация не найдена",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
                         }
                     }
                 }
@@ -468,7 +458,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Возвращает все локации организации",
+                "description": "Возвращает все локации организации (активные и неактивные).\nТребуется доступ к организации (участник или основатель).",
                 "consumes": [
                     "application/json"
                 ],
@@ -476,12 +466,14 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "locations"
+                    "Локации"
                 ],
-                "summary": "Список локаций",
+                "summary": "Список локаций организации",
                 "parameters": [
                     {
+                        "minimum": 1,
                         "type": "integer",
+                        "example": 1,
                         "description": "ID организации",
                         "name": "orgId",
                         "in": "path",
@@ -490,33 +482,33 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Список локаций",
+                        "description": "Список локаций организации",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "array",
-                                "items": {
-                                    "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.LocationResponse"
-                                }
-                            }
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.LocationsListResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Неверный формат ID организации",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
                         }
                     },
                     "401": {
-                        "description": "Не авторизован",
+                        "description": "Отсутствует или невалидный токен авторизации",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
                         }
                     },
                     "403": {
-                        "description": "Нет доступа",
+                        "description": "Нет доступа к организации",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
                         }
                     }
                 }
@@ -527,7 +519,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Создаёт новую локацию в организации",
+                "description": "Создаёт новую локацию (офис, филиал, склад и т.д.) в организации.\nТребуется право \"locations.create\" или статус основателя.\nПоле source указывает источник данных: manual (вручную), egrul (из ЕГРЮЛ), api (через API).",
                 "consumes": [
                     "application/json"
                 ],
@@ -535,19 +527,21 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "locations"
+                    "Локации"
                 ],
-                "summary": "Создание локации",
+                "summary": "Создание новой локации",
                 "parameters": [
                     {
+                        "minimum": 1,
                         "type": "integer",
+                        "example": 1,
                         "description": "ID организации",
                         "name": "orgId",
                         "in": "path",
                         "required": true
                     },
                     {
-                        "description": "Данные локации",
+                        "description": "Данные для создания локации",
                         "name": "request",
                         "in": "body",
                         "required": true,
@@ -558,36 +552,39 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "201": {
-                        "description": "Локация создана",
+                        "description": "Локация успешно создана",
                         "schema": {
                             "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.LocationResponse"
                         }
                     },
                     "400": {
-                        "description": "Ошибка валидации",
+                        "description": "Ошибка валидации: name и source обязательны",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
                         }
                     },
                     "401": {
-                        "description": "Не авторизован",
+                        "description": "Отсутствует или невалидный токен авторизации",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
                         }
                     },
                     "403": {
                         "description": "Нет права locations.create",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Организация не найдена",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
                         }
                     }
                 }
@@ -600,7 +597,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Возвращает локацию по ID",
+                "description": "Возвращает полную информацию о локации.\nТребуется доступ к организации.",
                 "consumes": [
                     "application/json"
                 ],
@@ -608,19 +605,23 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "locations"
+                    "Локации"
                 ],
-                "summary": "Получение локации",
+                "summary": "Получение локации по ID",
                 "parameters": [
                     {
+                        "minimum": 1,
                         "type": "integer",
+                        "example": 1,
                         "description": "ID организации",
                         "name": "orgId",
                         "in": "path",
                         "required": true
                     },
                     {
+                        "minimum": 1,
                         "type": "integer",
+                        "example": 1,
                         "description": "ID локации",
                         "name": "locId",
                         "in": "path",
@@ -629,27 +630,33 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Локация",
+                        "description": "Данные локации",
                         "schema": {
                             "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.LocationResponse"
                         }
                     },
-                    "401": {
-                        "description": "Не авторизован",
+                    "400": {
+                        "description": "Неверный формат ID",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Отсутствует или невалидный токен авторизации",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Локация не найдена",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
                         }
                     }
                 }
@@ -660,7 +667,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Обновляет данные локации",
+                "description": "Обновляет данные локации.\nМожно обновить название, адрес, источник, статус верификации и активность.\nТребуется право \"locations.update\" или статус основателя.",
                 "consumes": [
                     "application/json"
                 ],
@@ -668,26 +675,30 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "locations"
+                    "Локации"
                 ],
                 "summary": "Обновление локации",
                 "parameters": [
                     {
+                        "minimum": 1,
                         "type": "integer",
+                        "example": 1,
                         "description": "ID организации",
                         "name": "orgId",
                         "in": "path",
                         "required": true
                     },
                     {
+                        "minimum": 1,
                         "type": "integer",
+                        "example": 1,
                         "description": "ID локации",
                         "name": "locId",
                         "in": "path",
                         "required": true
                     },
                     {
-                        "description": "Новые данные",
+                        "description": "Новые данные локации",
                         "name": "request",
                         "in": "body",
                         "required": true,
@@ -698,36 +709,39 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Локация обновлена",
+                        "description": "Локация успешно обновлена",
                         "schema": {
                             "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.LocationResponse"
                         }
                     },
                     "400": {
-                        "description": "Ошибка валидации",
+                        "description": "Ошибка валидации данных",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
                         }
                     },
                     "401": {
-                        "description": "Не авторизован",
+                        "description": "Отсутствует или невалидный токен авторизации",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
                         }
                     },
                     "403": {
                         "description": "Нет права locations.update",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Локация не найдена",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
                         }
                     }
                 }
@@ -738,7 +752,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Удаляет локацию из организации",
+                "description": "Удаляет локацию из организации.\n**ВНИМАНИЕ**: Удаление локации удалит все связанные отделы.\nТребуется право \"locations.delete\" или статус основателя.",
                 "consumes": [
                     "application/json"
                 ],
@@ -746,19 +760,23 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "locations"
+                    "Локации"
                 ],
                 "summary": "Удаление локации",
                 "parameters": [
                     {
+                        "minimum": 1,
                         "type": "integer",
+                        "example": 1,
                         "description": "ID организации",
                         "name": "orgId",
                         "in": "path",
                         "required": true
                     },
                     {
+                        "minimum": 1,
                         "type": "integer",
+                        "example": 1,
                         "description": "ID локации",
                         "name": "locId",
                         "in": "path",
@@ -767,30 +785,39 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Локация удалена",
+                        "description": "Локация успешно удалена",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.MessageResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Неверный формат ID",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
                         }
                     },
                     "401": {
-                        "description": "Не авторизован",
+                        "description": "Отсутствует или невалидный токен авторизации",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
                         }
                     },
                     "403": {
                         "description": "Нет права locations.delete",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Локация не найдена",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
                         }
                     }
                 }
@@ -803,7 +830,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Возвращает все отделы локации",
+                "description": "Возвращает все отделы указанной локации.\nВключает как корневые, так и вложенные отделы.\nТребуется доступ к организации.",
                 "consumes": [
                     "application/json"
                 ],
@@ -811,19 +838,23 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "departments"
+                    "Отделы"
                 ],
-                "summary": "Список отделов",
+                "summary": "Список отделов локации",
                 "parameters": [
                     {
+                        "minimum": 1,
                         "type": "integer",
+                        "example": 1,
                         "description": "ID организации",
                         "name": "orgId",
                         "in": "path",
                         "required": true
                     },
                     {
+                        "minimum": 1,
                         "type": "integer",
+                        "example": 1,
                         "description": "ID локации",
                         "name": "locId",
                         "in": "path",
@@ -832,24 +863,27 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Список отделов",
+                        "description": "Список отделов локации",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "array",
-                                "items": {
-                                    "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.DepartmentResponse"
-                                }
-                            }
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.DepartmentsListResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Неверный формат ID",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
                         }
                     },
                     "401": {
-                        "description": "Не авторизован",
+                        "description": "Отсутствует или невалидный токен авторизации",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
                         }
                     }
                 }
@@ -860,7 +894,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Создаёт новый отдел в локации",
+                "description": "Создаёт новый отдел в указанной локации.\nОтделы могут иметь иерархическую структуру (указывается parent_id).\nТребуется право \"departments.create\" или статус основателя.",
                 "consumes": [
                     "application/json"
                 ],
@@ -868,26 +902,30 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "departments"
+                    "Отделы"
                 ],
-                "summary": "Создание отдела",
+                "summary": "Создание нового отдела",
                 "parameters": [
                     {
+                        "minimum": 1,
                         "type": "integer",
+                        "example": 1,
                         "description": "ID организации",
                         "name": "orgId",
                         "in": "path",
                         "required": true
                     },
                     {
+                        "minimum": 1,
                         "type": "integer",
+                        "example": 1,
                         "description": "ID локации",
                         "name": "locId",
                         "in": "path",
                         "required": true
                     },
                     {
-                        "description": "Данные отдела",
+                        "description": "Данные для создания отдела",
                         "name": "request",
                         "in": "body",
                         "required": true,
@@ -898,36 +936,39 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "201": {
-                        "description": "Отдел создан",
+                        "description": "Отдел успешно создан",
                         "schema": {
                             "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.DepartmentResponse"
                         }
                     },
                     "400": {
-                        "description": "Ошибка валидации",
+                        "description": "Ошибка валидации: name обязательно",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
                         }
                     },
                     "401": {
-                        "description": "Не авторизован",
+                        "description": "Отсутствует или невалидный токен авторизации",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
                         }
                     },
                     "403": {
                         "description": "Нет права departments.create",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Локация не найдена",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
                         }
                     }
                 }
@@ -940,7 +981,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Возвращает отдел по ID",
+                "description": "Возвращает полную информацию об отделе.\nТребуется доступ к организации.",
                 "consumes": [
                     "application/json"
                 ],
@@ -948,26 +989,32 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "departments"
+                    "Отделы"
                 ],
-                "summary": "Получение отдела",
+                "summary": "Получение отдела по ID",
                 "parameters": [
                     {
+                        "minimum": 1,
                         "type": "integer",
+                        "example": 1,
                         "description": "ID организации",
                         "name": "orgId",
                         "in": "path",
                         "required": true
                     },
                     {
+                        "minimum": 1,
                         "type": "integer",
+                        "example": 1,
                         "description": "ID локации",
                         "name": "locId",
                         "in": "path",
                         "required": true
                     },
                     {
+                        "minimum": 1,
                         "type": "integer",
+                        "example": 1,
                         "description": "ID отдела",
                         "name": "deptId",
                         "in": "path",
@@ -976,27 +1023,33 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Отдел",
+                        "description": "Данные отдела",
                         "schema": {
                             "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.DepartmentResponse"
                         }
                     },
-                    "401": {
-                        "description": "Не авторизован",
+                    "400": {
+                        "description": "Неверный формат ID",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Отсутствует или невалидный токен авторизации",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Отдел не найден",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
                         }
                     }
                 }
@@ -1007,7 +1060,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Обновляет данные отдела",
+                "description": "Обновляет данные отдела.\nМожно изменить название, описание и родительский отдел.\nТребуется право \"departments.update\" или статус основателя.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1015,33 +1068,39 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "departments"
+                    "Отделы"
                 ],
                 "summary": "Обновление отдела",
                 "parameters": [
                     {
+                        "minimum": 1,
                         "type": "integer",
+                        "example": 1,
                         "description": "ID организации",
                         "name": "orgId",
                         "in": "path",
                         "required": true
                     },
                     {
+                        "minimum": 1,
                         "type": "integer",
+                        "example": 1,
                         "description": "ID локации",
                         "name": "locId",
                         "in": "path",
                         "required": true
                     },
                     {
+                        "minimum": 1,
                         "type": "integer",
+                        "example": 1,
                         "description": "ID отдела",
                         "name": "deptId",
                         "in": "path",
                         "required": true
                     },
                     {
-                        "description": "Новые данные",
+                        "description": "Новые данные отдела",
                         "name": "request",
                         "in": "body",
                         "required": true,
@@ -1052,36 +1111,39 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Отдел обновлён",
+                        "description": "Отдел успешно обновлён",
                         "schema": {
                             "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.DepartmentResponse"
                         }
                     },
                     "400": {
-                        "description": "Ошибка валидации",
+                        "description": "Ошибка валидации данных",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
                         }
                     },
                     "401": {
-                        "description": "Не авторизован",
+                        "description": "Отсутствует или невалидный токен авторизации",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
                         }
                     },
                     "403": {
                         "description": "Нет права departments.update",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Отдел не найден",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
                         }
                     }
                 }
@@ -1092,7 +1154,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Удаляет отдел из локации",
+                "description": "Удаляет отдел из локации.\n**ВНИМАНИЕ**: Удаление отдела удалит все дочерние отделы.\nТребуется право \"departments.delete\" или статус основателя.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1100,26 +1162,32 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "departments"
+                    "Отделы"
                 ],
                 "summary": "Удаление отдела",
                 "parameters": [
                     {
+                        "minimum": 1,
                         "type": "integer",
+                        "example": 1,
                         "description": "ID организации",
                         "name": "orgId",
                         "in": "path",
                         "required": true
                     },
                     {
+                        "minimum": 1,
                         "type": "integer",
+                        "example": 1,
                         "description": "ID локации",
                         "name": "locId",
                         "in": "path",
                         "required": true
                     },
                     {
+                        "minimum": 1,
                         "type": "integer",
+                        "example": 1,
                         "description": "ID отдела",
                         "name": "deptId",
                         "in": "path",
@@ -1128,30 +1196,39 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Отдел удалён",
+                        "description": "Отдел успешно удалён",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.MessageResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Неверный формат ID",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
                         }
                     },
                     "401": {
-                        "description": "Не авторизован",
+                        "description": "Отсутствует или невалидный токен авторизации",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
                         }
                     },
                     "403": {
                         "description": "Нет права departments.delete",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Отдел не найден",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
                         }
                     }
                 }
@@ -1164,7 +1241,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Возвращает все позиции конкретного отдела",
+                "description": "Возвращает все должности, привязанные к конкретному отделу.\nТребуется доступ к организации.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1172,26 +1249,32 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "positions"
+                    "Должности"
                 ],
-                "summary": "Список позиций отдела",
+                "summary": "Список должностей отдела",
                 "parameters": [
                     {
+                        "minimum": 1,
                         "type": "integer",
+                        "example": 1,
                         "description": "ID организации",
                         "name": "orgId",
                         "in": "path",
                         "required": true
                     },
                     {
+                        "minimum": 1,
                         "type": "integer",
+                        "example": 1,
                         "description": "ID локации",
                         "name": "locId",
                         "in": "path",
                         "required": true
                     },
                     {
+                        "minimum": 1,
                         "type": "integer",
+                        "example": 1,
                         "description": "ID отдела",
                         "name": "deptId",
                         "in": "path",
@@ -1200,24 +1283,27 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Список позиций",
+                        "description": "Список должностей отдела",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "array",
-                                "items": {
-                                    "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.PositionResponse"
-                                }
-                            }
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.PositionsListResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Неверный формат ID",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
                         }
                     },
                     "401": {
-                        "description": "Не авторизован",
+                        "description": "Отсутствует или невалидный токен авторизации",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
                         }
                     }
                 }
@@ -1230,7 +1316,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Возвращает все позиции организации",
+                "description": "Возвращает все должности организации.\nВключает как привязанные к отделам, так и общие позиции.\nТребуется доступ к организации.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1238,12 +1324,14 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "positions"
+                    "Должности"
                 ],
-                "summary": "Список позиций организации",
+                "summary": "Список всех должностей организации",
                 "parameters": [
                     {
+                        "minimum": 1,
                         "type": "integer",
+                        "example": 1,
                         "description": "ID организации",
                         "name": "orgId",
                         "in": "path",
@@ -1252,24 +1340,27 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Список позиций",
+                        "description": "Список должностей организации",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "array",
-                                "items": {
-                                    "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.PositionResponse"
-                                }
-                            }
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.PositionsListResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Неверный формат ID организации",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
                         }
                     },
                     "401": {
-                        "description": "Не авторизован",
+                        "description": "Отсутствует или невалидный токен авторизации",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
                         }
                     }
                 }
@@ -1280,7 +1371,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Создаёт новую позицию в организации",
+                "description": "Создаёт новую должность в организации.\nМожно привязать к отделу (department_id) или оставить общей для организации.\nАдминистративные позиции (is_admin=true) имеют расширенные права.\nТребуется право \"positions.create\" или статус основателя.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1288,19 +1379,21 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "positions"
+                    "Должности"
                 ],
-                "summary": "Создание позиции",
+                "summary": "Создание новой должности",
                 "parameters": [
                     {
+                        "minimum": 1,
                         "type": "integer",
+                        "example": 1,
                         "description": "ID организации",
                         "name": "orgId",
                         "in": "path",
                         "required": true
                     },
                     {
-                        "description": "Данные позиции",
+                        "description": "Данные для создания должности",
                         "name": "request",
                         "in": "body",
                         "required": true,
@@ -1311,36 +1404,39 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "201": {
-                        "description": "Позиция создана",
+                        "description": "Должность успешно создана",
                         "schema": {
                             "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.PositionResponse"
                         }
                     },
                     "400": {
-                        "description": "Ошибка валидации",
+                        "description": "Ошибка валидации: name обязательно",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
                         }
                     },
                     "401": {
-                        "description": "Не авторизован",
+                        "description": "Отсутствует или невалидный токен авторизации",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
                         }
                     },
                     "403": {
                         "description": "Нет права positions.create",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Организация или отдел не найден",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
                         }
                     }
                 }
@@ -1353,7 +1449,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Возвращает позицию по ID",
+                "description": "Возвращает полную информацию о должности.\nТребуется доступ к организации.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1361,20 +1457,24 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "positions"
+                    "Должности"
                 ],
-                "summary": "Получение позиции",
+                "summary": "Получение должности по ID",
                 "parameters": [
                     {
+                        "minimum": 1,
                         "type": "integer",
+                        "example": 1,
                         "description": "ID организации",
                         "name": "orgId",
                         "in": "path",
                         "required": true
                     },
                     {
+                        "minimum": 1,
                         "type": "integer",
-                        "description": "ID позиции",
+                        "example": 1,
+                        "description": "ID должности",
                         "name": "posId",
                         "in": "path",
                         "required": true
@@ -1382,27 +1482,33 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Позиция",
+                        "description": "Данные должности",
                         "schema": {
                             "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.PositionResponse"
                         }
                     },
-                    "401": {
-                        "description": "Не авторизован",
+                    "400": {
+                        "description": "Неверный формат ID",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Отсутствует или невалидный токен авторизации",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
                         }
                     },
                     "404": {
-                        "description": "Позиция не найдена",
+                        "description": "Должность не найдена",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
                         }
                     }
                 }
@@ -1413,7 +1519,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Обновляет данные позиции",
+                "description": "Обновляет данные должности.\nМожно изменить название, описание, привязку к отделу и административный статус.\nТребуется право \"positions.update\" или статус основателя.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1421,26 +1527,30 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "positions"
+                    "Должности"
                 ],
-                "summary": "Обновление позиции",
+                "summary": "Обновление должности",
                 "parameters": [
                     {
+                        "minimum": 1,
                         "type": "integer",
+                        "example": 1,
                         "description": "ID организации",
                         "name": "orgId",
                         "in": "path",
                         "required": true
                     },
                     {
+                        "minimum": 1,
                         "type": "integer",
-                        "description": "ID позиции",
+                        "example": 1,
+                        "description": "ID должности",
                         "name": "posId",
                         "in": "path",
                         "required": true
                     },
                     {
-                        "description": "Новые данные",
+                        "description": "Новые данные должности",
                         "name": "request",
                         "in": "body",
                         "required": true,
@@ -1451,36 +1561,39 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Позиция обновлена",
+                        "description": "Должность успешно обновлена",
                         "schema": {
                             "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.PositionResponse"
                         }
                     },
                     "400": {
-                        "description": "Ошибка валидации",
+                        "description": "Ошибка валидации данных",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
                         }
                     },
                     "401": {
-                        "description": "Не авторизован",
+                        "description": "Отсутствует или невалидный токен авторизации",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
                         }
                     },
                     "403": {
                         "description": "Нет права positions.update",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Должность не найдена",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
                         }
                     }
                 }
@@ -1491,7 +1604,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Удаляет позицию из организации",
+                "description": "Удаляет должность из организации.\n**ВНИМАНИЕ**: Нельзя удалить должность, если на ней есть сотрудники.\nТребуется право \"positions.delete\" или статус основателя.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1499,20 +1612,24 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "positions"
+                    "Должности"
                 ],
-                "summary": "Удаление позиции",
+                "summary": "Удаление должности",
                 "parameters": [
                     {
+                        "minimum": 1,
                         "type": "integer",
+                        "example": 1,
                         "description": "ID организации",
                         "name": "orgId",
                         "in": "path",
                         "required": true
                     },
                     {
+                        "minimum": 1,
                         "type": "integer",
-                        "description": "ID позиции",
+                        "example": 1,
+                        "description": "ID должности",
                         "name": "posId",
                         "in": "path",
                         "required": true
@@ -1520,30 +1637,39 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Позиция удалена",
+                        "description": "Должность успешно удалена",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.MessageResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Неверный формат ID",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
                         }
                     },
                     "401": {
-                        "description": "Не авторизован",
+                        "description": "Отсутствует или невалидный токен авторизации",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
                         }
                     },
                     "403": {
                         "description": "Нет права positions.delete",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Должность не найдена",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
                         }
                     }
                 }
@@ -1556,7 +1682,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Возвращает профиль текущего авторизованного пользователя",
+                "description": "Возвращает данные профиля авторизованного пользователя.\nТребует авторизацию через JWT токен.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1564,23 +1690,32 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "user"
+                    "Пользователь"
                 ],
-                "summary": "Получение профиля",
+                "summary": "Получение профиля текущего пользователя",
                 "responses": {
                     "200": {
-                        "description": "Профиль пользователя",
+                        "description": "Данные профиля пользователя",
                         "schema": {
-                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.UserResponse"
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ProfileResponse"
                         }
                     },
                     "401": {
-                        "description": "Не авторизован",
+                        "description": "Отсутствует или невалидный токен авторизации",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Пользователь не найден",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
                         }
                     }
                 }
@@ -1588,7 +1723,7 @@ const docTemplate = `{
         },
         "/reset-password": {
             "post": {
-                "description": "Устанавливает новый пароль по токену из email",
+                "description": "Устанавливает новый пароль с использованием токена из письма.\nТокен можно использовать только один раз.\nНовый пароль должен быть не менее 6 символов.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1596,12 +1731,12 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "auth"
+                    "Аутентификация"
                 ],
                 "summary": "Сброс пароля",
                 "parameters": [
                     {
-                        "description": "Токен и новый пароль",
+                        "description": "Токен сброса и новый пароль",
                         "name": "request",
                         "in": "body",
                         "required": true,
@@ -1614,19 +1749,19 @@ const docTemplate = `{
                     "200": {
                         "description": "Пароль успешно изменён",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.MessageResponse"
                         }
                     },
                     "400": {
-                        "description": "Невалидный токен",
+                        "description": "Невалидный или истёкший токен, или пароль слишком короткий",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
                         }
                     }
                 }
@@ -1634,7 +1769,7 @@ const docTemplate = `{
         },
         "/reset-password/validate": {
             "get": {
-                "description": "Проверяет, валиден ли токен для сброса пароля",
+                "description": "Проверяет, действителен ли токен для сброса пароля.\nИспользуется для предварительной проверки перед отображением формы сброса.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1642,13 +1777,14 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "auth"
+                    "Аутентификация"
                 ],
                 "summary": "Проверка токена сброса пароля",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Токен сброса пароля",
+                        "example": "abc123def456",
+                        "description": "Токен из письма для сброса пароля",
                         "name": "token",
                         "in": "query",
                         "required": true
@@ -1656,19 +1792,21 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Токен валиден",
+                        "description": "Токен валиден, можно сбрасывать пароль",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.TokenValidationResponse"
                         }
                     },
                     "400": {
-                        "description": "Токен невалиден или истёк",
+                        "description": "Токен не указан, невалиден или истёк",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
                         }
                     }
                 }
@@ -1676,7 +1814,7 @@ const docTemplate = `{
         },
         "/signup": {
             "post": {
-                "description": "Создаёт нового пользователя с email и паролем",
+                "description": "Создаёт нового пользователя в системе.\nEmail должен быть уникальным, пароль минимум 6 символов.\nПосле успешной регистрации пользователь может авторизоваться через /login.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1684,7 +1822,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "auth"
+                    "Аутентификация"
                 ],
                 "summary": "Регистрация нового пользователя",
                 "parameters": [
@@ -1700,28 +1838,27 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "201": {
-                        "description": "Пользователь создан",
+                        "description": "Пользователь успешно создан",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.SignUpResponse"
                         }
                     },
                     "400": {
-                        "description": "Ошибка валидации",
+                        "description": "Ошибка валидации: неверный формат email или пароль короче 6 символов",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
                         }
                     },
                     "409": {
-                        "description": "Email уже существует",
+                        "description": "Пользователь с таким email уже существует",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
                         }
                     }
                 }
@@ -1730,23 +1867,31 @@ const docTemplate = `{
     },
     "definitions": {
         "github_com_osi-oss_osi_internal_dto.CreateDepartmentRequest": {
+            "description": "Данные для создания нового отдела в локации",
             "type": "object",
             "required": [
                 "name"
             ],
             "properties": {
                 "description": {
-                    "type": "string"
+                    "description": "Описание отдела\nExample: Отдел занимается продажами и работой с клиентами",
+                    "type": "string",
+                    "example": "Отдел занимается продажами и работой с клиентами"
                 },
                 "name": {
-                    "type": "string"
+                    "description": "Название отдела (обязательное)\nExample: Отдел продаж",
+                    "type": "string",
+                    "example": "Отдел продаж"
                 },
                 "parent_id": {
-                    "type": "integer"
+                    "description": "ID родительского отдела (для создания иерархии)\nExample: 1",
+                    "type": "integer",
+                    "example": 1
                 }
             }
         },
         "github_com_osi-oss_osi_internal_dto.CreateLocationRequest": {
+            "description": "Данные для создания новой локации (офиса, филиала, склада и т.д.)",
             "type": "object",
             "required": [
                 "name",
@@ -1754,127 +1899,240 @@ const docTemplate = `{
             ],
             "properties": {
                 "address": {
-                    "type": "string"
+                    "description": "Физический адрес локации\nExample: г. Москва, ул. Ленина, д. 10",
+                    "type": "string",
+                    "example": "г. Москва, ул. Ленина, д. 10"
                 },
                 "is_verified": {
-                    "type": "boolean"
+                    "description": "Подтверждена ли локация\nExample: false",
+                    "type": "boolean",
+                    "example": false
                 },
                 "name": {
-                    "type": "string"
+                    "description": "Название локации (обязательное)\nExample: Главный офис",
+                    "type": "string",
+                    "example": "Главный офис"
                 },
                 "source": {
-                    "type": "string"
+                    "description": "Источник данных: manual, egrul, api\nExample: manual",
+                    "type": "string",
+                    "enum": [
+                        "manual",
+                        "egrul",
+                        "api"
+                    ],
+                    "example": "manual"
                 }
             }
         },
         "github_com_osi-oss_osi_internal_dto.CreateOrganizationRequest": {
+            "description": "Данные для создания новой организации",
             "type": "object",
             "required": [
                 "name"
             ],
             "properties": {
                 "inn": {
-                    "type": "string"
+                    "description": "ИНН организации (10 или 12 цифр)\nExample: 7707083893",
+                    "type": "string",
+                    "example": "7707083893"
                 },
                 "kpp": {
-                    "type": "string"
+                    "description": "КПП организации (9 цифр)\nExample: 770701001",
+                    "type": "string",
+                    "example": "770701001"
                 },
                 "legal_address": {
-                    "type": "string"
+                    "description": "Юридический адрес организации\nExample: г. Москва, ул. Тверская, д. 1",
+                    "type": "string",
+                    "example": "г. Москва, ул. Тверская, д. 1"
                 },
                 "legal_name": {
-                    "type": "string"
+                    "description": "Полное юридическое название\nExample: Общество с ограниченной ответственностью \"Ромашка\"",
+                    "type": "string",
+                    "example": "Общество с ограниченной ответственностью Ромашка"
                 },
                 "name": {
-                    "type": "string"
+                    "description": "Название организации (обязательное)\nExample: ООО \"Ромашка\"",
+                    "type": "string",
+                    "example": "ООО Ромашка"
                 },
                 "ogrn": {
-                    "type": "string"
+                    "description": "ОГРН организации (13 цифр)\nExample: 1027700132195",
+                    "type": "string",
+                    "example": "1027700132195"
                 },
                 "share_percent": {
-                    "type": "number"
+                    "description": "Доля владения (в процентах, от 0 до 100)\nExample: 100.0",
+                    "type": "number",
+                    "example": 100
                 }
             }
         },
         "github_com_osi-oss_osi_internal_dto.CreatePositionRequest": {
+            "description": "Данные для создания новой должности в организации",
             "type": "object",
             "required": [
                 "name"
             ],
             "properties": {
                 "department_id": {
-                    "type": "integer"
+                    "description": "ID отдела для привязки (опционально)\nExample: 1",
+                    "type": "integer",
+                    "example": 1
                 },
                 "description": {
-                    "type": "string"
+                    "description": "Описание должностных обязанностей\nExample: Работа с клиентами, заключение договоров",
+                    "type": "string",
+                    "example": "Работа с клиентами, заключение договоров"
                 },
                 "is_admin": {
-                    "type": "boolean"
+                    "description": "Является ли позиция административной (имеет расширенные права)\nExample: false",
+                    "type": "boolean",
+                    "example": false
                 },
                 "name": {
-                    "type": "string"
+                    "description": "Название должности (обязательное)\nExample: Менеджер по продажам",
+                    "type": "string",
+                    "example": "Менеджер по продажам"
                 }
             }
         },
         "github_com_osi-oss_osi_internal_dto.DepartmentResponse": {
+            "description": "Полная информация об отделе",
             "type": "object",
             "properties": {
                 "created_at": {
-                    "type": "string"
+                    "description": "Дата создания\nExample: 2024-01-15T10:30:00Z",
+                    "type": "string",
+                    "example": "2024-01-15T10:30:00Z"
                 },
                 "description": {
-                    "type": "string"
+                    "description": "Описание отдела\nExample: Отдел занимается продажами",
+                    "type": "string",
+                    "example": "Отдел занимается продажами"
                 },
                 "id": {
-                    "type": "integer"
+                    "description": "Уникальный идентификатор отдела\nExample: 1",
+                    "type": "integer",
+                    "example": 1
                 },
                 "location_id": {
-                    "type": "integer"
+                    "description": "ID локации, в которой находится отдел\nExample: 1",
+                    "type": "integer",
+                    "example": 1
                 },
                 "name": {
-                    "type": "string"
+                    "description": "Название отдела\nExample: Отдел продаж",
+                    "type": "string",
+                    "example": "Отдел продаж"
                 },
                 "parent_id": {
+                    "description": "ID родительского отдела (может быть пустым для корневых отделов)",
                     "type": "integer"
                 },
                 "updated_at": {
-                    "type": "string"
+                    "description": "Дата последнего обновления\nExample: 2024-01-20T15:45:00Z",
+                    "type": "string",
+                    "example": "2024-01-20T15:45:00Z"
+                }
+            }
+        },
+        "github_com_osi-oss_osi_internal_dto.DepartmentsListResponse": {
+            "description": "Список отделов локации",
+            "type": "object",
+            "properties": {
+                "departments": {
+                    "description": "Массив отделов",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.DepartmentResponse"
+                    }
+                }
+            }
+        },
+        "github_com_osi-oss_osi_internal_dto.ErrorResponse": {
+            "description": "Стандартный формат ответа при ошибке",
+            "type": "object",
+            "properties": {
+                "error": {
+                    "description": "Сообщение об ошибке\nExample: invalid email or password",
+                    "type": "string",
+                    "example": "invalid email or password"
                 }
             }
         },
         "github_com_osi-oss_osi_internal_dto.LocationResponse": {
+            "description": "Полная информация о локации",
             "type": "object",
             "properties": {
                 "address": {
-                    "type": "string"
+                    "description": "Физический адрес\nExample: г. Москва, ул. Ленина, д. 10",
+                    "type": "string",
+                    "example": "г. Москва, ул. Ленина, д. 10"
                 },
                 "created_at": {
-                    "type": "string"
+                    "description": "Дата создания\nExample: 2024-01-15T10:30:00Z",
+                    "type": "string",
+                    "example": "2024-01-15T10:30:00Z"
                 },
                 "id": {
-                    "type": "integer"
+                    "description": "Уникальный идентификатор локации\nExample: 1",
+                    "type": "integer",
+                    "example": 1
                 },
                 "is_active": {
-                    "type": "boolean"
+                    "description": "Активна ли локация\nExample: true",
+                    "type": "boolean",
+                    "example": true
                 },
                 "is_verified": {
-                    "type": "boolean"
+                    "description": "Подтверждена ли локация\nExample: true",
+                    "type": "boolean",
+                    "example": true
                 },
                 "name": {
-                    "type": "string"
+                    "description": "Название локации\nExample: Главный офис",
+                    "type": "string",
+                    "example": "Главный офис"
                 },
                 "organization_id": {
-                    "type": "integer"
+                    "description": "ID организации, которой принадлежит локация\nExample: 1",
+                    "type": "integer",
+                    "example": 1
                 },
                 "source": {
-                    "type": "string"
+                    "description": "Источник данных\nExample: manual",
+                    "type": "string",
+                    "enum": [
+                        "manual",
+                        "egrul",
+                        "api"
+                    ],
+                    "example": "manual"
                 },
                 "updated_at": {
-                    "type": "string"
+                    "description": "Дата последнего обновления\nExample: 2024-01-20T15:45:00Z",
+                    "type": "string",
+                    "example": "2024-01-20T15:45:00Z"
+                }
+            }
+        },
+        "github_com_osi-oss_osi_internal_dto.LocationsListResponse": {
+            "description": "Список локаций организации",
+            "type": "object",
+            "properties": {
+                "locations": {
+                    "description": "Массив локаций",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.LocationResponse"
+                    }
                 }
             }
         },
         "github_com_osi-oss_osi_internal_dto.LoginRequest": {
+            "description": "Учётные данные для входа в систему",
             "type": "object",
             "required": [
                 "email",
@@ -1882,90 +2140,214 @@ const docTemplate = `{
             ],
             "properties": {
                 "email": {
-                    "type": "string"
+                    "description": "Email пользователя\nExample: user@example.com",
+                    "type": "string",
+                    "example": "user@example.com"
                 },
                 "password": {
+                    "description": "Пароль пользователя\nExample: SecurePass123",
                     "type": "string",
-                    "minLength": 6
+                    "minLength": 6,
+                    "example": "SecurePass123"
+                }
+            }
+        },
+        "github_com_osi-oss_osi_internal_dto.LoginResponse": {
+            "description": "Ответ при успешной авторизации с JWT токеном",
+            "type": "object",
+            "properties": {
+                "message": {
+                    "description": "Сообщение о результате\nExample: Login successful",
+                    "type": "string",
+                    "example": "Login successful"
+                },
+                "token": {
+                    "description": "JWT токен для авторизации запросов\nExample: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+                    "type": "string",
+                    "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ"
+                }
+            }
+        },
+        "github_com_osi-oss_osi_internal_dto.MessageResponse": {
+            "description": "Стандартный формат успешного ответа с сообщением",
+            "type": "object",
+            "properties": {
+                "message": {
+                    "description": "Сообщение о результате операции\nExample: operation completed successfully",
+                    "type": "string",
+                    "example": "operation completed successfully"
                 }
             }
         },
         "github_com_osi-oss_osi_internal_dto.OrganizationResponse": {
+            "description": "Полная информация об организации",
             "type": "object",
             "properties": {
                 "created_at": {
-                    "type": "string"
+                    "description": "Дата создания\nExample: 2024-01-15T10:30:00Z",
+                    "type": "string",
+                    "example": "2024-01-15T10:30:00Z"
                 },
                 "id": {
-                    "type": "integer"
+                    "description": "Уникальный идентификатор организации\nExample: 1",
+                    "type": "integer",
+                    "example": 1
                 },
                 "inn": {
-                    "type": "string"
+                    "description": "ИНН организации\nExample: 7707083893",
+                    "type": "string",
+                    "example": "7707083893"
                 },
                 "kpp": {
-                    "type": "string"
+                    "description": "КПП организации\nExample: 770701001",
+                    "type": "string",
+                    "example": "770701001"
                 },
                 "legal_address": {
-                    "type": "string"
+                    "description": "Юридический адрес\nExample: г. Москва, ул. Тверская, д. 1",
+                    "type": "string",
+                    "example": "г. Москва, ул. Тверская, д. 1"
                 },
                 "legal_name": {
-                    "type": "string"
+                    "description": "Полное юридическое название\nExample: Общество с ограниченной ответственностью \"Ромашка\"",
+                    "type": "string",
+                    "example": "Общество с ограниченной ответственностью Ромашка"
                 },
                 "name": {
-                    "type": "string"
+                    "description": "Название организации\nExample: ООО \"Ромашка\"",
+                    "type": "string",
+                    "example": "ООО Ромашка"
                 },
                 "ogrn": {
-                    "type": "string"
+                    "description": "ОГРН организации\nExample: 1027700132195",
+                    "type": "string",
+                    "example": "1027700132195"
                 },
                 "status": {
-                    "type": "string"
+                    "description": "Статус организации: draft, pending, approved, rejected\nExample: approved",
+                    "type": "string",
+                    "enum": [
+                        "draft",
+                        "pending",
+                        "approved",
+                        "rejected"
+                    ],
+                    "example": "approved"
                 },
                 "updated_at": {
-                    "type": "string"
+                    "description": "Дата последнего обновления\nExample: 2024-01-20T15:45:00Z",
+                    "type": "string",
+                    "example": "2024-01-20T15:45:00Z"
+                }
+            }
+        },
+        "github_com_osi-oss_osi_internal_dto.OrganizationsListResponse": {
+            "description": "Список организаций пользователя",
+            "type": "object",
+            "properties": {
+                "organizations": {
+                    "description": "Массив организаций",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.OrganizationResponse"
+                    }
                 }
             }
         },
         "github_com_osi-oss_osi_internal_dto.PasswordResetRequest": {
+            "description": "Email для отправки инструкций по сбросу пароля",
             "type": "object",
             "required": [
                 "email"
             ],
             "properties": {
                 "email": {
-                    "type": "string"
+                    "description": "Email пользователя для восстановления доступа\nExample: user@example.com",
+                    "type": "string",
+                    "example": "user@example.com"
                 }
             }
         },
         "github_com_osi-oss_osi_internal_dto.PositionResponse": {
+            "description": "Полная информация о должности",
             "type": "object",
             "properties": {
                 "created_at": {
-                    "type": "string"
+                    "description": "Дата создания\nExample: 2024-01-15T10:30:00Z",
+                    "type": "string",
+                    "example": "2024-01-15T10:30:00Z"
                 },
                 "department_id": {
-                    "type": "integer"
+                    "description": "ID отдела (null если не привязана к отделу)\nExample: 1",
+                    "type": "integer",
+                    "example": 1
                 },
                 "description": {
-                    "type": "string"
+                    "description": "Описание должности\nExample: Работа с клиентами",
+                    "type": "string",
+                    "example": "Работа с клиентами"
                 },
                 "id": {
-                    "type": "integer"
+                    "description": "Уникальный идентификатор позиции\nExample: 1",
+                    "type": "integer",
+                    "example": 1
                 },
                 "is_admin": {
-                    "type": "boolean"
+                    "description": "Является ли административной\nExample: false",
+                    "type": "boolean",
+                    "example": false
                 },
                 "name": {
-                    "type": "string"
+                    "description": "Название должности\nExample: Менеджер по продажам",
+                    "type": "string",
+                    "example": "Менеджер по продажам"
                 },
                 "organization_id": {
-                    "type": "integer"
+                    "description": "ID организации\nExample: 1",
+                    "type": "integer",
+                    "example": 1
                 },
                 "updated_at": {
-                    "type": "string"
+                    "description": "Дата последнего обновления\nExample: 2024-01-20T15:45:00Z",
+                    "type": "string",
+                    "example": "2024-01-20T15:45:00Z"
+                }
+            }
+        },
+        "github_com_osi-oss_osi_internal_dto.PositionsListResponse": {
+            "description": "Список позиций организации или отдела",
+            "type": "object",
+            "properties": {
+                "positions": {
+                    "description": "Массив позиций",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.PositionResponse"
+                    }
+                }
+            }
+        },
+        "github_com_osi-oss_osi_internal_dto.ProfileResponse": {
+            "description": "Ответ с данными профиля пользователя",
+            "type": "object",
+            "properties": {
+                "message": {
+                    "description": "Сообщение о результате\nExample: Profile retrieved successfully",
+                    "type": "string",
+                    "example": "Profile retrieved successfully"
+                },
+                "user": {
+                    "description": "Данные пользователя",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.UserResponse"
+                        }
+                    ]
                 }
             }
         },
         "github_com_osi-oss_osi_internal_dto.ResetPasswordRequest": {
+            "description": "Токен сброса и новый пароль",
             "type": "object",
             "required": [
                 "new_password",
@@ -1973,15 +2355,20 @@ const docTemplate = `{
             ],
             "properties": {
                 "new_password": {
+                    "description": "Новый пароль (минимум 6 символов)\nExample: NewSecurePass456",
                     "type": "string",
-                    "minLength": 6
+                    "minLength": 6,
+                    "example": "NewSecurePass456"
                 },
                 "token": {
-                    "type": "string"
+                    "description": "Токен из письма для сброса пароля\nExample: a1b2c3d4e5f6g7h8i9j0",
+                    "type": "string",
+                    "example": "a1b2c3d4e5f6g7h8i9j0"
                 }
             }
         },
         "github_com_osi-oss_osi_internal_dto.SignUpRequest": {
+            "description": "Данные для регистрации нового пользователя в системе",
             "type": "object",
             "required": [
                 "email",
@@ -1989,108 +2376,205 @@ const docTemplate = `{
             ],
             "properties": {
                 "email": {
-                    "type": "string"
+                    "description": "Email пользователя (должен быть уникальным)\nExample: user@example.com",
+                    "type": "string",
+                    "example": "user@example.com"
                 },
                 "password": {
+                    "description": "Пароль (минимум 6 символов)\nExample: SecurePass123",
                     "type": "string",
-                    "minLength": 6
+                    "minLength": 6,
+                    "example": "SecurePass123"
+                }
+            }
+        },
+        "github_com_osi-oss_osi_internal_dto.SignUpResponse": {
+            "description": "Ответ при успешной регистрации пользователя",
+            "type": "object",
+            "properties": {
+                "message": {
+                    "description": "Сообщение о результате\nExample: User created successfully",
+                    "type": "string",
+                    "example": "User created successfully"
+                },
+                "user": {
+                    "description": "Данные созданного пользователя",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.UserResponse"
+                        }
+                    ]
+                }
+            }
+        },
+        "github_com_osi-oss_osi_internal_dto.TokenValidationResponse": {
+            "description": "Результат проверки токена сброса пароля",
+            "type": "object",
+            "properties": {
+                "message": {
+                    "description": "Сообщение о результате\nExample: Token is valid",
+                    "type": "string",
+                    "example": "Token is valid"
+                },
+                "valid": {
+                    "description": "Валиден ли токен\nExample: true",
+                    "type": "boolean",
+                    "example": true
                 }
             }
         },
         "github_com_osi-oss_osi_internal_dto.UpdateDepartmentRequest": {
+            "description": "Данные для обновления отдела",
             "type": "object",
             "properties": {
                 "description": {
-                    "type": "string"
+                    "description": "Новое описание\nExample: Отдел работает с корпоративными клиентами",
+                    "type": "string",
+                    "example": "Отдел работает с корпоративными клиентами"
                 },
                 "name": {
-                    "type": "string"
+                    "description": "Новое название отдела\nExample: Отдел корпоративных продаж",
+                    "type": "string",
+                    "example": "Отдел корпоративных продаж"
                 },
                 "parent_id": {
-                    "type": "integer"
+                    "description": "Новый родительский отдел\nExample: 2",
+                    "type": "integer",
+                    "example": 2
                 }
             }
         },
         "github_com_osi-oss_osi_internal_dto.UpdateLocationRequest": {
+            "description": "Данные для обновления локации",
             "type": "object",
             "properties": {
                 "address": {
-                    "type": "string"
+                    "description": "Новый адрес\nExample: г. Москва, ул. Пушкина, д. 5",
+                    "type": "string",
+                    "example": "г. Москва, ул. Пушкина, д. 5"
                 },
                 "is_active": {
-                    "type": "boolean"
+                    "description": "Активна ли локация\nExample: true",
+                    "type": "boolean",
+                    "example": true
                 },
                 "is_verified": {
-                    "type": "boolean"
+                    "description": "Статус верификации\nExample: true",
+                    "type": "boolean",
+                    "example": true
                 },
                 "name": {
-                    "type": "string"
+                    "description": "Новое название локации\nExample: Центральный офис",
+                    "type": "string",
+                    "example": "Центральный офис"
                 },
                 "source": {
-                    "type": "string"
+                    "description": "Источник данных\nExample: manual",
+                    "type": "string",
+                    "enum": [
+                        "manual",
+                        "egrul",
+                        "api"
+                    ],
+                    "example": "manual"
                 }
             }
         },
         "github_com_osi-oss_osi_internal_dto.UpdateOrganizationRequest": {
+            "description": "Данные для обновления организации (передаются только изменяемые поля)",
             "type": "object",
             "properties": {
                 "inn": {
-                    "type": "string"
+                    "description": "ИНН организации\nExample: 7707083893",
+                    "type": "string",
+                    "example": "7707083893"
                 },
                 "kpp": {
-                    "type": "string"
+                    "description": "КПП организации\nExample: 770701001",
+                    "type": "string",
+                    "example": "770701001"
                 },
                 "legal_address": {
-                    "type": "string"
+                    "description": "Юридический адрес\nExample: г. Москва, ул. Тверская, д. 2",
+                    "type": "string",
+                    "example": "г. Москва, ул. Тверская, д. 2"
                 },
                 "legal_name": {
-                    "type": "string"
+                    "description": "Полное юридическое название\nExample: Общество с ограниченной ответственностью \"Ромашка Плюс\"",
+                    "type": "string",
+                    "example": "Общество с ограниченной ответственностью Ромашка Плюс"
                 },
                 "name": {
-                    "type": "string"
+                    "description": "Новое название организации\nExample: ООО \"Ромашка Плюс\"",
+                    "type": "string",
+                    "example": "ООО Ромашка Плюс"
                 },
                 "ogrn": {
-                    "type": "string"
+                    "description": "ОГРН организации\nExample: 1027700132195",
+                    "type": "string",
+                    "example": "1027700132195"
                 }
             }
         },
         "github_com_osi-oss_osi_internal_dto.UpdatePositionRequest": {
+            "description": "Данные для обновления должности",
             "type": "object",
             "properties": {
                 "department_id": {
-                    "type": "integer"
+                    "description": "Новый ID отдела\nExample: 2",
+                    "type": "integer",
+                    "example": 2
                 },
                 "description": {
-                    "type": "string"
+                    "description": "Новое описание\nExample: Руководство отделом продаж",
+                    "type": "string",
+                    "example": "Руководство отделом продаж"
                 },
                 "is_admin": {
-                    "type": "boolean"
+                    "description": "Административная позиция\nExample: true",
+                    "type": "boolean",
+                    "example": true
                 },
                 "name": {
-                    "type": "string"
+                    "description": "Новое название должности\nExample: Старший менеджер по продажам",
+                    "type": "string",
+                    "example": "Старший менеджер по продажам"
                 }
             }
         },
         "github_com_osi-oss_osi_internal_dto.UserResponse": {
+            "description": "Публичные данные пользователя",
             "type": "object",
             "properties": {
                 "created_at": {
-                    "type": "string"
+                    "description": "Дата регистрации\nExample: 2024-01-15T10:30:00Z",
+                    "type": "string",
+                    "example": "2024-01-15T10:30:00Z"
                 },
                 "email": {
-                    "type": "string"
+                    "description": "Email пользователя\nExample: user@example.com",
+                    "type": "string",
+                    "example": "user@example.com"
                 },
                 "email_verified": {
-                    "type": "boolean"
+                    "description": "Подтверждён ли email\nExample: true",
+                    "type": "boolean",
+                    "example": true
                 },
                 "first_name": {
-                    "type": "string"
+                    "description": "Имя пользователя\nExample: Иван",
+                    "type": "string",
+                    "example": "Иван"
                 },
                 "id": {
-                    "type": "integer"
+                    "description": "Уникальный идентификатор пользователя\nExample: 1",
+                    "type": "integer",
+                    "example": 1
                 },
                 "last_name": {
-                    "type": "string"
+                    "description": "Фамилия пользователя\nExample: Петров",
+                    "type": "string",
+                    "example": "Петров"
                 }
             }
         }

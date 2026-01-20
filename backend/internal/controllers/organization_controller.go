@@ -18,17 +18,21 @@ func NewOrganizationController(orgService *services.OrganizationService) *Organi
 	return &OrganizationController{orgService: orgService}
 }
 
-// CreateOrganization создает новую организацию
-// @Summary      Создание организации
-// @Description  Создаёт новую организацию. Пользователь становится основателем.
-// @Tags         organizations
+// CreateOrganization godoc
+// @Summary      Создание новой организации
+// @Description  Создаёт новую организацию в системе.
+// @Description  Текущий пользователь автоматически становится основателем (founder) организации.
+// @Description  Основатель имеет полные права на управление организацией.
+// @Description  Новая организация создаётся со статусом "draft".
+// @Tags         Организации
 // @Accept       json
 // @Produce      json
 // @Security     BearerAuth
-// @Param        request body dto.CreateOrganizationRequest true "Данные организации"
-// @Success      201  {object}  dto.OrganizationResponse  "Организация создана"
-// @Failure      400  {object}  map[string]string  "Ошибка валидации"
-// @Failure      401  {object}  map[string]string  "Не авторизован"
+// @Param        request body dto.CreateOrganizationRequest true "Данные для создания организации"
+// @Success      201 {object} dto.OrganizationResponse "Организация успешно создана"
+// @Failure      400 {object} dto.ErrorResponse "Ошибка валидации: название обязательно"
+// @Failure      401 {object} dto.ErrorResponse "Отсутствует или невалидный токен авторизации"
+// @Failure      500 {object} dto.ErrorResponse "Внутренняя ошибка сервера"
 // @Router       /organizations [post]
 func (ctrl *OrganizationController) CreateOrganization(c *gin.Context) {
 	userID, err := helpers.GetUserID(c)
@@ -52,18 +56,21 @@ func (ctrl *OrganizationController) CreateOrganization(c *gin.Context) {
 	helpers.RespondCreated(c, dto.ToOrganizationResponse(org))
 }
 
-// GetOrganization получает организацию по ID
-// @Summary      Получение организации
-// @Description  Возвращает организацию по ID
-// @Tags         organizations
+// GetOrganization godoc
+// @Summary      Получение организации по ID
+// @Description  Возвращает полную информацию об организации.
+// @Description  Доступ имеют только участники организации (члены или основатели).
+// @Tags         Организации
 // @Accept       json
 // @Produce      json
 // @Security     BearerAuth
-// @Param        orgId path int true "ID организации"
-// @Success      200  {object}  dto.OrganizationResponse  "Организация"
-// @Failure      401  {object}  map[string]string  "Не авторизован"
-// @Failure      403  {object}  map[string]string  "Нет доступа"
-// @Failure      404  {object}  map[string]string  "Организация не найдена"
+// @Param        orgId path int true "ID организации" minimum(1) example(1)
+// @Success      200 {object} dto.OrganizationResponse "Данные организации"
+// @Failure      400 {object} dto.ErrorResponse "Неверный формат ID организации"
+// @Failure      401 {object} dto.ErrorResponse "Отсутствует или невалидный токен авторизации"
+// @Failure      403 {object} dto.ErrorResponse "Нет доступа к организации"
+// @Failure      404 {object} dto.ErrorResponse "Организация не найдена"
+// @Failure      500 {object} dto.ErrorResponse "Внутренняя ошибка сервера"
 // @Router       /organizations/{orgId} [get]
 func (ctrl *OrganizationController) GetOrganization(c *gin.Context) {
 	userID, err := helpers.GetUserID(c)
@@ -87,15 +94,17 @@ func (ctrl *OrganizationController) GetOrganization(c *gin.Context) {
 	helpers.RespondOK(c, dto.ToOrganizationResponse(org))
 }
 
-// GetUserOrganizations получает все организации пользователя
-// @Summary      Список организаций пользователя
-// @Description  Возвращает все организации, в которых состоит пользователь
-// @Tags         organizations
+// GetUserOrganizations godoc
+// @Summary      Список организаций текущего пользователя
+// @Description  Возвращает все организации, в которых пользователь является участником или основателем.
+// @Description  Включает организации со всеми статусами (draft, pending, approved, rejected).
+// @Tags         Организации
 // @Accept       json
 // @Produce      json
 // @Security     BearerAuth
-// @Success      200  {object}  map[string][]dto.OrganizationResponse  "Список организаций"
-// @Failure      401  {object}  map[string]string  "Не авторизован"
+// @Success      200 {object} dto.OrganizationsListResponse "Список организаций пользователя"
+// @Failure      401 {object} dto.ErrorResponse "Отсутствует или невалидный токен авторизации"
+// @Failure      500 {object} dto.ErrorResponse "Внутренняя ошибка сервера"
 // @Router       /organizations [get]
 func (ctrl *OrganizationController) GetUserOrganizations(c *gin.Context) {
 	userID, err := helpers.GetUserID(c)
@@ -113,20 +122,23 @@ func (ctrl *OrganizationController) GetUserOrganizations(c *gin.Context) {
 	helpers.RespondOK(c, gin.H{"organizations": dto.ToOrganizationResponses(orgs)})
 }
 
-// UpdateOrganization обновляет организацию
-// @Summary      Обновление организации
-// @Description  Обновляет данные организации
-// @Tags         organizations
+// UpdateOrganization godoc
+// @Summary      Обновление данных организации
+// @Description  Обновляет информацию об организации.
+// @Description  Можно обновлять только те поля, которые переданы в запросе.
+// @Description  Требует доступа к организации (основатель или участник с соответствующими правами).
+// @Tags         Организации
 // @Accept       json
 // @Produce      json
 // @Security     BearerAuth
-// @Param        orgId path int true "ID организации"
-// @Param        request body dto.UpdateOrganizationRequest true "Новые данные"
-// @Success      200  {object}  dto.OrganizationResponse  "Организация обновлена"
-// @Failure      400  {object}  map[string]string  "Ошибка валидации"
-// @Failure      401  {object}  map[string]string  "Не авторизован"
-// @Failure      403  {object}  map[string]string  "Нет доступа"
-// @Failure      404  {object}  map[string]string  "Организация не найдена"
+// @Param        orgId path int true "ID организации" minimum(1) example(1)
+// @Param        request body dto.UpdateOrganizationRequest true "Новые данные организации"
+// @Success      200 {object} dto.OrganizationResponse "Организация успешно обновлена"
+// @Failure      400 {object} dto.ErrorResponse "Ошибка валидации данных"
+// @Failure      401 {object} dto.ErrorResponse "Отсутствует или невалидный токен авторизации"
+// @Failure      403 {object} dto.ErrorResponse "Нет прав на редактирование организации"
+// @Failure      404 {object} dto.ErrorResponse "Организация не найдена"
+// @Failure      500 {object} dto.ErrorResponse "Внутренняя ошибка сервера"
 // @Router       /organizations/{orgId} [put]
 func (ctrl *OrganizationController) UpdateOrganization(c *gin.Context) {
 	userID, err := helpers.GetUserID(c)
@@ -156,18 +168,25 @@ func (ctrl *OrganizationController) UpdateOrganization(c *gin.Context) {
 	helpers.RespondOK(c, dto.ToOrganizationResponse(org))
 }
 
-// DeleteOrganization удаляет организацию
+// DeleteOrganization godoc
 // @Summary      Удаление организации
-// @Description  Удаляет организацию. Только для основателей.
-// @Tags         organizations
+// @Description  Полностью удаляет организацию из системы.
+// @Description  Доступно только основателям организации.
+// @Description  **ВНИМАНИЕ**: Удаление безвозвратно удаляет все связанные данные:
+// @Description  - Все локации организации
+// @Description  - Все отделы и позиции
+// @Description  - Все данные об участниках и сотрудниках
+// @Tags         Организации
 // @Accept       json
 // @Produce      json
 // @Security     BearerAuth
-// @Param        orgId path int true "ID организации"
-// @Success      200  {object}  map[string]string  "Организация удалена"
-// @Failure      401  {object}  map[string]string  "Не авторизован"
-// @Failure      403  {object}  map[string]string  "Нет доступа"
-// @Failure      404  {object}  map[string]string  "Организация не найдена"
+// @Param        orgId path int true "ID удаляемой организации" minimum(1) example(1)
+// @Success      200 {object} dto.MessageResponse "Организация успешно удалена"
+// @Failure      400 {object} dto.ErrorResponse "Неверный формат ID организации"
+// @Failure      401 {object} dto.ErrorResponse "Отсутствует или невалидный токен авторизации"
+// @Failure      403 {object} dto.ErrorResponse "Только основатель может удалить организацию"
+// @Failure      404 {object} dto.ErrorResponse "Организация не найдена"
+// @Failure      500 {object} dto.ErrorResponse "Внутренняя ошибка сервера"
 // @Router       /organizations/{orgId} [delete]
 func (ctrl *OrganizationController) DeleteOrganization(c *gin.Context) {
 	userID, err := helpers.GetUserID(c)
