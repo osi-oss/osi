@@ -23,7 +23,7 @@ func (r *UserRepository) GetByEmail(email string) (*models.User, error) {
 	return &user, err
 }
 
-func (r UserRepository) GetById(id uint) (*models.User, error) {
+func (r *UserRepository) GetById(id int64) (*models.User, error) {
 	var user models.User
 	err := r.db.First(&user, id).Error
 	return &user, err

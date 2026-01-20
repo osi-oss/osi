@@ -1,11 +1,12 @@
 package controllers
 
 import (
-	"errors"
 	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/osi-oss/osi/internal/dto"
+	"github.com/osi-oss/osi/internal/helpers"
 	"github.com/osi-oss/osi/internal/services"
 )
 
@@ -14,204 +15,167 @@ type DepartmentController struct {
 }
 
 func NewDepartmentController(departmentService *services.DepartmentService) *DepartmentController {
-	return &DepartmentController{
-		departmentService: departmentService,
-	}
+	return &DepartmentController{departmentService: departmentService}
 }
 
-// CreateDepartment создает новый отдел в локации
+// CreateDepartment создает новый отдел
+// @Summary      Создание отдела
+// @Description  Создаёт новый отдел в локации
+// @Tags         departments
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        orgId path int true "ID организации"
+// @Param        locId path int true "ID локации"
+// @Param        request body dto.CreateDepartmentRequest true "Данные отдела"
+// @Success      201  {object}  dto.DepartmentResponse  "Отдел создан"
+// @Failure      400  {object}  map[string]string  "Ошибка валидации"
+// @Failure      401  {object}  map[string]string  "Не авторизован"
+// @Failure      403  {object}  map[string]string  "Нет права departments.create"
+// @Router       /organizations/{orgId}/locations/{locId}/departments [post]
 func (ctrl *DepartmentController) CreateDepartment(c *gin.Context) {
-	locationID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	locationID, err := strconv.ParseInt(c.Param("locId"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid location id"})
 		return
 	}
 
-	var input services.CreateDepartmentInput
-	if err := c.ShouldBindJSON(&input); err != nil {
+	var req dto.CreateDepartmentRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	userID, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
-		return
-	}
-
-	department, err := ctrl.departmentService.CreateDepartment(locationID, userID.(int64), input)
+	department, err := ctrl.departmentService.CreateDepartment(locationID, req)
 	if err != nil {
-		statusCode := http.StatusInternalServerError
-		switch {
-		case errors.Is(err, services.ErrLocationNotFound):
-			statusCode = http.StatusNotFound
-		case errors.Is(err, services.ErrUnauthorized):
-			statusCode = http.StatusForbidden
-		}
-		c.JSON(statusCode, gin.H{"error": err.Error()})
+		helpers.RespondError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{
-		"id":          department.ID,
-		"location_id": department.LocationID,
-		"parent_id":   department.ParentID,
-		"name":        department.Name,
-		"description": department.Description,
-		"created_at":  department.CreatedAt,
-	})
+	helpers.RespondCreated(c, dto.ToDepartmentResponse(department))
 }
 
 // GetLocationDepartments получает все отделы локации
+// @Summary      Список отделов
+// @Description  Возвращает все отделы локации
+// @Tags         departments
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        orgId path int true "ID организации"
+// @Param        locId path int true "ID локации"
+// @Success      200  {object}  map[string][]dto.DepartmentResponse  "Список отделов"
+// @Failure      401  {object}  map[string]string  "Не авторизован"
+// @Router       /organizations/{orgId}/locations/{locId}/departments [get]
 func (ctrl *DepartmentController) GetLocationDepartments(c *gin.Context) {
-	locationID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	locationID, err := strconv.ParseInt(c.Param("locId"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid location id"})
 		return
 	}
 
-	userID, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
-		return
-	}
-
-	departments, err := ctrl.departmentService.GetLocationDepartments(locationID, userID.(int64))
+	departments, err := ctrl.departmentService.GetLocationDepartments(locationID)
 	if err != nil {
-		statusCode := http.StatusInternalServerError
-		switch {
-		case errors.Is(err, services.ErrLocationNotFound):
-			statusCode = http.StatusNotFound
-		case errors.Is(err, services.ErrUnauthorized):
-			statusCode = http.StatusForbidden
-		}
-		c.JSON(statusCode, gin.H{"error": err.Error()})
+		helpers.RespondError(c, err)
 		return
 	}
 
-	result := make([]gin.H, len(departments))
-	for i, dept := range departments {
-		result[i] = gin.H{
-			"id":          dept.ID,
-			"location_id": dept.LocationID,
-			"parent_id":   dept.ParentID,
-			"name":        dept.Name,
-			"description": dept.Description,
-			"created_at":  dept.CreatedAt,
-			"updated_at":  dept.UpdatedAt,
-		}
-	}
-
-	c.JSON(http.StatusOK, gin.H{"departments": result})
+	helpers.RespondOK(c, gin.H{"departments": dto.ToDepartmentResponses(departments)})
 }
 
-// GetDepartment получает конкретный отдел по ID
+// GetDepartment получает отдел по ID
+// @Summary      Получение отдела
+// @Description  Возвращает отдел по ID
+// @Tags         departments
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        orgId path int true "ID организации"
+// @Param        locId path int true "ID локации"
+// @Param        deptId path int true "ID отдела"
+// @Success      200  {object}  dto.DepartmentResponse  "Отдел"
+// @Failure      401  {object}  map[string]string  "Не авторизован"
+// @Failure      404  {object}  map[string]string  "Отдел не найден"
+// @Router       /organizations/{orgId}/locations/{locId}/departments/{deptId} [get]
 func (ctrl *DepartmentController) GetDepartment(c *gin.Context) {
-	departmentID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	deptID, err := strconv.ParseInt(c.Param("deptId"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid department id"})
 		return
 	}
 
-	userID, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
-		return
-	}
-
-	department, err := ctrl.departmentService.GetDepartment(departmentID, userID.(int64))
+	department, err := ctrl.departmentService.GetDepartment(deptID)
 	if err != nil {
-		statusCode := http.StatusInternalServerError
-		switch {
-		case errors.Is(err, services.ErrDepartmentNotFound):
-			statusCode = http.StatusNotFound
-		case errors.Is(err, services.ErrUnauthorized):
-			statusCode = http.StatusForbidden
-		}
-		c.JSON(statusCode, gin.H{"error": err.Error()})
+		helpers.RespondError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"id":          department.ID,
-		"location_id": department.LocationID,
-		"parent_id":   department.ParentID,
-		"name":        department.Name,
-		"description": department.Description,
-		"created_at":  department.CreatedAt,
-		"updated_at":  department.UpdatedAt,
-	})
+	helpers.RespondOK(c, dto.ToDepartmentResponse(department))
 }
 
 // UpdateDepartment обновляет отдел
+// @Summary      Обновление отдела
+// @Description  Обновляет данные отдела
+// @Tags         departments
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        orgId path int true "ID организации"
+// @Param        locId path int true "ID локации"
+// @Param        deptId path int true "ID отдела"
+// @Param        request body dto.UpdateDepartmentRequest true "Новые данные"
+// @Success      200  {object}  dto.DepartmentResponse  "Отдел обновлён"
+// @Failure      400  {object}  map[string]string  "Ошибка валидации"
+// @Failure      401  {object}  map[string]string  "Не авторизован"
+// @Failure      403  {object}  map[string]string  "Нет права departments.update"
+// @Router       /organizations/{orgId}/locations/{locId}/departments/{deptId} [put]
 func (ctrl *DepartmentController) UpdateDepartment(c *gin.Context) {
-	departmentID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	deptID, err := strconv.ParseInt(c.Param("deptId"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid department id"})
 		return
 	}
 
-	var input services.UpdateDepartmentInput
-	if err := c.ShouldBindJSON(&input); err != nil {
+	var req dto.UpdateDepartmentRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	userID, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
-		return
-	}
-
-	department, err := ctrl.departmentService.UpdateDepartment(departmentID, userID.(int64), input)
+	department, err := ctrl.departmentService.UpdateDepartment(deptID, req)
 	if err != nil {
-		statusCode := http.StatusInternalServerError
-		switch {
-		case errors.Is(err, services.ErrDepartmentNotFound):
-			statusCode = http.StatusNotFound
-		case errors.Is(err, services.ErrUnauthorized):
-			statusCode = http.StatusForbidden
-		}
-		c.JSON(statusCode, gin.H{"error": err.Error()})
+		helpers.RespondError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"id":          department.ID,
-		"location_id": department.LocationID,
-		"parent_id":   department.ParentID,
-		"name":        department.Name,
-		"description": department.Description,
-		"created_at":  department.CreatedAt,
-		"updated_at":  department.UpdatedAt,
-	})
+	helpers.RespondOK(c, dto.ToDepartmentResponse(department))
 }
 
 // DeleteDepartment удаляет отдел
+// @Summary      Удаление отдела
+// @Description  Удаляет отдел из локации
+// @Tags         departments
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        orgId path int true "ID организации"
+// @Param        locId path int true "ID локации"
+// @Param        deptId path int true "ID отдела"
+// @Success      200  {object}  map[string]string  "Отдел удалён"
+// @Failure      401  {object}  map[string]string  "Не авторизован"
+// @Failure      403  {object}  map[string]string  "Нет права departments.delete"
+// @Router       /organizations/{orgId}/locations/{locId}/departments/{deptId} [delete]
 func (ctrl *DepartmentController) DeleteDepartment(c *gin.Context) {
-	departmentID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	deptID, err := strconv.ParseInt(c.Param("deptId"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid department id"})
 		return
 	}
 
-	userID, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+	if err := ctrl.departmentService.DeleteDepartment(deptID); err != nil {
+		helpers.RespondError(c, err)
 		return
 	}
 
-	if err := ctrl.departmentService.DeleteDepartment(departmentID, userID.(int64)); err != nil {
-		statusCode := http.StatusInternalServerError
-		switch {
-		case errors.Is(err, services.ErrDepartmentNotFound):
-			statusCode = http.StatusNotFound
-		case errors.Is(err, services.ErrUnauthorized):
-			statusCode = http.StatusForbidden
-		}
-		c.JSON(statusCode, gin.H{"error": err.Error()})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{"message": "department deleted successfully"})
+	helpers.RespondOK(c, gin.H{"message": "department deleted successfully"})
 }

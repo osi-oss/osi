@@ -1,151 +1,86 @@
 package services
 
 import (
-	"errors"
-	"fmt"
-
+	"github.com/osi-oss/osi/internal/apperrors"
+	"github.com/osi-oss/osi/internal/dto"
 	"github.com/osi-oss/osi/internal/models"
 	"github.com/osi-oss/osi/internal/repository"
 )
 
-var (
-	ErrDepartmentNotFound = errors.New("department not found")
-)
-
 type DepartmentService struct {
-	deptRepo        *repository.DepartmentRepository
-	locationService *LocationService
-	permissionSvc   *PermissionService
+	deptRepo     *repository.DepartmentRepository
+	locationRepo *repository.LocationRepository
 }
 
-func NewDepartmentService(deptRepo *repository.DepartmentRepository, locationService *LocationService, permissionSvc *PermissionService) *DepartmentService {
+func NewDepartmentService(deptRepo *repository.DepartmentRepository, locationRepo *repository.LocationRepository) *DepartmentService {
 	return &DepartmentService{
-		deptRepo:        deptRepo,
-		locationService: locationService,
-		permissionSvc:   permissionSvc,
+		deptRepo:     deptRepo,
+		locationRepo: locationRepo,
 	}
 }
 
-type CreateDepartmentInput struct {
-	Name        string  `json:"name" binding:"required"`
-	ParentID    *int64  `json:"parent_id"`
-	Description *string `json:"description"`
-}
-
-type UpdateDepartmentInput struct {
-	Name        string  `json:"name"`
-	ParentID    *int64  `json:"parent_id"`
-	Description *string `json:"description"`
-}
-
-// CreateDepartment создает новый отдел в локации
-func (s *DepartmentService) CreateDepartment(locationID int64, userID int64, input CreateDepartmentInput) (*models.Department, error) {
-	// Проверяем доступ к локации
-	location, err := s.locationService.GetLocation(locationID, userID)
+func (s *DepartmentService) CreateDepartment(locationID int64, input dto.CreateDepartmentRequest) (*models.Department, error) {
+	// Check if location exists
+	_, err := s.locationRepo.GetByID(locationID)
 	if err != nil {
-		return nil, err
+		return nil, apperrors.ErrLocationNotFound
 	}
 
-	// Check if user has permission to create departments
-	hasPermission, err := s.permissionSvc.UserHasPermission(userID, location.OrganizationID, "departments.create")
-	if err != nil {
-		return nil, err
-	}
-	if !hasPermission {
-		return nil, ErrAccessDenied
-	}
-
-	// Если указан родительский отдел, проверяем что он существует и принадлежит той же локации
 	if input.ParentID != nil {
 		parent, err := s.deptRepo.GetByID(*input.ParentID)
 		if err != nil {
-			return nil, fmt.Errorf("parent department not found: %w", err)
+			return nil, apperrors.BadRequest("parent department not found")
 		}
 		if parent.LocationID != locationID {
-			return nil, fmt.Errorf("parent department belongs to different location")
+			return nil, apperrors.BadRequest("parent department belongs to different location")
 		}
 	}
 
 	department := &models.Department{
-		LocationID:  location.ID,
+		LocationID:  locationID,
 		ParentID:    input.ParentID,
 		Name:        input.Name,
 		Description: input.Description,
 	}
 
 	if err := s.deptRepo.Create(department); err != nil {
-		return nil, fmt.Errorf("failed to create department: %w", err)
+		return nil, apperrors.Wrap(err, 500, "failed to create department")
 	}
 
 	return s.deptRepo.GetByID(department.ID)
 }
 
-// GetDepartment получает отдел по ID
-func (s *DepartmentService) GetDepartment(deptID int64, userID int64) (*models.Department, error) {
+func (s *DepartmentService) GetDepartment(deptID int64) (*models.Department, error) {
 	dept, err := s.deptRepo.GetByID(deptID)
 	if err != nil {
-		return nil, ErrDepartmentNotFound
+		return nil, apperrors.ErrDepartmentNotFound
 	}
-
-	// Проверяем доступ к локации этого отдела
-	_, err = s.locationService.GetLocation(dept.LocationID, userID)
-	if err != nil {
-		return nil, err
-	}
-
 	return dept, nil
 }
 
-// GetLocationDepartments получает все отделы локации
-func (s *DepartmentService) GetLocationDepartments(locationID int64, userID int64) ([]models.Department, error) {
-	// Проверяем доступ к локации
-	_, err := s.locationService.GetLocation(locationID, userID)
-	if err != nil {
-		return nil, err
-	}
-
+func (s *DepartmentService) GetLocationDepartments(locationID int64) ([]models.Department, error) {
 	return s.deptRepo.GetByLocationID(locationID)
 }
 
-// UpdateDepartment обновляет отдел
-func (s *DepartmentService) UpdateDepartment(deptID int64, userID int64, input UpdateDepartmentInput) (*models.Department, error) {
+func (s *DepartmentService) UpdateDepartment(deptID int64, input dto.UpdateDepartmentRequest) (*models.Department, error) {
 	dept, err := s.deptRepo.GetByID(deptID)
 	if err != nil {
-		return nil, ErrDepartmentNotFound
+		return nil, apperrors.ErrDepartmentNotFound
 	}
 
-	// Проверяем доступ к локации этого отдела
-	location, err := s.locationService.GetLocation(dept.LocationID, userID)
-	if err != nil {
-		return nil, err
-	}
-
-	// Check if user has permission to update departments
-	hasPermission, err := s.permissionSvc.UserHasPermission(userID, location.OrganizationID, "departments.create")
-	if err != nil {
-		return nil, err
-	}
-	if !hasPermission {
-		return nil, ErrAccessDenied
-	}
-
-	// Если указан новый родительский отдел, проверяем его
 	if input.ParentID != nil {
-		// Проверяем, что отдел не устанавливается родителем самому себе
 		if *input.ParentID == deptID {
-			return nil, fmt.Errorf("department cannot be its own parent")
+			return nil, apperrors.BadRequest("department cannot be its own parent")
 		}
-
 		parent, err := s.deptRepo.GetByID(*input.ParentID)
 		if err != nil {
-			return nil, fmt.Errorf("parent department not found: %w", err)
+			return nil, apperrors.BadRequest("parent department not found")
 		}
 		if parent.LocationID != dept.LocationID {
-			return nil, fmt.Errorf("parent department belongs to different location")
+			return nil, apperrors.BadRequest("parent department belongs to different location")
 		}
 	}
 
-	// Обновляем только переданные поля
 	if input.Name != "" {
 		dept.Name = input.Name
 	}
@@ -157,37 +92,20 @@ func (s *DepartmentService) UpdateDepartment(deptID int64, userID int64, input U
 	}
 
 	if err := s.deptRepo.Update(dept); err != nil {
-		return nil, fmt.Errorf("failed to update department: %w", err)
+		return nil, apperrors.Wrap(err, 500, "failed to update department")
 	}
 
 	return s.deptRepo.GetByID(dept.ID)
 }
 
-// DeleteDepartment удаляет отдел
-func (s *DepartmentService) DeleteDepartment(deptID int64, userID int64) error {
+func (s *DepartmentService) DeleteDepartment(deptID int64) error {
 	dept, err := s.deptRepo.GetByID(deptID)
 	if err != nil {
-		return ErrDepartmentNotFound
+		return apperrors.ErrDepartmentNotFound
 	}
 
-	// Проверяем доступ к локации этого отдела
-	location, err := s.locationService.GetLocation(dept.LocationID, userID)
-	if err != nil {
-		return err
-	}
-
-	// Check if user has permission to delete departments
-	hasPermission, err := s.permissionSvc.UserHasPermission(userID, location.OrganizationID, "departments.create")
-	if err != nil {
-		return err
-	}
-	if !hasPermission {
-		return ErrAccessDenied
-	}
-
-	// Проверяем, что у отдела нет дочерних отделов
 	if len(dept.Children) > 0 {
-		return fmt.Errorf("cannot delete department with child departments")
+		return apperrors.BadRequest("cannot delete department with child departments")
 	}
 
 	return s.deptRepo.Delete(deptID)

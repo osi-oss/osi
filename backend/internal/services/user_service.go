@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/osi-oss/osi/internal/apperrors"
 	"github.com/osi-oss/osi/internal/models"
 	"github.com/osi-oss/osi/internal/repository"
 	"github.com/osi-oss/osi/internal/validators"
@@ -16,14 +17,6 @@ import (
 )
 
 const bcryptCost = 12
-
-// Кастомные ошибки
-var (
-	ErrUserAlreadyExists  = errors.New("user with this email already exists")
-	ErrUserNotFound       = errors.New("user not found")
-	ErrInvalidCredentials = errors.New("invalid email or password")
-	ErrInvalidInput       = errors.New("invalid input data")
-)
 
 type UserService struct {
 	userRepo     *repository.UserRepository
@@ -58,29 +51,29 @@ func NewUserService(
 func (s *UserService) SignUp(email, password string) (*models.User, error) {
 	// validate password
 	if err := validators.Password.Validate(password); err != nil {
-		return nil, fmt.Errorf("password validation failed: %w", err)
+		return nil, apperrors.BadRequest(err.Error())
 	}
 
 	// user already exists
 	_, err := s.userRepo.GetByEmail(email)
 	if err == nil {
-		return nil, ErrUserAlreadyExists
+		return nil, apperrors.ErrUserAlreadyExists
 	}
 
 	// another error from db
 	if !errors.Is(err, gorm.ErrRecordNotFound) {
-		return nil, fmt.Errorf("database error: %v", err)
+		return nil, apperrors.Wrap(err, 500, "database error")
 	}
 
 	// validate email
 	err = validators.Email.Validate(email)
 	if err != nil {
-		return nil, fmt.Errorf("email validation failed: %w", err)
+		return nil, apperrors.BadRequest(err.Error())
 	}
 
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcryptCost)
 	if err != nil {
-		return nil, fmt.Errorf("failed to hash password: %w", err)
+		return nil, apperrors.Wrap(err, 500, "failed to hash password")
 	}
 
 	user := &models.User{
@@ -90,7 +83,7 @@ func (s *UserService) SignUp(email, password string) (*models.User, error) {
 	}
 
 	if err := s.userRepo.Create(user); err != nil {
-		return nil, fmt.Errorf("failed to create user: %v", err)
+		return nil, apperrors.Wrap(err, 500, "failed to create user")
 	}
 
 	return user, nil
@@ -100,13 +93,13 @@ func (s *UserService) LogIn(email, password string) (string, error) {
 	// Get user from db
 	user, err := s.userRepo.GetByEmail(email)
 	if err != nil {
-		return "", fmt.Errorf("user with this email does not exists")
+		return "", apperrors.ErrInvalidCredentials
 	}
 
 	// Compare password
 	err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password))
 	if err != nil {
-		return "", ErrInvalidCredentials
+		return "", apperrors.ErrInvalidCredentials
 	}
 
 	claims := jwt.MapClaims{
@@ -120,20 +113,20 @@ func (s *UserService) LogIn(email, password string) (string, error) {
 	tokenString, err := token.SignedString([]byte(s.jwtSecret))
 
 	if err != nil {
-		return "", fmt.Errorf("jwt error: %w", err)
+		return "", apperrors.Wrap(err, 500, "jwt error")
 	}
 
 	return tokenString, nil
 }
 
 // GetByID получает пользователя по ID
-func (s *UserService) GetByID(id uint) (*models.User, error) {
-	user, err := s.userRepo.GetById(id) // исправлено GetById вместо GetByID
+func (s *UserService) GetByID(id int64) (*models.User, error) {
+	user, err := s.userRepo.GetById(id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, ErrUserNotFound
+			return nil, apperrors.ErrUserNotFound
 		}
-		return nil, fmt.Errorf("database error: %w", err)
+		return nil, apperrors.Wrap(err, 500, "database error")
 	}
 	return user, nil
 }
@@ -147,30 +140,30 @@ func (s *UserService) RequestPasswordReset(email string) error {
 			// Не раскрываем что пользователь не найден (безопасность)
 			return nil
 		}
-		return fmt.Errorf("database error: %w", err)
+		return apperrors.Wrap(err, 500, "database error")
 	}
 
 	// Генерируем случайный токен
 	token, err := s.generateResetToken()
 	if err != nil {
-		return fmt.Errorf("failed to generate token: %w", err)
+		return apperrors.Wrap(err, 500, "failed to generate token")
 	}
 
 	// Создаем запись токена в БД
 	resetToken := &models.PasswordResetToken{
-		UserID:    uint(user.BaseModel.ID),
+		UserID:    user.ID,
 		Token:     token,
 		ExpiresAt: time.Now().Add(time.Hour), // Токен действует 1 час
 		Used:      false,
 	}
 
 	if err := s.resetRepo.Create(resetToken); err != nil {
-		return fmt.Errorf("failed to save reset token: %w", err)
+		return apperrors.Wrap(err, 500, "failed to save reset token")
 	}
 
 	// Отправляем email
 	if err := s.emailService.SendPasswordResetEmail(email, token, s.baseURL); err != nil {
-		return fmt.Errorf("failed to send email: %w", err)
+		return apperrors.Wrap(err, 500, "failed to send email")
 	}
 
 	return nil
@@ -180,46 +173,43 @@ func (s *UserService) RequestPasswordReset(email string) error {
 func (s *UserService) ResetPassword(token, newPassword string) error {
 	// Валидация пароля
 	if err := validators.Password.Validate(newPassword); err != nil {
-		return fmt.Errorf("password validation failed: %w", err)
+		return apperrors.BadRequest(err.Error())
 	}
 
 	// Находим токен
 	resetToken, err := s.resetRepo.GetByToken(token)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return errors.New("invalid or expired reset token")
+			return apperrors.BadRequest("invalid or expired reset token")
 		}
-		return fmt.Errorf("database error: %w", err)
+		return apperrors.Wrap(err, 500, "database error")
 	}
 
 	// Получаем пользователя
 	user, err := s.userRepo.GetById(resetToken.UserID)
 	if err != nil {
-		return fmt.Errorf("user not found: %w", err)
+		return apperrors.ErrUserNotFound
 	}
 
 	// Хешируем новый пароль
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcryptCost)
 	if err != nil {
-		return fmt.Errorf("failed to hash password: %w", err)
+		return apperrors.Wrap(err, 500, "failed to hash password")
 	}
 
 	// Обновляем пароль пользователя
 	user.PasswordHash = string(hashedPassword)
 	if err := s.userRepo.Update(user); err != nil {
-		return fmt.Errorf("failed to update password: %w", err)
+		return apperrors.Wrap(err, 500, "failed to update password")
 	}
 
 	// Помечаем токен как использованный
 	if err := s.resetRepo.MarkAsUsed(resetToken.ID); err != nil {
-		return fmt.Errorf("failed to mark token as used: %w", err)
+		return apperrors.Wrap(err, 500, "failed to mark token as used")
 	}
 
 	// Удаляем все остальные токены пользователя
-	if err := s.resetRepo.DeleteByUserID(uint(user.BaseModel.ID)); err != nil {
-		// Логируем, но не прерываем процесс
-		fmt.Printf("Warning: failed to cleanup reset tokens for user %d: %v\n", user.ID, err)
-	}
+	_ = s.resetRepo.DeleteByUserID(user.ID)
 
 	return nil
 }

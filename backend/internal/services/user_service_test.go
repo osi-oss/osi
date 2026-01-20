@@ -122,7 +122,7 @@ func TestUserService_SignUp_And_LogIn(t *testing.T) {
 	// Create a manual token to test ResetPassword
 	tokenStr := "manualtoken123"
 	reset := &models.PasswordResetToken{
-		UserID:    uint(user.BaseModel.ID),
+		UserID:    user.ID,
 		Token:     tokenStr,
 		ExpiresAt: time.Now().Add(time.Hour),
 		Used:      false,

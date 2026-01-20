@@ -13,5 +13,4 @@ type Position struct {
 	Organization Organization `gorm:"foreignKey:OrganizationID"`
 	Department   *Department  `gorm:"foreignKey:DepartmentID"`
 	Employees    []Employee   `gorm:"foreignKey:PositionID"`
-	Permissions  []Permission `gorm:"many2many:position_permissions;"`
 }

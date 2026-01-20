@@ -8,8 +8,8 @@ import (
 
 // PasswordResetToken токен для восстановления пароля
 type PasswordResetToken struct {
-	ID        uint      `gorm:"primaryKey"`
-	UserID    uint      `gorm:"not null;index"`
+	ID        int64     `gorm:"primaryKey"`
+	UserID    int64     `gorm:"not null;index"`
 	Token     string    `gorm:"uniqueIndex;size:255"`
 	ExpiresAt time.Time `gorm:"not null"`
 	Used      bool      `gorm:"default:false"`

@@ -4,73 +4,47 @@ import (
 	"errors"
 	"time"
 
+	"github.com/osi-oss/osi/internal/apperrors"
+	"github.com/osi-oss/osi/internal/dto"
 	"github.com/osi-oss/osi/internal/models"
 	"github.com/osi-oss/osi/internal/repository"
 	"gorm.io/gorm"
 )
 
-var (
-	ErrMemberNotFound      = errors.New("member not found")
-	ErrUserAlreadyMember   = errors.New("user is already a member of this organization")
-	ErrCannotRemoveFounder = errors.New("cannot remove founder from members")
-)
-
 type MemberService struct {
-	orgRepo       *repository.OrganizationRepository
-	userRepo      *repository.UserRepository
-	permissionSvc *PermissionService
+	orgRepo  *repository.OrganizationRepository
+	userRepo *repository.UserRepository
 }
 
 func NewMemberService(
 	orgRepo *repository.OrganizationRepository,
 	userRepo *repository.UserRepository,
-	permissionSvc *PermissionService,
 ) *MemberService {
 	return &MemberService{
-		orgRepo:       orgRepo,
-		userRepo:      userRepo,
-		permissionSvc: permissionSvc,
+		orgRepo:  orgRepo,
+		userRepo: userRepo,
 	}
 }
 
-type InviteMemberInput struct {
-	OrganizationID int64  `json:"organization_id" binding:"required"`
-	Email          string `json:"email" binding:"required,email"`
-}
-
-// InviteMember invites a user to join an organization (requires members.invite permission)
-func (s *MemberService) InviteMember(actorUserID int64, input InviteMemberInput) (*models.OrganizationMember, error) {
-	// Check if actor has permission to invite members
-	hasPermission, err := s.permissionSvc.UserHasPermission(actorUserID, input.OrganizationID, "members.invite")
-	if err != nil {
-		return nil, err
-	}
-	if !hasPermission {
-		return nil, ErrAccessDenied
-	}
-
-	// Find user by email
+func (s *MemberService) InviteMember(input dto.InviteMemberRequest) (*models.OrganizationMember, error) {
 	user, err := s.userRepo.GetByEmail(input.Email)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errors.New("user with this email not found")
+			return nil, apperrors.BadRequest("user with this email not found")
 		}
 		return nil, err
 	}
 
-	// Check if user is already a member
 	existingMember, err := s.orgRepo.GetMemberByUserAndOrgID(user.ID, input.OrganizationID)
 	if err == nil && existingMember != nil && existingMember.ID > 0 {
-		return nil, ErrUserAlreadyMember
+		return nil, apperrors.ErrUserAlreadyMember
 	}
 
-	// Check if user is a founder
 	founder, err := s.orgRepo.GetFounderByUserAndOrgID(user.ID, input.OrganizationID)
 	if err == nil && founder != nil && founder.ID > 0 {
-		return nil, errors.New("user is already a founder of this organization")
+		return nil, apperrors.BadRequest("user is already a founder of this organization")
 	}
 
-	// Create member with invited status
 	member := &models.OrganizationMember{
 		OrganizationID: input.OrganizationID,
 		UserID:         user.ID,
@@ -78,32 +52,26 @@ func (s *MemberService) InviteMember(actorUserID int64, input InviteMemberInput)
 	}
 
 	if err := s.orgRepo.CreateMember(member); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, 500, "failed to create member")
 	}
 
-	// Load user relation
 	member.User = *user
-
 	return member, nil
 }
 
-// AcceptInvitation changes member status from invited to active
 func (s *MemberService) AcceptInvitation(userID int64, orgID int64) error {
-	// Get the member
 	member, err := s.orgRepo.GetMemberByUserAndOrgID(userID, orgID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return ErrMemberNotFound
+			return apperrors.ErrMemberNotFound
 		}
 		return err
 	}
 
-	// Check if already active
-	if member.Status == models.MemberActive {
-		return errors.New("invitation already accepted")
+	if member.Status != models.MemberInvited {
+		return apperrors.BadRequest("invitation already processed")
 	}
 
-	// Update status to active
 	now := time.Now()
 	member.Status = models.MemberActive
 	member.JoinedAt = &now
@@ -111,83 +79,45 @@ func (s *MemberService) AcceptInvitation(userID int64, orgID int64) error {
 	return s.orgRepo.UpdateMemberStatus(member.ID, models.MemberActive)
 }
 
-// GetOrganizationMembers returns all members of an organization (requires members.view permission)
-func (s *MemberService) GetOrganizationMembers(actorUserID int64, orgID int64) ([]models.OrganizationMember, error) {
-	// Check if actor has permission to view members
-	hasPermission, err := s.permissionSvc.UserHasPermission(actorUserID, orgID, "members.view")
+func (s *MemberService) DeclineInvitation(userID int64, orgID int64) error {
+	member, err := s.orgRepo.GetMemberByUserAndOrgID(userID, orgID)
 	if err != nil {
-		return nil, err
-	}
-	if !hasPermission {
-		return nil, ErrAccessDenied
-	}
-
-	return s.orgRepo.GetMembersByOrganizationID(orgID)
-}
-
-// GetMemberByID returns a member by ID (requires members.view permission)
-func (s *MemberService) GetMemberByID(actorUserID int64, memberID int64) (*models.OrganizationMember, error) {
-	// Get the member to find the organization
-	member, err := s.orgRepo.GetMemberByID(memberID)
-	if err != nil {
-		return nil, err
-	}
-
-	// Check if actor has permission to view members
-	hasPermission, err := s.permissionSvc.UserHasPermission(actorUserID, member.OrganizationID, "members.view")
-	if err != nil {
-		return nil, err
-	}
-	if !hasPermission {
-		return nil, ErrAccessDenied
-	}
-
-	return member, nil
-}
-
-// RemoveMember removes a member from an organization (requires members.invite permission)
-// Note: Cannot remove founders
-func (s *MemberService) RemoveMember(actorUserID int64, memberID int64) error {
-	// Get the member to find the organization
-	member, err := s.orgRepo.GetMemberByID(memberID)
-	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return apperrors.ErrMemberNotFound
+		}
 		return err
 	}
 
-	// Check if user is a founder (founders cannot be removed through this method)
-	founder, err := s.orgRepo.GetFounderByUserAndOrgID(member.UserID, member.OrganizationID)
-	if err == nil && founder != nil && founder.ID > 0 {
-		return ErrCannotRemoveFounder
+	if member.Status != models.MemberInvited {
+		return apperrors.BadRequest("invitation already processed")
 	}
 
-	// Check if actor has permission to manage members
-	hasPermission, err := s.permissionSvc.UserHasPermission(actorUserID, member.OrganizationID, "members.invite")
+	return s.orgRepo.DeleteMember(member.ID)
+}
+
+func (s *MemberService) BlockMember(memberID int64) error {
+	_, err := s.orgRepo.GetMemberByID(memberID)
 	if err != nil {
-		return err
+		return apperrors.ErrMemberNotFound
 	}
-	if !hasPermission {
-		return ErrAccessDenied
+
+	return s.orgRepo.UpdateMemberStatus(memberID, models.MemberBlocked)
+}
+
+func (s *MemberService) UnblockMember(memberID int64) error {
+	_, err := s.orgRepo.GetMemberByID(memberID)
+	if err != nil {
+		return apperrors.ErrMemberNotFound
+	}
+
+	return s.orgRepo.UpdateMemberStatus(memberID, models.MemberActive)
+}
+
+func (s *MemberService) RemoveMember(memberID int64) error {
+	_, err := s.orgRepo.GetMemberByID(memberID)
+	if err != nil {
+		return apperrors.ErrMemberNotFound
 	}
 
 	return s.orgRepo.DeleteMember(memberID)
-}
-
-// GetMemberPermissions returns all permission codes for a member
-func (s *MemberService) GetMemberPermissions(actorUserID int64, memberID int64) ([]string, error) {
-	// Get the member to find the organization
-	member, err := s.orgRepo.GetMemberByID(memberID)
-	if err != nil {
-		return nil, err
-	}
-
-	// Check if actor has permission to view members
-	hasPermission, err := s.permissionSvc.UserHasPermission(actorUserID, member.OrganizationID, "members.view")
-	if err != nil {
-		return nil, err
-	}
-	if !hasPermission {
-		return nil, ErrAccessDenied
-	}
-
-	return s.permissionSvc.GetUserPermissions(member.UserID, member.OrganizationID)
 }

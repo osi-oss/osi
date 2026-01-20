@@ -3,6 +3,8 @@ package services
 import (
 	"testing"
 
+	"github.com/osi-oss/osi/internal/apperrors"
+	"github.com/osi-oss/osi/internal/dto"
 	"github.com/osi-oss/osi/internal/models"
 	"github.com/osi-oss/osi/internal/repository"
 	"github.com/stretchr/testify/assert"
@@ -11,11 +13,12 @@ import (
 	"gorm.io/gorm"
 )
 
-// setupPositionTestDB создает тестовую базу данных для позиций
+// setupPositionTestDB создает тестовую базу данных в памяти для позиций
 func setupPositionTestDB(t *testing.T) *gorm.DB {
 	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
-	require.NoError(t, err)
+	require.NoError(t, err, "failed to open test database")
 
+	// Миграции
 	err = db.AutoMigrate(
 		&models.User{},
 		&models.Organization{},
@@ -24,14 +27,16 @@ func setupPositionTestDB(t *testing.T) *gorm.DB {
 		&models.Location{},
 		&models.Department{},
 		&models.Position{},
+		&models.Employee{},
+		&models.Permission{},
 	)
-	require.NoError(t, err)
+	require.NoError(t, err, "failed to run migrations")
 
 	return db
 }
 
-// createPositionTestUser создает тестового пользователя
-func createPositionTestUser(t *testing.T, db *gorm.DB, email string) *models.User {
+// createPosTestUser создает тестового пользователя
+func createPosTestUser(t *testing.T, db *gorm.DB, email string) *models.User {
 	user := &models.User{
 		Email:           stringPtr(email),
 		PasswordHash:    "hashed_password",
@@ -40,18 +45,18 @@ func createPositionTestUser(t *testing.T, db *gorm.DB, email string) *models.Use
 		LastName:        "User",
 	}
 	err := db.Create(user).Error
-	require.NoError(t, err)
+	require.NoError(t, err, "failed to create test user")
 	return user
 }
 
-// createPositionTestOrg создает тестовую организацию
-func createPositionTestOrg(t *testing.T, db *gorm.DB, userID int64, name string) *models.Organization {
+// createPosTestOrg создает тестовую организацию
+func createPosTestOrg(t *testing.T, db *gorm.DB, userID int64, name string) *models.Organization {
 	org := &models.Organization{
 		Name:   name,
 		Status: models.OrgDraft,
 	}
 	err := db.Create(org).Error
-	require.NoError(t, err)
+	require.NoError(t, err, "failed to create test organization")
 
 	founder := &models.OrganizationFounder{
 		OrganizationID: org.ID,
@@ -60,144 +65,106 @@ func createPositionTestOrg(t *testing.T, db *gorm.DB, userID int64, name string)
 		SharePercent:   float64Ptr(100.0),
 	}
 	err = db.Create(founder).Error
-	require.NoError(t, err)
+	require.NoError(t, err, "failed to create test founder")
 
 	err = db.Preload("Founders").First(org, org.ID).Error
-	require.NoError(t, err)
+	require.NoError(t, err, "failed to reload organization")
 
 	return org
 }
 
-// createPositionTestLocation создает тестовую локацию
-func createPositionTestLocation(t *testing.T, db *gorm.DB, orgID int64, name string) *models.Location {
-	location := &models.Location{
-		OrganizationID: orgID,
-		Name:           name,
-		Source:         "manual",
-		IsActive:       true,
-	}
-	err := db.Create(location).Error
-	require.NoError(t, err)
-	return location
-}
-
-// createPositionTestDepartment создает тестовый отдел
-func createPositionTestDepartment(t *testing.T, db *gorm.DB, locationID int64, name string) *models.Department {
-	department := &models.Department{
+// createPosTestDepartment создает тестовый отдел
+func createPosTestDepartment(t *testing.T, db *gorm.DB, locationID int64, name string) *models.Department {
+	dept := &models.Department{
 		LocationID: locationID,
 		Name:       name,
 	}
-	err := db.Create(department).Error
-	require.NoError(t, err)
-	return department
+	err := db.Create(dept).Error
+	require.NoError(t, err, "failed to create test department")
+	return dept
 }
 
 // TestCreatePosition тестирует создание позиции
 func TestCreatePosition(t *testing.T) {
 	db := setupPositionTestDB(t)
-	orgRepo := repository.NewOrganizationRepository(db)
 	positionRepo := repository.NewPositionRepository(db)
-	permissionRepo := repository.NewPermissionRepository(db)
-	employeeRepo := repository.NewEmployeeRepository(db)
 
-	permissionService := NewPermissionService(permissionRepo, orgRepo, employeeRepo)
-	orgService := NewOrganizationService(orgRepo)
-	positionService := NewPositionService(positionRepo, orgService, permissionService)
+	positionService := NewPositionService(positionRepo)
 
-	founder := createPositionTestUser(t, db, "founder@example.com")
-	nonFounder := createPositionTestUser(t, db, "nonfounder@example.com")
-	org := createPositionTestOrg(t, db, founder.ID, "Test Org")
-	location := createPositionTestLocation(t, db, org.ID, "Main Office")
-	department := createPositionTestDepartment(t, db, location.ID, "IT Department")
+	founder := createPosTestUser(t, db, "founder@example.com")
+	org := createPosTestOrg(t, db, founder.ID, "Test Org")
+
+	// Создаем локацию и отдел для тестов с department_id
+	location := &models.Location{
+		OrganizationID: org.ID,
+		Name:           "Main Office",
+		Source:         "manual",
+		IsActive:       true,
+	}
+	err := db.Create(location).Error
+	require.NoError(t, err)
+
+	dept := createPosTestDepartment(t, db, location.ID, "Engineering")
 
 	tests := []struct {
 		name        string
 		orgID       int64
-		userID      int64
-		input       CreatePositionInput
+		input       dto.CreatePositionRequest
 		expectError bool
 		errorCheck  func(*testing.T, error)
 		checkPos    func(*testing.T, *models.Position)
 	}{
 		{
-			name:   "Success - Create position without department",
-			orgID:  org.ID,
-			userID: founder.ID,
-			input: CreatePositionInput{
+			name:  "Success - Create position without department",
+			orgID: org.ID,
+			input: dto.CreatePositionRequest{
 				Name:        "Software Engineer",
+				Description: stringPtr("Develop software"),
 				IsAdmin:     false,
-				Description: stringPtr("Develops software"),
 			},
 			expectError: false,
 			checkPos: func(t *testing.T, pos *models.Position) {
 				assert.Equal(t, "Software Engineer", pos.Name)
+				assert.Equal(t, "Develop software", *pos.Description)
 				assert.False(t, pos.IsAdmin)
-				assert.Equal(t, "Develops software", *pos.Description)
 				assert.Nil(t, pos.DepartmentID)
 				assert.Equal(t, org.ID, pos.OrganizationID)
+				assert.NotZero(t, pos.ID)
 			},
 		},
 		{
-			name:   "Success - Create position with department",
-			orgID:  org.ID,
-			userID: founder.ID,
-			input: CreatePositionInput{
-				Name:         "Senior Developer",
-				DepartmentID: &department.ID,
-				IsAdmin:      false,
-				Description:  stringPtr("Senior level developer"),
+			name:  "Success - Create position with department",
+			orgID: org.ID,
+			input: dto.CreatePositionRequest{
+				Name:         "Team Lead",
+				DepartmentID: &dept.ID,
+				IsAdmin:      true,
 			},
 			expectError: false,
 			checkPos: func(t *testing.T, pos *models.Position) {
-				assert.Equal(t, "Senior Developer", pos.Name)
-				assert.NotNil(t, pos.DepartmentID)
-				assert.Equal(t, department.ID, *pos.DepartmentID)
-			},
-		},
-		{
-			name:   "Success - Create admin position",
-			orgID:  org.ID,
-			userID: founder.ID,
-			input: CreatePositionInput{
-				Name:    "Administrator",
-				IsAdmin: true,
-			},
-			expectError: false,
-			checkPos: func(t *testing.T, pos *models.Position) {
-				assert.Equal(t, "Administrator", pos.Name)
+				assert.Equal(t, "Team Lead", pos.Name)
+				assert.Equal(t, dept.ID, *pos.DepartmentID)
 				assert.True(t, pos.IsAdmin)
 			},
 		},
 		{
-			name:   "Error - Non-founder cannot create",
-			orgID:  org.ID,
-			userID: nonFounder.ID,
-			input: CreatePositionInput{
-				Name: "Unauthorized Position",
+			name:  "Success - Create admin position",
+			orgID: org.ID,
+			input: dto.CreatePositionRequest{
+				Name:    "CTO",
+				IsAdmin: true,
 			},
-			expectError: true,
-			errorCheck: func(t *testing.T, err error) {
-				assert.ErrorIs(t, err, ErrAccessDenied)
-			},
-		},
-		{
-			name:   "Error - Organization not found",
-			orgID:  99999,
-			userID: founder.ID,
-			input: CreatePositionInput{
-				Name: "Invalid Org Position",
-			},
-			expectError: true,
-			errorCheck: func(t *testing.T, err error) {
-				// When organization doesn't exist, user has no access, so ErrAccessDenied is returned
-				assert.ErrorIs(t, err, ErrAccessDenied)
+			expectError: false,
+			checkPos: func(t *testing.T, pos *models.Position) {
+				assert.Equal(t, "CTO", pos.Name)
+				assert.True(t, pos.IsAdmin)
 			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			pos, err := positionService.CreatePosition(tt.orgID, tt.userID, tt.input)
+			pos, err := positionService.CreatePosition(tt.orgID, tt.input)
 
 			if tt.expectError {
 				require.Error(t, err)
@@ -215,27 +182,22 @@ func TestCreatePosition(t *testing.T) {
 	}
 }
 
-// TestGetPosition тестирует получение позиции
+// TestGetPosition тестирует получение позиции по ID
 func TestGetPosition(t *testing.T) {
 	db := setupPositionTestDB(t)
-	orgRepo := repository.NewOrganizationRepository(db)
 	positionRepo := repository.NewPositionRepository(db)
-	permissionRepo := repository.NewPermissionRepository(db)
-	employeeRepo := repository.NewEmployeeRepository(db)
 
-	permissionService := NewPermissionService(permissionRepo, orgRepo, employeeRepo)
-	orgService := NewOrganizationService(orgRepo)
-	positionService := NewPositionService(positionRepo, orgService, permissionService)
-	founder := createPositionTestUser(t, db, "founder@example.com")
-	nonFounder := createPositionTestUser(t, db, "nonfounder@example.com")
-	org := createPositionTestOrg(t, db, founder.ID, "Test Org")
+	positionService := NewPositionService(positionRepo)
+
+	founder := createPosTestUser(t, db, "founder@example.com")
+	org := createPosTestOrg(t, db, founder.ID, "Test Org")
 
 	// Создаем позицию
 	position := &models.Position{
 		OrganizationID: org.ID,
 		Name:           "Test Position",
+		Description:    stringPtr("Test description"),
 		IsAdmin:        false,
-		Description:    stringPtr("Test Description"),
 	}
 	err := db.Create(position).Error
 	require.NoError(t, err)
@@ -243,39 +205,33 @@ func TestGetPosition(t *testing.T) {
 	tests := []struct {
 		name        string
 		posID       int64
-		userID      int64
 		expectError bool
 		errorCheck  func(*testing.T, error)
+		checkPos    func(*testing.T, *models.Position)
 	}{
 		{
-			name:        "Success - Get position by founder",
+			name:        "Success - Get position",
 			posID:       position.ID,
-			userID:      founder.ID,
 			expectError: false,
-		},
-		{
-			name:        "Error - Non-founder cannot get",
-			posID:       position.ID,
-			userID:      nonFounder.ID,
-			expectError: true,
-			errorCheck: func(t *testing.T, err error) {
-				assert.ErrorIs(t, err, ErrUnauthorized)
+			checkPos: func(t *testing.T, pos *models.Position) {
+				assert.Equal(t, position.ID, pos.ID)
+				assert.Equal(t, "Test Position", pos.Name)
+				assert.Equal(t, org.ID, pos.OrganizationID)
 			},
 		},
 		{
 			name:        "Error - Position not found",
 			posID:       99999,
-			userID:      founder.ID,
 			expectError: true,
 			errorCheck: func(t *testing.T, err error) {
-				assert.ErrorIs(t, err, ErrPositionNotFound)
+				assert.ErrorIs(t, err, apperrors.ErrPositionNotFound)
 			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			pos, err := positionService.GetPosition(tt.posID, tt.userID)
+			pos, err := positionService.GetPosition(tt.posID)
 
 			if tt.expectError {
 				require.Error(t, err)
@@ -285,8 +241,9 @@ func TestGetPosition(t *testing.T) {
 			} else {
 				require.NoError(t, err)
 				require.NotNil(t, pos)
-				assert.Equal(t, position.ID, pos.ID)
-				assert.Equal(t, "Test Position", pos.Name)
+				if tt.checkPos != nil {
+					tt.checkPos(t, pos)
+				}
 			}
 		})
 	}
@@ -295,145 +252,214 @@ func TestGetPosition(t *testing.T) {
 // TestGetOrganizationPositions тестирует получение всех позиций организации
 func TestGetOrganizationPositions(t *testing.T) {
 	db := setupPositionTestDB(t)
-	orgRepo := repository.NewOrganizationRepository(db)
 	positionRepo := repository.NewPositionRepository(db)
-	permissionRepo := repository.NewPermissionRepository(db)
-	employeeRepo := repository.NewEmployeeRepository(db)
 
-	permissionService := NewPermissionService(permissionRepo, orgRepo, employeeRepo)
-	orgService := NewOrganizationService(orgRepo)
-	positionService := NewPositionService(positionRepo, orgService, permissionService)
+	positionService := NewPositionService(positionRepo)
 
-	founder := createPositionTestUser(t, db, "founder@example.com")
-	org := createPositionTestOrg(t, db, founder.ID, "Test Org")
+	founder := createPosTestUser(t, db, "founder@example.com")
+	org := createPosTestOrg(t, db, founder.ID, "Test Org")
 
 	// Создаем несколько позиций
 	positions := []models.Position{
-		{OrganizationID: org.ID, Name: "Developer", IsAdmin: false},
-		{OrganizationID: org.ID, Name: "Manager", IsAdmin: false},
-		{OrganizationID: org.ID, Name: "Admin", IsAdmin: true},
+		{OrganizationID: org.ID, Name: "Position 1"},
+		{OrganizationID: org.ID, Name: "Position 2"},
+		{OrganizationID: org.ID, Name: "Position 3"},
 	}
-	for _, pos := range positions {
-		err := db.Create(&pos).Error
+	for i := range positions {
+		err := db.Create(&positions[i]).Error
 		require.NoError(t, err)
 	}
-
-	poss, err := positionService.GetOrganizationPositions(org.ID, founder.ID)
-	require.NoError(t, err)
-	assert.Len(t, poss, 3)
-
-	// Проверяем, что есть админская позиция
-	hasAdmin := false
-	for _, p := range poss {
-		if p.IsAdmin {
-			hasAdmin = true
-			break
-		}
-	}
-	assert.True(t, hasAdmin)
-}
-
-// TestGetDepartmentPositions тестирует получение всех позиций отдела
-func TestGetDepartmentPositions(t *testing.T) {
-	db := setupPositionTestDB(t)
-	orgRepo := repository.NewOrganizationRepository(db)
-	positionRepo := repository.NewPositionRepository(db)
-	permissionRepo := repository.NewPermissionRepository(db)
-	employeeRepo := repository.NewEmployeeRepository(db)
-
-	permissionService := NewPermissionService(permissionRepo, orgRepo, employeeRepo)
-	orgService := NewOrganizationService(orgRepo)
-	positionService := NewPositionService(positionRepo, orgService, permissionService)
-
-	founder := createPositionTestUser(t, db, "founder@example.com")
-	org := createPositionTestOrg(t, db, founder.ID, "Test Org")
-	location := createPositionTestLocation(t, db, org.ID, "Main Office")
-	department := createPositionTestDepartment(t, db, location.ID, "IT Department")
-
-	// Создаем позиции в отделе
-	positions := []models.Position{
-		{OrganizationID: org.ID, DepartmentID: &department.ID, Name: "Junior Dev"},
-		{OrganizationID: org.ID, DepartmentID: &department.ID, Name: "Senior Dev"},
-	}
-	for _, pos := range positions {
-		err := db.Create(&pos).Error
-		require.NoError(t, err)
-	}
-
-	// Создаем позицию без отдела (не должна попасть в результат)
-	otherPos := &models.Position{
-		OrganizationID: org.ID,
-		Name:           "Other Position",
-	}
-	err := db.Create(otherPos).Error
-	require.NoError(t, err)
-
-	poss, err := positionService.GetDepartmentPositions(department.ID, founder.ID)
-	require.NoError(t, err)
-	assert.Len(t, poss, 2)
-}
-
-// TestUpdatePosition тестирует обновление позиции
-func TestUpdatePosition(t *testing.T) {
-	db := setupPositionTestDB(t)
-	orgRepo := repository.NewOrganizationRepository(db)
-	positionRepo := repository.NewPositionRepository(db)
-	permissionRepo := repository.NewPermissionRepository(db)
-	employeeRepo := repository.NewEmployeeRepository(db)
-
-	permissionService := NewPermissionService(permissionRepo, orgRepo, employeeRepo)
-	orgService := NewOrganizationService(orgRepo)
-	positionService := NewPositionService(positionRepo, orgService, permissionService)
-
-	founder := createPositionTestUser(t, db, "founder@example.com")
-	org := createPositionTestOrg(t, db, founder.ID, "Test Org")
-
-	position := &models.Position{
-		OrganizationID: org.ID,
-		Name:           "Old Name",
-		IsAdmin:        false,
-		Description:    stringPtr("Old Description"),
-	}
-	err := db.Create(position).Error
-	require.NoError(t, err)
 
 	tests := []struct {
-		name     string
-		input    UpdatePositionInput
-		checkPos func(*testing.T, *models.Position)
+		name        string
+		orgID       int64
+		expectError bool
+		checkPos    func(*testing.T, []models.Position)
 	}{
 		{
-			name: "Update all fields",
-			input: UpdatePositionInput{
-				Name:        "New Name",
-				IsAdmin:     boolPtr(true),
-				Description: stringPtr("New Description"),
-			},
-			checkPos: func(t *testing.T, pos *models.Position) {
-				assert.Equal(t, "New Name", pos.Name)
-				assert.True(t, pos.IsAdmin)
-				assert.Equal(t, "New Description", *pos.Description)
+			name:        "Success - Get all positions",
+			orgID:       org.ID,
+			expectError: false,
+			checkPos: func(t *testing.T, positions []models.Position) {
+				assert.Len(t, positions, 3)
 			},
 		},
 		{
-			name: "Partial update",
-			input: UpdatePositionInput{
-				Name: "Another Name",
-			},
-			checkPos: func(t *testing.T, pos *models.Position) {
-				assert.Equal(t, "Another Name", pos.Name)
-				// IsAdmin должен остаться true от предыдущего обновления
-				assert.True(t, pos.IsAdmin)
+			name:        "Success - Empty list for non-existent org",
+			orgID:       99999,
+			expectError: false,
+			checkPos: func(t *testing.T, positions []models.Position) {
+				assert.Len(t, positions, 0)
 			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			updated, err := positionService.UpdatePosition(position.ID, founder.ID, tt.input)
-			require.NoError(t, err)
-			if tt.checkPos != nil {
-				tt.checkPos(t, updated)
+			positions, err := positionService.GetOrganizationPositions(tt.orgID)
+
+			if tt.expectError {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				if tt.checkPos != nil {
+					tt.checkPos(t, positions)
+				}
+			}
+		})
+	}
+}
+
+// TestGetDepartmentPositions тестирует получение всех позиций отдела
+func TestGetDepartmentPositions(t *testing.T) {
+	db := setupPositionTestDB(t)
+	positionRepo := repository.NewPositionRepository(db)
+
+	positionService := NewPositionService(positionRepo)
+
+	founder := createPosTestUser(t, db, "founder@example.com")
+	org := createPosTestOrg(t, db, founder.ID, "Test Org")
+
+	// Создаем локацию и отдел
+	location := &models.Location{
+		OrganizationID: org.ID,
+		Name:           "Main Office",
+		Source:         "manual",
+		IsActive:       true,
+	}
+	err := db.Create(location).Error
+	require.NoError(t, err)
+
+	dept := createPosTestDepartment(t, db, location.ID, "Engineering")
+
+	// Создаем позиции для отдела
+	positions := []models.Position{
+		{OrganizationID: org.ID, DepartmentID: &dept.ID, Name: "Engineer"},
+		{OrganizationID: org.ID, DepartmentID: &dept.ID, Name: "Senior Engineer"},
+	}
+	for i := range positions {
+		err := db.Create(&positions[i]).Error
+		require.NoError(t, err)
+	}
+
+	tests := []struct {
+		name        string
+		deptID      int64
+		expectError bool
+		checkPos    func(*testing.T, []models.Position)
+	}{
+		{
+			name:        "Success - Get department positions",
+			deptID:      dept.ID,
+			expectError: false,
+			checkPos: func(t *testing.T, positions []models.Position) {
+				assert.Len(t, positions, 2)
+			},
+		},
+		{
+			name:        "Success - Empty list for non-existent department",
+			deptID:      99999,
+			expectError: false,
+			checkPos: func(t *testing.T, positions []models.Position) {
+				assert.Len(t, positions, 0)
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			positions, err := positionService.GetDepartmentPositions(tt.deptID)
+
+			if tt.expectError {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				if tt.checkPos != nil {
+					tt.checkPos(t, positions)
+				}
+			}
+		})
+	}
+}
+
+// TestUpdatePosition тестирует обновление позиции
+func TestUpdatePosition(t *testing.T) {
+	db := setupPositionTestDB(t)
+	positionRepo := repository.NewPositionRepository(db)
+
+	positionService := NewPositionService(positionRepo)
+
+	founder := createPosTestUser(t, db, "founder@example.com")
+	org := createPosTestOrg(t, db, founder.ID, "Test Org")
+
+	// Создаем позицию
+	position := &models.Position{
+		OrganizationID: org.ID,
+		Name:           "Old Name",
+		Description:    stringPtr("Old description"),
+		IsAdmin:        false,
+	}
+	err := db.Create(position).Error
+	require.NoError(t, err)
+
+	tests := []struct {
+		name        string
+		posID       int64
+		input       dto.UpdatePositionRequest
+		expectError bool
+		errorCheck  func(*testing.T, error)
+		checkPos    func(*testing.T, *models.Position)
+	}{
+		{
+			name:  "Success - Update name",
+			posID: position.ID,
+			input: dto.UpdatePositionRequest{
+				Name: "New Name",
+			},
+			expectError: false,
+			checkPos: func(t *testing.T, pos *models.Position) {
+				assert.Equal(t, "New Name", pos.Name)
+			},
+		},
+		{
+			name:  "Success - Update isAdmin",
+			posID: position.ID,
+			input: dto.UpdatePositionRequest{
+				IsAdmin: boolPtr(true),
+			},
+			expectError: false,
+			checkPos: func(t *testing.T, pos *models.Position) {
+				assert.True(t, pos.IsAdmin)
+			},
+		},
+		{
+			name:  "Error - Position not found",
+			posID: 99999,
+			input: dto.UpdatePositionRequest{
+				Name: "Nonexistent",
+			},
+			expectError: true,
+			errorCheck: func(t *testing.T, err error) {
+				assert.ErrorIs(t, err, apperrors.ErrPositionNotFound)
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			pos, err := positionService.UpdatePosition(tt.posID, tt.input)
+
+			if tt.expectError {
+				require.Error(t, err)
+				if tt.errorCheck != nil {
+					tt.errorCheck(t, err)
+				}
+			} else {
+				require.NoError(t, err)
+				require.NotNil(t, pos)
+				if tt.checkPos != nil {
+					tt.checkPos(t, pos)
+				}
 			}
 		})
 	}
@@ -442,63 +468,48 @@ func TestUpdatePosition(t *testing.T) {
 // TestDeletePosition тестирует удаление позиции
 func TestDeletePosition(t *testing.T) {
 	db := setupPositionTestDB(t)
-	orgRepo := repository.NewOrganizationRepository(db)
 	positionRepo := repository.NewPositionRepository(db)
-	permissionRepo := repository.NewPermissionRepository(db)
-	employeeRepo := repository.NewEmployeeRepository(db)
 
-	permissionService := NewPermissionService(permissionRepo, orgRepo, employeeRepo)
-	orgService := NewOrganizationService(orgRepo)
-	positionService := NewPositionService(positionRepo, orgService, permissionService)
+	positionService := NewPositionService(positionRepo)
 
-	founder := createPositionTestUser(t, db, "founder@example.com")
-	nonFounder := createPositionTestUser(t, db, "nonfounder@example.com")
-	org := createPositionTestOrg(t, db, founder.ID, "Test Org")
+	founder := createPosTestUser(t, db, "founder@example.com")
+	org := createPosTestOrg(t, db, founder.ID, "Test Org")
 
 	tests := []struct {
 		name        string
-		setupPos    func() *models.Position
-		userID      int64
+		setupPos    func() int64
 		expectError bool
 		errorCheck  func(*testing.T, error)
 	}{
 		{
 			name: "Success - Delete position",
-			setupPos: func() *models.Position {
+			setupPos: func() int64 {
 				pos := &models.Position{
 					OrganizationID: org.ID,
 					Name:           "To Delete",
 				}
 				err := db.Create(pos).Error
 				require.NoError(t, err)
-				return pos
+				return pos.ID
 			},
-			userID:      founder.ID,
 			expectError: false,
 		},
 		{
-			name: "Error - Non-founder cannot delete",
-			setupPos: func() *models.Position {
-				pos := &models.Position{
-					OrganizationID: org.ID,
-					Name:           "Protected",
-				}
-				err := db.Create(pos).Error
-				require.NoError(t, err)
-				return pos
+			name: "Error - Position not found",
+			setupPos: func() int64 {
+				return 99999
 			},
-			userID:      nonFounder.ID,
 			expectError: true,
 			errorCheck: func(t *testing.T, err error) {
-				assert.ErrorIs(t, err, ErrAccessDenied)
+				assert.ErrorIs(t, err, apperrors.ErrPositionNotFound)
 			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			pos := tt.setupPos()
-			err := positionService.DeletePosition(pos.ID, tt.userID)
+			posID := tt.setupPos()
+			err := positionService.DeletePosition(posID)
 
 			if tt.expectError {
 				require.Error(t, err)
@@ -510,8 +521,7 @@ func TestDeletePosition(t *testing.T) {
 
 				// Проверяем, что позиция удалена
 				var deleted models.Position
-				err := db.First(&deleted, pos.ID).Error
-				assert.Error(t, err)
+				err := db.First(&deleted, posID).Error
 				assert.ErrorIs(t, err, gorm.ErrRecordNotFound)
 			}
 		})

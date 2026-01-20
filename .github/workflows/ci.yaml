@@ -5,10 +5,14 @@ on:
     branches:
       - main
       - dev
+    paths:
+      'backend/*'
   pull_request:
     branches:
       - main
       - dev
+    paths:
+      'backend/*'
 
 jobs:
     backend:
@@ -29,6 +33,23 @@ jobs:
 
             - name: Download dependencies
               run: go mod download
+
+            - name: Install swag
+              run: go install github.com/swaggo/swag/cmd/swag@latest
+
+            - name: Generate Swagger docs
+              run: swag init -g cmd/main.go -o docs --parseDependency --parseInternal
+
+            - name: Check Swagger docs are up to date
+              run: |
+                if [ -n "$(git status --porcelain docs/)" ]; then
+                    echo "❌ Swagger documentation is out of date!"
+                    echo "Run 'swag init -g cmd/main.go -o docs --parseDependency --parseInternal' and commit the changes"
+                    git diff docs/
+                    exit 1
+                else
+                    echo "✅ Swagger documentation is up to date"
+                fi
 
             - name: Check formatting
               run: |

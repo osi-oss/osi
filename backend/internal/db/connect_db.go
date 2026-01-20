@@ -8,10 +8,10 @@ import (
 	"gorm.io/gorm"
 )
 
-// Format connection string
+// Connect создает подключение к PostgreSQL используя конфигурацию
 func Connect(cfg *config.Config) (*gorm.DB, error) {
-	dsn := fmt.Sprintf("host=localhost user=%s password=%s dbname=%s host=%s port=%s sslmode=disable",
-		cfg.PgUser, cfg.PgPassword, cfg.PgDb, cfg.PgHost, cfg.PgPort)
+	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable",
+		cfg.PgHost, cfg.PgUser, cfg.PgPassword, cfg.PgDb, cfg.PgPort)
 	return openConnection(dsn)
 }
 

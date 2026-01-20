@@ -1,0 +1,1367 @@
+basePath: /api
+definitions:
+  github_com_osi-oss_osi_internal_dto.CreateDepartmentRequest:
+    properties:
+      description:
+        type: string
+      name:
+        type: string
+      parent_id:
+        type: integer
+    required:
+    - name
+    type: object
+  github_com_osi-oss_osi_internal_dto.CreateLocationRequest:
+    properties:
+      address:
+        type: string
+      is_verified:
+        type: boolean
+      name:
+        type: string
+      source:
+        type: string
+    required:
+    - name
+    - source
+    type: object
+  github_com_osi-oss_osi_internal_dto.CreateOrganizationRequest:
+    properties:
+      inn:
+        type: string
+      kpp:
+        type: string
+      legal_address:
+        type: string
+      legal_name:
+        type: string
+      name:
+        type: string
+      ogrn:
+        type: string
+      share_percent:
+        type: number
+    required:
+    - name
+    type: object
+  github_com_osi-oss_osi_internal_dto.CreatePositionRequest:
+    properties:
+      department_id:
+        type: integer
+      description:
+        type: string
+      is_admin:
+        type: boolean
+      name:
+        type: string
+    required:
+    - name
+    type: object
+  github_com_osi-oss_osi_internal_dto.DepartmentResponse:
+    properties:
+      created_at:
+        type: string
+      description:
+        type: string
+      id:
+        type: integer
+      location_id:
+        type: integer
+      name:
+        type: string
+      parent_id:
+        type: integer
+      updated_at:
+        type: string
+    type: object
+  github_com_osi-oss_osi_internal_dto.LocationResponse:
+    properties:
+      address:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: integer
+      is_active:
+        type: boolean
+      is_verified:
+        type: boolean
+      name:
+        type: string
+      organization_id:
+        type: integer
+      source:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  github_com_osi-oss_osi_internal_dto.LoginRequest:
+    properties:
+      email:
+        type: string
+      password:
+        minLength: 6
+        type: string
+    required:
+    - email
+    - password
+    type: object
+  github_com_osi-oss_osi_internal_dto.OrganizationResponse:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: integer
+      inn:
+        type: string
+      kpp:
+        type: string
+      legal_address:
+        type: string
+      legal_name:
+        type: string
+      name:
+        type: string
+      ogrn:
+        type: string
+      status:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  github_com_osi-oss_osi_internal_dto.PasswordResetRequest:
+    properties:
+      email:
+        type: string
+    required:
+    - email
+    type: object
+  github_com_osi-oss_osi_internal_dto.PositionResponse:
+    properties:
+      created_at:
+        type: string
+      department_id:
+        type: integer
+      description:
+        type: string
+      id:
+        type: integer
+      is_admin:
+        type: boolean
+      name:
+        type: string
+      organization_id:
+        type: integer
+      updated_at:
+        type: string
+    type: object
+  github_com_osi-oss_osi_internal_dto.ResetPasswordRequest:
+    properties:
+      new_password:
+        minLength: 6
+        type: string
+      token:
+        type: string
+    required:
+    - new_password
+    - token
+    type: object
+  github_com_osi-oss_osi_internal_dto.SignUpRequest:
+    properties:
+      email:
+        type: string
+      password:
+        minLength: 6
+        type: string
+    required:
+    - email
+    - password
+    type: object
+  github_com_osi-oss_osi_internal_dto.UpdateDepartmentRequest:
+    properties:
+      description:
+        type: string
+      name:
+        type: string
+      parent_id:
+        type: integer
+    type: object
+  github_com_osi-oss_osi_internal_dto.UpdateLocationRequest:
+    properties:
+      address:
+        type: string
+      is_active:
+        type: boolean
+      is_verified:
+        type: boolean
+      name:
+        type: string
+      source:
+        type: string
+    type: object
+  github_com_osi-oss_osi_internal_dto.UpdateOrganizationRequest:
+    properties:
+      inn:
+        type: string
+      kpp:
+        type: string
+      legal_address:
+        type: string
+      legal_name:
+        type: string
+      name:
+        type: string
+      ogrn:
+        type: string
+    type: object
+  github_com_osi-oss_osi_internal_dto.UpdatePositionRequest:
+    properties:
+      department_id:
+        type: integer
+      description:
+        type: string
+      is_admin:
+        type: boolean
+      name:
+        type: string
+    type: object
+  github_com_osi-oss_osi_internal_dto.UserResponse:
+    properties:
+      created_at:
+        type: string
+      email:
+        type: string
+      email_verified:
+        type: boolean
+      first_name:
+        type: string
+      id:
+        type: integer
+      last_name:
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact:
+    email: support@swagger.io
+    name: API Support
+    url: http://www.swagger.io/support
+  description: API для управления организациями, локациями, отделами и позициями
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  termsOfService: http://swagger.io/terms/
+  title: OSI API
+  version: "1.0"
+paths:
+  /forgot-password:
+    post:
+      consumes:
+      - application/json
+      description: Отправляет email с инструкциями по сбросу пароля
+      parameters:
+      - description: Email для сброса пароля
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.PasswordResetRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Инструкции отправлены
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Ошибка валидации
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Запрос сброса пароля
+      tags:
+      - auth
+  /login:
+    post:
+      consumes:
+      - application/json
+      description: Авторизует пользователя и возвращает JWT токен
+      parameters:
+      - description: Данные для входа
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Успешная авторизация
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Ошибка валидации
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Неверные учетные данные
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Авторизация пользователя
+      tags:
+      - auth
+  /logout:
+    post:
+      consumes:
+      - application/json
+      description: Удаляет токен авторизации
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Успешный выход
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Выход из системы
+      tags:
+      - auth
+  /organizations:
+    get:
+      consumes:
+      - application/json
+      description: Возвращает все организации, в которых состоит пользователь
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Список организаций
+          schema:
+            additionalProperties:
+              items:
+                $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.OrganizationResponse'
+              type: array
+            type: object
+        "401":
+          description: Не авторизован
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Список организаций пользователя
+      tags:
+      - organizations
+    post:
+      consumes:
+      - application/json
+      description: Создаёт новую организацию. Пользователь становится основателем.
+      parameters:
+      - description: Данные организации
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.CreateOrganizationRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Организация создана
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.OrganizationResponse'
+        "400":
+          description: Ошибка валидации
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Не авторизован
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Создание организации
+      tags:
+      - organizations
+  /organizations/{orgId}:
+    delete:
+      consumes:
+      - application/json
+      description: Удаляет организацию. Только для основателей.
+      parameters:
+      - description: ID организации
+        in: path
+        name: orgId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Организация удалена
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Не авторизован
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Нет доступа
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Организация не найдена
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Удаление организации
+      tags:
+      - organizations
+    get:
+      consumes:
+      - application/json
+      description: Возвращает организацию по ID
+      parameters:
+      - description: ID организации
+        in: path
+        name: orgId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Организация
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.OrganizationResponse'
+        "401":
+          description: Не авторизован
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Нет доступа
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Организация не найдена
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Получение организации
+      tags:
+      - organizations
+    put:
+      consumes:
+      - application/json
+      description: Обновляет данные организации
+      parameters:
+      - description: ID организации
+        in: path
+        name: orgId
+        required: true
+        type: integer
+      - description: Новые данные
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.UpdateOrganizationRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Организация обновлена
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.OrganizationResponse'
+        "400":
+          description: Ошибка валидации
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Не авторизован
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Нет доступа
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Организация не найдена
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Обновление организации
+      tags:
+      - organizations
+  /organizations/{orgId}/locations:
+    get:
+      consumes:
+      - application/json
+      description: Возвращает все локации организации
+      parameters:
+      - description: ID организации
+        in: path
+        name: orgId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Список локаций
+          schema:
+            additionalProperties:
+              items:
+                $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.LocationResponse'
+              type: array
+            type: object
+        "401":
+          description: Не авторизован
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Нет доступа
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Список локаций
+      tags:
+      - locations
+    post:
+      consumes:
+      - application/json
+      description: Создаёт новую локацию в организации
+      parameters:
+      - description: ID организации
+        in: path
+        name: orgId
+        required: true
+        type: integer
+      - description: Данные локации
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.CreateLocationRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Локация создана
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.LocationResponse'
+        "400":
+          description: Ошибка валидации
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Не авторизован
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Нет права locations.create
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Создание локации
+      tags:
+      - locations
+  /organizations/{orgId}/locations/{locId}:
+    delete:
+      consumes:
+      - application/json
+      description: Удаляет локацию из организации
+      parameters:
+      - description: ID организации
+        in: path
+        name: orgId
+        required: true
+        type: integer
+      - description: ID локации
+        in: path
+        name: locId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Локация удалена
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Не авторизован
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Нет права locations.delete
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Удаление локации
+      tags:
+      - locations
+    get:
+      consumes:
+      - application/json
+      description: Возвращает локацию по ID
+      parameters:
+      - description: ID организации
+        in: path
+        name: orgId
+        required: true
+        type: integer
+      - description: ID локации
+        in: path
+        name: locId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Локация
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.LocationResponse'
+        "401":
+          description: Не авторизован
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Локация не найдена
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Получение локации
+      tags:
+      - locations
+    put:
+      consumes:
+      - application/json
+      description: Обновляет данные локации
+      parameters:
+      - description: ID организации
+        in: path
+        name: orgId
+        required: true
+        type: integer
+      - description: ID локации
+        in: path
+        name: locId
+        required: true
+        type: integer
+      - description: Новые данные
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.UpdateLocationRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Локация обновлена
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.LocationResponse'
+        "400":
+          description: Ошибка валидации
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Не авторизован
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Нет права locations.update
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Обновление локации
+      tags:
+      - locations
+  /organizations/{orgId}/locations/{locId}/departments:
+    get:
+      consumes:
+      - application/json
+      description: Возвращает все отделы локации
+      parameters:
+      - description: ID организации
+        in: path
+        name: orgId
+        required: true
+        type: integer
+      - description: ID локации
+        in: path
+        name: locId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Список отделов
+          schema:
+            additionalProperties:
+              items:
+                $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.DepartmentResponse'
+              type: array
+            type: object
+        "401":
+          description: Не авторизован
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Список отделов
+      tags:
+      - departments
+    post:
+      consumes:
+      - application/json
+      description: Создаёт новый отдел в локации
+      parameters:
+      - description: ID организации
+        in: path
+        name: orgId
+        required: true
+        type: integer
+      - description: ID локации
+        in: path
+        name: locId
+        required: true
+        type: integer
+      - description: Данные отдела
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.CreateDepartmentRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Отдел создан
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.DepartmentResponse'
+        "400":
+          description: Ошибка валидации
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Не авторизован
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Нет права departments.create
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Создание отдела
+      tags:
+      - departments
+  /organizations/{orgId}/locations/{locId}/departments/{deptId}:
+    delete:
+      consumes:
+      - application/json
+      description: Удаляет отдел из локации
+      parameters:
+      - description: ID организации
+        in: path
+        name: orgId
+        required: true
+        type: integer
+      - description: ID локации
+        in: path
+        name: locId
+        required: true
+        type: integer
+      - description: ID отдела
+        in: path
+        name: deptId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Отдел удалён
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Не авторизован
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Нет права departments.delete
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Удаление отдела
+      tags:
+      - departments
+    get:
+      consumes:
+      - application/json
+      description: Возвращает отдел по ID
+      parameters:
+      - description: ID организации
+        in: path
+        name: orgId
+        required: true
+        type: integer
+      - description: ID локации
+        in: path
+        name: locId
+        required: true
+        type: integer
+      - description: ID отдела
+        in: path
+        name: deptId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Отдел
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.DepartmentResponse'
+        "401":
+          description: Не авторизован
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Отдел не найден
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Получение отдела
+      tags:
+      - departments
+    put:
+      consumes:
+      - application/json
+      description: Обновляет данные отдела
+      parameters:
+      - description: ID организации
+        in: path
+        name: orgId
+        required: true
+        type: integer
+      - description: ID локации
+        in: path
+        name: locId
+        required: true
+        type: integer
+      - description: ID отдела
+        in: path
+        name: deptId
+        required: true
+        type: integer
+      - description: Новые данные
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.UpdateDepartmentRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Отдел обновлён
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.DepartmentResponse'
+        "400":
+          description: Ошибка валидации
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Не авторизован
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Нет права departments.update
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Обновление отдела
+      tags:
+      - departments
+  /organizations/{orgId}/locations/{locId}/departments/{deptId}/positions:
+    get:
+      consumes:
+      - application/json
+      description: Возвращает все позиции конкретного отдела
+      parameters:
+      - description: ID организации
+        in: path
+        name: orgId
+        required: true
+        type: integer
+      - description: ID локации
+        in: path
+        name: locId
+        required: true
+        type: integer
+      - description: ID отдела
+        in: path
+        name: deptId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Список позиций
+          schema:
+            additionalProperties:
+              items:
+                $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.PositionResponse'
+              type: array
+            type: object
+        "401":
+          description: Не авторизован
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Список позиций отдела
+      tags:
+      - positions
+  /organizations/{orgId}/positions:
+    get:
+      consumes:
+      - application/json
+      description: Возвращает все позиции организации
+      parameters:
+      - description: ID организации
+        in: path
+        name: orgId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Список позиций
+          schema:
+            additionalProperties:
+              items:
+                $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.PositionResponse'
+              type: array
+            type: object
+        "401":
+          description: Не авторизован
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Список позиций организации
+      tags:
+      - positions
+    post:
+      consumes:
+      - application/json
+      description: Создаёт новую позицию в организации
+      parameters:
+      - description: ID организации
+        in: path
+        name: orgId
+        required: true
+        type: integer
+      - description: Данные позиции
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.CreatePositionRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Позиция создана
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.PositionResponse'
+        "400":
+          description: Ошибка валидации
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Не авторизован
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Нет права positions.create
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Создание позиции
+      tags:
+      - positions
+  /organizations/{orgId}/positions/{posId}:
+    delete:
+      consumes:
+      - application/json
+      description: Удаляет позицию из организации
+      parameters:
+      - description: ID организации
+        in: path
+        name: orgId
+        required: true
+        type: integer
+      - description: ID позиции
+        in: path
+        name: posId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Позиция удалена
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Не авторизован
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Нет права positions.delete
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Удаление позиции
+      tags:
+      - positions
+    get:
+      consumes:
+      - application/json
+      description: Возвращает позицию по ID
+      parameters:
+      - description: ID организации
+        in: path
+        name: orgId
+        required: true
+        type: integer
+      - description: ID позиции
+        in: path
+        name: posId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Позиция
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.PositionResponse'
+        "401":
+          description: Не авторизован
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Позиция не найдена
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Получение позиции
+      tags:
+      - positions
+    put:
+      consumes:
+      - application/json
+      description: Обновляет данные позиции
+      parameters:
+      - description: ID организации
+        in: path
+        name: orgId
+        required: true
+        type: integer
+      - description: ID позиции
+        in: path
+        name: posId
+        required: true
+        type: integer
+      - description: Новые данные
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.UpdatePositionRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Позиция обновлена
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.PositionResponse'
+        "400":
+          description: Ошибка валидации
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Не авторизован
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Нет права positions.update
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Обновление позиции
+      tags:
+      - positions
+  /profile:
+    get:
+      consumes:
+      - application/json
+      description: Возвращает профиль текущего авторизованного пользователя
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Профиль пользователя
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.UserResponse'
+        "401":
+          description: Не авторизован
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Получение профиля
+      tags:
+      - user
+  /reset-password:
+    post:
+      consumes:
+      - application/json
+      description: Устанавливает новый пароль по токену из email
+      parameters:
+      - description: Токен и новый пароль
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ResetPasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Пароль успешно изменён
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Невалидный токен
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Сброс пароля
+      tags:
+      - auth
+  /reset-password/validate:
+    get:
+      consumes:
+      - application/json
+      description: Проверяет, валиден ли токен для сброса пароля
+      parameters:
+      - description: Токен сброса пароля
+        in: query
+        name: token
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Токен валиден
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Токен невалиден или истёк
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Проверка токена сброса пароля
+      tags:
+      - auth
+  /signup:
+    post:
+      consumes:
+      - application/json
+      description: Создаёт нового пользователя с email и паролем
+      parameters:
+      - description: Данные для регистрации
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.SignUpRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Пользователь создан
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Ошибка валидации
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "409":
+          description: Email уже существует
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Регистрация нового пользователя
+      tags:
+      - auth
+securityDefinitions:
+  BearerAuth:
+    description: Type "Bearer" followed by a space and JWT token.
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

@@ -13,5 +13,4 @@ type OrganizationMember struct {
 	Organization Organization `gorm:"foreignKey:OrganizationID"`
 	User         User         `gorm:"foreignKey:UserID"`
 	Employees    []Employee   `gorm:"foreignKey:MemberID;references:ID"`
-	Permissions  []Permission `gorm:"many2many:member_permissions;"`
 }

@@ -1,11 +1,12 @@
 package controllers
 
 import (
-	"errors"
 	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/osi-oss/osi/internal/dto"
+	"github.com/osi-oss/osi/internal/helpers"
 	"github.com/osi-oss/osi/internal/services"
 )
 
@@ -14,250 +15,191 @@ type PositionController struct {
 }
 
 func NewPositionController(positionService *services.PositionService) *PositionController {
-	return &PositionController{
-		positionService: positionService,
-	}
+	return &PositionController{positionService: positionService}
 }
 
-// CreatePosition создает новую позицию в организации
+// CreatePosition создает новую позицию
+// @Summary      Создание позиции
+// @Description  Создаёт новую позицию в организации
+// @Tags         positions
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        orgId path int true "ID организации"
+// @Param        request body dto.CreatePositionRequest true "Данные позиции"
+// @Success      201  {object}  dto.PositionResponse  "Позиция создана"
+// @Failure      400  {object}  map[string]string  "Ошибка валидации"
+// @Failure      401  {object}  map[string]string  "Не авторизован"
+// @Failure      403  {object}  map[string]string  "Нет права positions.create"
+// @Router       /organizations/{orgId}/positions [post]
 func (ctrl *PositionController) CreatePosition(c *gin.Context) {
-	orgID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	orgID, err := strconv.ParseInt(c.Param("orgId"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid organization id"})
 		return
 	}
 
-	var input services.CreatePositionInput
-	if err := c.ShouldBindJSON(&input); err != nil {
+	var req dto.CreatePositionRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	userID, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
-		return
-	}
-
-	position, err := ctrl.positionService.CreatePosition(orgID, userID.(int64), input)
+	position, err := ctrl.positionService.CreatePosition(orgID, req)
 	if err != nil {
-		statusCode := http.StatusInternalServerError
-		switch {
-		case errors.Is(err, services.ErrOrganizationNotFound):
-			statusCode = http.StatusNotFound
-		case errors.Is(err, services.ErrUnauthorized):
-			statusCode = http.StatusForbidden
-		}
-		c.JSON(statusCode, gin.H{"error": err.Error()})
+		helpers.RespondError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{
-		"id":              position.ID,
-		"organization_id": position.OrganizationID,
-		"department_id":   position.DepartmentID,
-		"name":            position.Name,
-		"is_admin":        position.IsAdmin,
-		"description":     position.Description,
-		"created_at":      position.CreatedAt,
-	})
+	helpers.RespondCreated(c, dto.ToPositionResponse(position))
 }
 
 // GetOrganizationPositions получает все позиции организации
+// @Summary      Список позиций организации
+// @Description  Возвращает все позиции организации
+// @Tags         positions
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        orgId path int true "ID организации"
+// @Success      200  {object}  map[string][]dto.PositionResponse  "Список позиций"
+// @Failure      401  {object}  map[string]string  "Не авторизован"
+// @Router       /organizations/{orgId}/positions [get]
 func (ctrl *PositionController) GetOrganizationPositions(c *gin.Context) {
-	orgID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	orgID, err := strconv.ParseInt(c.Param("orgId"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid organization id"})
 		return
 	}
 
-	userID, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
-		return
-	}
-
-	positions, err := ctrl.positionService.GetOrganizationPositions(orgID, userID.(int64))
+	positions, err := ctrl.positionService.GetOrganizationPositions(orgID)
 	if err != nil {
-		statusCode := http.StatusInternalServerError
-		switch {
-		case errors.Is(err, services.ErrOrganizationNotFound):
-			statusCode = http.StatusNotFound
-		case errors.Is(err, services.ErrUnauthorized):
-			statusCode = http.StatusForbidden
-		}
-		c.JSON(statusCode, gin.H{"error": err.Error()})
+		helpers.RespondError(c, err)
 		return
 	}
 
-	result := make([]gin.H, len(positions))
-	for i, pos := range positions {
-		result[i] = gin.H{
-			"id":              pos.ID,
-			"organization_id": pos.OrganizationID,
-			"department_id":   pos.DepartmentID,
-			"name":            pos.Name,
-			"is_admin":        pos.IsAdmin,
-			"description":     pos.Description,
-			"created_at":      pos.CreatedAt,
-			"updated_at":      pos.UpdatedAt,
-		}
-	}
-
-	c.JSON(http.StatusOK, gin.H{"positions": result})
+	helpers.RespondOK(c, gin.H{"positions": dto.ToPositionResponses(positions)})
 }
 
 // GetDepartmentPositions получает все позиции отдела
+// @Summary      Список позиций отдела
+// @Description  Возвращает все позиции конкретного отдела
+// @Tags         positions
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        orgId path int true "ID организации"
+// @Param        locId path int true "ID локации"
+// @Param        deptId path int true "ID отдела"
+// @Success      200  {object}  map[string][]dto.PositionResponse  "Список позиций"
+// @Failure      401  {object}  map[string]string  "Не авторизован"
+// @Router       /organizations/{orgId}/locations/{locId}/departments/{deptId}/positions [get]
 func (ctrl *PositionController) GetDepartmentPositions(c *gin.Context) {
-	deptID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	deptID, err := strconv.ParseInt(c.Param("deptId"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid department id"})
 		return
 	}
 
-	userID, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
-		return
-	}
-
-	positions, err := ctrl.positionService.GetDepartmentPositions(deptID, userID.(int64))
+	positions, err := ctrl.positionService.GetDepartmentPositions(deptID)
 	if err != nil {
-		statusCode := http.StatusInternalServerError
-		switch {
-		case errors.Is(err, services.ErrUnauthorized):
-			statusCode = http.StatusForbidden
-		}
-		c.JSON(statusCode, gin.H{"error": err.Error()})
+		helpers.RespondError(c, err)
 		return
 	}
 
-	result := make([]gin.H, len(positions))
-	for i, pos := range positions {
-		result[i] = gin.H{
-			"id":              pos.ID,
-			"organization_id": pos.OrganizationID,
-			"department_id":   pos.DepartmentID,
-			"name":            pos.Name,
-			"is_admin":        pos.IsAdmin,
-			"description":     pos.Description,
-			"created_at":      pos.CreatedAt,
-			"updated_at":      pos.UpdatedAt,
-		}
-	}
-
-	c.JSON(http.StatusOK, gin.H{"positions": result})
+	helpers.RespondOK(c, gin.H{"positions": dto.ToPositionResponses(positions)})
 }
 
-// GetPosition получает конкретную позицию по ID
+// GetPosition получает позицию по ID
+// @Summary      Получение позиции
+// @Description  Возвращает позицию по ID
+// @Tags         positions
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        orgId path int true "ID организации"
+// @Param        posId path int true "ID позиции"
+// @Success      200  {object}  dto.PositionResponse  "Позиция"
+// @Failure      401  {object}  map[string]string  "Не авторизован"
+// @Failure      404  {object}  map[string]string  "Позиция не найдена"
+// @Router       /organizations/{orgId}/positions/{posId} [get]
 func (ctrl *PositionController) GetPosition(c *gin.Context) {
-	positionID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	posID, err := strconv.ParseInt(c.Param("posId"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid position id"})
 		return
 	}
 
-	userID, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
-		return
-	}
-
-	position, err := ctrl.positionService.GetPosition(positionID, userID.(int64))
+	position, err := ctrl.positionService.GetPosition(posID)
 	if err != nil {
-		statusCode := http.StatusInternalServerError
-		switch {
-		case errors.Is(err, services.ErrPositionNotFound):
-			statusCode = http.StatusNotFound
-		case errors.Is(err, services.ErrUnauthorized):
-			statusCode = http.StatusForbidden
-		}
-		c.JSON(statusCode, gin.H{"error": err.Error()})
+		helpers.RespondError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"id":              position.ID,
-		"organization_id": position.OrganizationID,
-		"department_id":   position.DepartmentID,
-		"name":            position.Name,
-		"is_admin":        position.IsAdmin,
-		"description":     position.Description,
-		"created_at":      position.CreatedAt,
-		"updated_at":      position.UpdatedAt,
-	})
+	helpers.RespondOK(c, dto.ToPositionResponse(position))
 }
 
 // UpdatePosition обновляет позицию
+// @Summary      Обновление позиции
+// @Description  Обновляет данные позиции
+// @Tags         positions
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        orgId path int true "ID организации"
+// @Param        posId path int true "ID позиции"
+// @Param        request body dto.UpdatePositionRequest true "Новые данные"
+// @Success      200  {object}  dto.PositionResponse  "Позиция обновлена"
+// @Failure      400  {object}  map[string]string  "Ошибка валидации"
+// @Failure      401  {object}  map[string]string  "Не авторизован"
+// @Failure      403  {object}  map[string]string  "Нет права positions.update"
+// @Router       /organizations/{orgId}/positions/{posId} [put]
 func (ctrl *PositionController) UpdatePosition(c *gin.Context) {
-	positionID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	posID, err := strconv.ParseInt(c.Param("posId"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid position id"})
 		return
 	}
 
-	var input services.UpdatePositionInput
-	if err := c.ShouldBindJSON(&input); err != nil {
+	var req dto.UpdatePositionRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	userID, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
-		return
-	}
-
-	position, err := ctrl.positionService.UpdatePosition(positionID, userID.(int64), input)
+	position, err := ctrl.positionService.UpdatePosition(posID, req)
 	if err != nil {
-		statusCode := http.StatusInternalServerError
-		switch {
-		case errors.Is(err, services.ErrPositionNotFound):
-			statusCode = http.StatusNotFound
-		case errors.Is(err, services.ErrUnauthorized):
-			statusCode = http.StatusForbidden
-		}
-		c.JSON(statusCode, gin.H{"error": err.Error()})
+		helpers.RespondError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"id":              position.ID,
-		"organization_id": position.OrganizationID,
-		"department_id":   position.DepartmentID,
-		"name":            position.Name,
-		"is_admin":        position.IsAdmin,
-		"description":     position.Description,
-		"created_at":      position.CreatedAt,
-		"updated_at":      position.UpdatedAt,
-	})
+	helpers.RespondOK(c, dto.ToPositionResponse(position))
 }
 
 // DeletePosition удаляет позицию
+// @Summary      Удаление позиции
+// @Description  Удаляет позицию из организации
+// @Tags         positions
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        orgId path int true "ID организации"
+// @Param        posId path int true "ID позиции"
+// @Success      200  {object}  map[string]string  "Позиция удалена"
+// @Failure      401  {object}  map[string]string  "Не авторизован"
+// @Failure      403  {object}  map[string]string  "Нет права positions.delete"
+// @Router       /organizations/{orgId}/positions/{posId} [delete]
 func (ctrl *PositionController) DeletePosition(c *gin.Context) {
-	positionID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	posID, err := strconv.ParseInt(c.Param("posId"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid position id"})
 		return
 	}
 
-	userID, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+	if err := ctrl.positionService.DeletePosition(posID); err != nil {
+		helpers.RespondError(c, err)
 		return
 	}
 
-	if err := ctrl.positionService.DeletePosition(positionID, userID.(int64)); err != nil {
-		statusCode := http.StatusInternalServerError
-		switch {
-		case errors.Is(err, services.ErrPositionNotFound):
-			statusCode = http.StatusNotFound
-		case errors.Is(err, services.ErrUnauthorized):
-			statusCode = http.StatusForbidden
-		}
-		c.JSON(statusCode, gin.H{"error": err.Error()})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{"message": "position deleted successfully"})
+	helpers.RespondOK(c, gin.H{"message": "position deleted successfully"})
 }

@@ -3,6 +3,8 @@ package services
 import (
 	"testing"
 
+	"github.com/osi-oss/osi/internal/apperrors"
+	"github.com/osi-oss/osi/internal/dto"
 	"github.com/osi-oss/osi/internal/models"
 	"github.com/osi-oss/osi/internal/repository"
 	"github.com/stretchr/testify/assert"
@@ -54,14 +56,14 @@ func TestCreateOrganization(t *testing.T) {
 	tests := []struct {
 		name        string
 		userID      int64
-		input       CreateOrganizationInput
+		input       dto.CreateOrganizationRequest
 		expectError bool
 		checkOrg    func(*testing.T, *models.Organization)
 	}{
 		{
 			name:   "Success - Create organization with all fields",
 			userID: user.ID,
-			input: CreateOrganizationInput{
+			input: dto.CreateOrganizationRequest{
 				Name:         "Test Company",
 				LegalName:    stringPtr("ООО Test Company"),
 				INN:          stringPtr("1234567890"),
@@ -89,7 +91,7 @@ func TestCreateOrganization(t *testing.T) {
 		{
 			name:   "Success - Create organization with minimal fields",
 			userID: user.ID,
-			input: CreateOrganizationInput{
+			input: dto.CreateOrganizationRequest{
 				Name: "Minimal Company",
 			},
 			expectError: false,
@@ -104,7 +106,7 @@ func TestCreateOrganization(t *testing.T) {
 		{
 			name:   "Error - Empty name",
 			userID: user.ID,
-			input: CreateOrganizationInput{
+			input: dto.CreateOrganizationRequest{
 				Name: "",
 			},
 			expectError: true,
@@ -139,7 +141,7 @@ func TestGetOrganization(t *testing.T) {
 	user2 := createOrgTestUser(t, db, "user2@example.com")
 
 	// Создаем организацию для user1
-	org, err := service.CreateOrganization(user1.ID, CreateOrganizationInput{
+	org, err := service.CreateOrganization(user1.ID, dto.CreateOrganizationRequest{
 		Name: "Company A",
 	})
 	require.NoError(t, err)
@@ -162,14 +164,14 @@ func TestGetOrganization(t *testing.T) {
 			userID:      user2.ID,
 			orgID:       org.ID,
 			expectError: true,
-			errorType:   ErrUnauthorized,
+			errorType:   apperrors.ErrAccessDenied,
 		},
 		{
 			name:        "Error - Organization not found",
 			userID:      user1.ID,
 			orgID:       999,
 			expectError: true,
-			errorType:   ErrOrganizationNotFound,
+			errorType:   apperrors.ErrOrganizationNotFound,
 		},
 	}
 
@@ -202,12 +204,12 @@ func TestGetUserOrganizations(t *testing.T) {
 	user := createOrgTestUser(t, db, "test@example.com")
 
 	// Создаем несколько организаций
-	org1, err := service.CreateOrganization(user.ID, CreateOrganizationInput{
+	org1, err := service.CreateOrganization(user.ID, dto.CreateOrganizationRequest{
 		Name: "Company 1",
 	})
 	require.NoError(t, err)
 
-	org2, err := service.CreateOrganization(user.ID, CreateOrganizationInput{
+	org2, err := service.CreateOrganization(user.ID, dto.CreateOrganizationRequest{
 		Name: "Company 2",
 	})
 	require.NoError(t, err)
@@ -240,7 +242,7 @@ func TestUpdateOrganization(t *testing.T) {
 	user1 := createOrgTestUser(t, db, "user1@example.com")
 	user2 := createOrgTestUser(t, db, "user2@example.com")
 
-	org, err := service.CreateOrganization(user1.ID, CreateOrganizationInput{
+	org, err := service.CreateOrganization(user1.ID, dto.CreateOrganizationRequest{
 		Name: "Original Name",
 	})
 	require.NoError(t, err)
@@ -249,7 +251,7 @@ func TestUpdateOrganization(t *testing.T) {
 		name        string
 		userID      int64
 		orgID       int64
-		input       CreateOrganizationInput
+		input       dto.UpdateOrganizationRequest
 		expectError bool
 		errorType   error
 		checkOrg    func(*testing.T, *models.Organization)
@@ -258,7 +260,7 @@ func TestUpdateOrganization(t *testing.T) {
 			name:   "Success - Founder can update organization",
 			userID: user1.ID,
 			orgID:  org.ID,
-			input: CreateOrganizationInput{
+			input: dto.UpdateOrganizationRequest{
 				Name:      "Updated Name",
 				LegalName: stringPtr("Updated Legal Name"),
 				INN:       stringPtr("9876543210"),
@@ -275,14 +277,14 @@ func TestUpdateOrganization(t *testing.T) {
 			userID:      user2.ID,
 			orgID:       org.ID,
 			expectError: true,
-			errorType:   ErrUnauthorized,
+			errorType:   apperrors.ErrAccessDenied,
 		},
 		{
 			name:        "Error - Organization not found",
 			userID:      user1.ID,
 			orgID:       999,
 			expectError: true,
-			errorType:   ErrOrganizationNotFound,
+			errorType:   apperrors.ErrOrganizationNotFound,
 		},
 	}
 
@@ -316,12 +318,12 @@ func TestDeleteOrganization(t *testing.T) {
 	user2 := createOrgTestUser(t, db, "user2@example.com")
 
 	// Создаем организацию для user1
-	org, err := service.CreateOrganization(user1.ID, CreateOrganizationInput{
+	org, err := service.CreateOrganization(user1.ID, dto.CreateOrganizationRequest{
 		Name: "Company to Delete",
 	})
 	require.NoError(t, err)
 
-	org2, err := service.CreateOrganization(user1.ID, CreateOrganizationInput{
+	org2, err := service.CreateOrganization(user1.ID, dto.CreateOrganizationRequest{
 		Name: "Company to Delete",
 	})
 
@@ -343,20 +345,20 @@ func TestDeleteOrganization(t *testing.T) {
 			userID:      user2.ID,
 			orgID:       org2.ID,
 			expectError: true,
-			errorType:   ErrUnauthorized,
+			errorType:   apperrors.ErrAccessDenied,
 		},
 		{
 			name:        "Error - Organization not found",
 			userID:      user1.ID,
 			orgID:       999,
 			expectError: true,
-			errorType:   ErrOrganizationNotFound,
+			errorType:   apperrors.ErrOrganizationNotFound,
 		},
 	}
 	// Тест на ошибки
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// _, err := service.CreateOrganization(user1.ID, CreateOrganizationInput{
+			// _, err := service.CreateOrganization(user1.ID, dto.CreateOrganizationRequest{
 			// 	Name: "Test Org " + tt.name,
 			// })
 			// require.NoError(t, err)
@@ -387,7 +389,7 @@ func TestOrganizationStatusTransitions(t *testing.T) {
 	user := createOrgTestUser(t, db, "test@example.com")
 
 	// При создании статус должен быть draft
-	org, err := service.CreateOrganization(user.ID, CreateOrganizationInput{
+	org, err := service.CreateOrganization(user.ID, dto.CreateOrganizationRequest{
 		Name: "Status Test Org",
 	})
 	assert.NoError(t, err)
@@ -409,7 +411,7 @@ func TestMultipleFoundersScenario(t *testing.T) {
 	user2 := createOrgTestUser(t, db, "user2@example.com")
 
 	// user1 создает организацию
-	org, err := service.CreateOrganization(user1.ID, CreateOrganizationInput{
+	org, err := service.CreateOrganization(user1.ID, dto.CreateOrganizationRequest{
 		Name:         "Multi-founder Org",
 		SharePercent: float64Ptr(60.0),
 	})
@@ -423,7 +425,7 @@ func TestMultipleFoundersScenario(t *testing.T) {
 	// Проверяем что user2 не может получить доступ
 	_, err = service.GetOrganization(org.ID, user2.ID)
 	assert.Error(t, err)
-	assert.Equal(t, ErrUnauthorized, err)
+	assert.Equal(t, apperrors.ErrAccessDenied, err)
 
 	// Проверяем что user1 может удалить
 	err = service.DeleteOrganization(org.ID, user1.ID)
