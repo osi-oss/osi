@@ -95,6 +95,8 @@ func Start(cfg *config.Config) {
 
 	r := gin.Default()
 
+	r.SetTrustedProxies([]string{"127.0.0.1"})
+
 	// Добавляем middleware
 	// r.Use(middleware.CORS())
 	r.Use(middleware.SecurityMiddleware())

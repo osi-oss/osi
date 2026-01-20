@@ -1,0 +1,1113 @@
+{
+    "info": {
+        "_postman_id": "osi-api-collection",
+        "name": "OSI API",
+        "description": "Коллекция запросов для тестирования OSI API - системы управления организациями.\n\n## Настройка\n1. Установите переменную `base_url` (по умолчанию: http://localhost:8080)\n2. Выполните запрос Login или SignUp для получения токена\n3. Токен автоматически сохранится в переменную `token`\n\n## Порядок тестирования\n1. Auth → SignUp (регистрация)\n2. Auth → Login (вход)\n3. Organizations → Create (создать организацию)\n4. Locations → Create (создать локацию)\n5. Departments → Create (создать отдел)\n6. Positions → Create (создать должность)",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "variable": [
+        {
+            "key": "base_url",
+            "value": "http://localhost:8080",
+            "type": "string"
+        },
+        {
+            "key": "token",
+            "value": "",
+            "type": "string"
+        },
+        {
+            "key": "org_id",
+            "value": "1",
+            "type": "string"
+        },
+        {
+            "key": "loc_id",
+            "value": "1",
+            "type": "string"
+        },
+        {
+            "key": "dept_id",
+            "value": "1",
+            "type": "string"
+        },
+        {
+            "key": "pos_id",
+            "value": "1",
+            "type": "string"
+        }
+    ],
+    "item": [
+        {
+            "name": "Health",
+            "item": [
+                {
+                    "name": "Ping",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/ping",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "ping"
+                            ]
+                        },
+                        "description": "Проверка работоспособности сервера. Возвращает {\"message\": \"pong\"}"
+                    },
+                    "response": []
+                }
+            ],
+            "description": "Эндпоинты для проверки состояния сервера"
+        },
+        {
+            "name": "Auth",
+            "item": [
+                {
+                    "name": "SignUp - Регистрация",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "if (pm.response.code === 201) {",
+                                    "    var jsonData = pm.response.json();",
+                                    "    if (jsonData.token) {",
+                                    "        pm.collectionVariables.set('token', jsonData.token);",
+                                    "        console.log('Token saved to collection variables');",
+                                    "    }",
+                                    "}"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"email\": \"test@example.com\",\n    \"password\": \"SecurePass123\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/signup",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "signup"
+                            ]
+                        },
+                        "description": "Регистрация нового пользователя в системе.\n\n**Требования:**\n- Email должен быть уникальным и валидным\n- Пароль минимум 6 символов\n\n**Возвращает:**\n- ID пользователя\n- JWT токен (автоматически сохраняется в переменные)"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Login - Вход",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "if (pm.response.code === 200) {",
+                                    "    var jsonData = pm.response.json();",
+                                    "    if (jsonData.token) {",
+                                    "        pm.collectionVariables.set('token', jsonData.token);",
+                                    "        console.log('Token saved to collection variables');",
+                                    "    }",
+                                    "}"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"email\": \"test@example.com\",\n    \"password\": \"SecurePass123\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/login",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "login"
+                            ]
+                        },
+                        "description": "Авторизация пользователя.\n\n**Возвращает:**\n- JWT токен (автоматически сохраняется в переменные)\n\n**Токен действителен 24 часа**"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Forgot Password - Запрос сброса пароля",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"email\": \"test@example.com\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/forgot-password",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "forgot-password"
+                            ]
+                        },
+                        "description": "Запрос на сброс пароля. Отправляет email с инструкциями.\n\n**Примечание:** Всегда возвращает успех для предотвращения утечки информации о существующих email."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Validate Reset Token",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/api/reset-password/validate?token=YOUR_TOKEN_HERE",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "reset-password",
+                                "validate"
+                            ],
+                            "query": [
+                                {
+                                    "key": "token",
+                                    "value": "YOUR_TOKEN_HERE",
+                                    "description": "Токен из email для сброса пароля"
+                                }
+                            ]
+                        },
+                        "description": "Проверка валидности токена сброса пароля.\n\n**Использование:**\n- Замените YOUR_TOKEN_HERE на токен из email\n- Токен действителен 1 час"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Reset Password - Установка нового пароля",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"token\": \"YOUR_TOKEN_HERE\",\n    \"new_password\": \"NewSecurePass456\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/reset-password",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "reset-password"
+                            ]
+                        },
+                        "description": "Установка нового пароля с использованием токена сброса.\n\n**Требования:**\n- Токен должен быть валидным и не истёкшим\n- Новый пароль минимум 6 символов"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Profile - Профиль пользователя",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}",
+                                "description": "JWT токен авторизации"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/profile",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "profile"
+                            ]
+                        },
+                        "description": "Получение профиля текущего авторизованного пользователя.\n\n**Требует:** Bearer токен в заголовке Authorization"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Logout - Выход",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}",
+                                "description": "JWT токен авторизации"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/logout",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "logout"
+                            ]
+                        },
+                        "description": "Выход из системы. Инвалидирует текущий токен.\n\n**Примечание:** После выхода токен больше не будет действителен."
+                    },
+                    "response": []
+                }
+            ],
+            "description": "Аутентификация и управление пользователями"
+        },
+        {
+            "name": "Organizations",
+            "item": [
+                {
+                    "name": "Create Organization",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "if (pm.response.code === 201) {",
+                                    "    var jsonData = pm.response.json();",
+                                    "    if (jsonData.id) {",
+                                    "        pm.collectionVariables.set('org_id', jsonData.id.toString());",
+                                    "        console.log('Organization ID saved:', jsonData.id);",
+                                    "    }",
+                                    "}"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"name\": \"ООО Ромашка\",\n    \"legal_name\": \"Общество с ограниченной ответственностью Ромашка\",\n    \"inn\": \"7707083893\",\n    \"ogrn\": \"1027700132195\",\n    \"kpp\": \"770701001\",\n    \"legal_address\": \"г. Москва, ул. Тверская, д. 1\",\n    \"share_percent\": 100.0\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/organizations",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "organizations"
+                            ]
+                        },
+                        "description": "Создание новой организации.\n\n**Обязательные поля:**\n- name - название организации\n\n**Опциональные поля:**\n- legal_name - полное юридическое название\n- inn - ИНН (10 или 12 цифр)\n- ogrn - ОГРН (13 цифр)\n- kpp - КПП (9 цифр)\n- legal_address - юридический адрес\n- share_percent - доля владения (0-100)\n\n**ID организации автоматически сохраняется в переменные**"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get User Organizations",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/organizations",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "organizations"
+                            ]
+                        },
+                        "description": "Получение списка всех организаций текущего пользователя.\n\n**Возвращает:**\n- Массив организаций, где пользователь является основателем или участником"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Organization by ID",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/organizations/{{org_id}}",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "organizations",
+                                "{{org_id}}"
+                            ]
+                        },
+                        "description": "Получение детальной информации об организации по ID.\n\n**Требует:** Доступ к организации (быть основателем или участником)"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Update Organization",
+                    "request": {
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"name\": \"ООО Ромашка Плюс\",\n    \"legal_name\": \"Общество с ограниченной ответственностью Ромашка Плюс\",\n    \"inn\": \"7707083893\",\n    \"ogrn\": \"1027700132195\",\n    \"kpp\": \"770701001\",\n    \"legal_address\": \"г. Москва, ул. Тверская, д. 2\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/organizations/{{org_id}}",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "organizations",
+                                "{{org_id}}"
+                            ]
+                        },
+                        "description": "Обновление данных организации.\n\n**Передаются только изменяемые поля**\n\n**Требует:** Права на редактирование организации"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Delete Organization",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/organizations/{{org_id}}",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "organizations",
+                                "{{org_id}}"
+                            ]
+                        },
+                        "description": "Удаление организации.\n\n**⚠️ ВНИМАНИЕ:** Каскадно удаляет все связанные данные:\n- Локации\n- Отделы\n- Должности\n- Участников\n\n**Требует:** Права владельца организации"
+                    },
+                    "response": []
+                }
+            ],
+            "description": "Управление организациями"
+        },
+        {
+            "name": "Locations",
+            "item": [
+                {
+                    "name": "Create Location",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "if (pm.response.code === 201) {",
+                                    "    var jsonData = pm.response.json();",
+                                    "    if (jsonData.id) {",
+                                    "        pm.collectionVariables.set('loc_id', jsonData.id.toString());",
+                                    "        console.log('Location ID saved:', jsonData.id);",
+                                    "    }",
+                                    "}"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"name\": \"Главный офис\",\n    \"address\": \"г. Москва, ул. Ленина, д. 10\",\n    \"source\": \"manual\",\n    \"is_verified\": false\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/organizations/{{org_id}}/locations",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "organizations",
+                                "{{org_id}}",
+                                "locations"
+                            ]
+                        },
+                        "description": "Создание новой локации (офиса, филиала, склада).\n\n**Обязательные поля:**\n- name - название локации\n- source - источник данных (manual, egrul, api)\n\n**Опциональные поля:**\n- address - физический адрес\n- is_verified - подтверждена ли локация\n\n**Требует:** Право locations.create\n\n**ID локации автоматически сохраняется в переменные**"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Organization Locations",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/organizations/{{org_id}}/locations",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "organizations",
+                                "{{org_id}}",
+                                "locations"
+                            ]
+                        },
+                        "description": "Получение списка всех локаций организации.\n\n**Требует:** Доступ к организации"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Location by ID",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/organizations/{{org_id}}/locations/{{loc_id}}",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "organizations",
+                                "{{org_id}}",
+                                "locations",
+                                "{{loc_id}}"
+                            ]
+                        },
+                        "description": "Получение детальной информации о локации.\n\n**Требует:** Доступ к организации"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Update Location",
+                    "request": {
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"name\": \"Центральный офис\",\n    \"address\": \"г. Москва, ул. Пушкина, д. 5\",\n    \"source\": \"manual\",\n    \"is_verified\": true,\n    \"is_active\": true\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/organizations/{{org_id}}/locations/{{loc_id}}",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "organizations",
+                                "{{org_id}}",
+                                "locations",
+                                "{{loc_id}}"
+                            ]
+                        },
+                        "description": "Обновление данных локации.\n\n**Требует:** Право locations.update"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Delete Location",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/organizations/{{org_id}}/locations/{{loc_id}}",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "organizations",
+                                "{{org_id}}",
+                                "locations",
+                                "{{loc_id}}"
+                            ]
+                        },
+                        "description": "Удаление локации.\n\n**⚠️ ВНИМАНИЕ:** Каскадно удаляет все отделы в этой локации\n\n**Требует:** Право locations.delete"
+                    },
+                    "response": []
+                }
+            ],
+            "description": "Управление локациями (офисы, филиалы, склады)"
+        },
+        {
+            "name": "Departments",
+            "item": [
+                {
+                    "name": "Create Department",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "if (pm.response.code === 201) {",
+                                    "    var jsonData = pm.response.json();",
+                                    "    if (jsonData.id) {",
+                                    "        pm.collectionVariables.set('dept_id', jsonData.id.toString());",
+                                    "        console.log('Department ID saved:', jsonData.id);",
+                                    "    }",
+                                    "}"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"name\": \"Отдел продаж\",\n    \"description\": \"Отдел занимается продажами и работой с клиентами\",\n    \"parent_id\": null\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/organizations/{{org_id}}/locations/{{loc_id}}/departments",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "organizations",
+                                "{{org_id}}",
+                                "locations",
+                                "{{loc_id}}",
+                                "departments"
+                            ]
+                        },
+                        "description": "Создание нового отдела в локации.\n\n**Обязательные поля:**\n- name - название отдела\n\n**Опциональные поля:**\n- description - описание отдела\n- parent_id - ID родительского отдела (для иерархии)\n\n**Требует:** Право departments.create\n\n**ID отдела автоматически сохраняется в переменные**"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Create Sub-Department (Child)",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"name\": \"Группа B2B продаж\",\n    \"description\": \"Подразделение для работы с корпоративными клиентами\",\n    \"parent_id\": {{dept_id}}\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/organizations/{{org_id}}/locations/{{loc_id}}/departments",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "organizations",
+                                "{{org_id}}",
+                                "locations",
+                                "{{loc_id}}",
+                                "departments"
+                            ]
+                        },
+                        "description": "Создание дочернего отдела (подразделения).\n\n**Пример иерархии:**\n- Отдел продаж (parent_id: null)\n  - Группа B2B продаж (parent_id: 1)\n  - Группа B2C продаж (parent_id: 1)\n\n**Требует:** Право departments.create"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Location Departments",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/organizations/{{org_id}}/locations/{{loc_id}}/departments",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "organizations",
+                                "{{org_id}}",
+                                "locations",
+                                "{{loc_id}}",
+                                "departments"
+                            ]
+                        },
+                        "description": "Получение списка всех отделов в локации.\n\n**Требует:** Доступ к организации"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Department by ID",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/organizations/{{org_id}}/locations/{{loc_id}}/departments/{{dept_id}}",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "organizations",
+                                "{{org_id}}",
+                                "locations",
+                                "{{loc_id}}",
+                                "departments",
+                                "{{dept_id}}"
+                            ]
+                        },
+                        "description": "Получение детальной информации об отделе.\n\n**Требует:** Доступ к организации"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Update Department",
+                    "request": {
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"name\": \"Отдел корпоративных продаж\",\n    \"description\": \"Отдел работает с корпоративными клиентами\",\n    \"parent_id\": null\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/organizations/{{org_id}}/locations/{{loc_id}}/departments/{{dept_id}}",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "organizations",
+                                "{{org_id}}",
+                                "locations",
+                                "{{loc_id}}",
+                                "departments",
+                                "{{dept_id}}"
+                            ]
+                        },
+                        "description": "Обновление данных отдела.\n\n**Можно изменить:**\n- Название\n- Описание\n- Родительский отдел (перемещение в иерархии)\n\n**Требует:** Право departments.update"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Delete Department",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/organizations/{{org_id}}/locations/{{loc_id}}/departments/{{dept_id}}",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "organizations",
+                                "{{org_id}}",
+                                "locations",
+                                "{{loc_id}}",
+                                "departments",
+                                "{{dept_id}}"
+                            ]
+                        },
+                        "description": "Удаление отдела.\n\n**⚠️ ВНИМАНИЕ:** Проверьте, есть ли дочерние отделы или сотрудники\n\n**Требует:** Право departments.delete"
+                    },
+                    "response": []
+                }
+            ],
+            "description": "Управление отделами организации"
+        },
+        {
+            "name": "Positions",
+            "item": [
+                {
+                    "name": "Create Position",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "if (pm.response.code === 201) {",
+                                    "    var jsonData = pm.response.json();",
+                                    "    if (jsonData.id) {",
+                                    "        pm.collectionVariables.set('pos_id', jsonData.id.toString());",
+                                    "        console.log('Position ID saved:', jsonData.id);",
+                                    "    }",
+                                    "}"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"name\": \"Менеджер по продажам\",\n    \"department_id\": {{dept_id}},\n    \"is_admin\": false,\n    \"description\": \"Работа с клиентами, заключение договоров\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/organizations/{{org_id}}/positions",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "organizations",
+                                "{{org_id}}",
+                                "positions"
+                            ]
+                        },
+                        "description": "Создание новой должности в организации.\n\n**Обязательные поля:**\n- name - название должности\n\n**Опциональные поля:**\n- department_id - привязка к отделу\n- is_admin - административная позиция (расширенные права)\n- description - описание обязанностей\n\n**Требует:** Право positions.create\n\n**ID позиции автоматически сохраняется в переменные**"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Create Admin Position",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"name\": \"Генеральный директор\",\n    \"department_id\": null,\n    \"is_admin\": true,\n    \"description\": \"Руководство компанией, стратегические решения\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/organizations/{{org_id}}/positions",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "organizations",
+                                "{{org_id}}",
+                                "positions"
+                            ]
+                        },
+                        "description": "Создание административной должности.\n\n**is_admin: true** даёт расширенные права в системе\n\n**Требует:** Право positions.create"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Organization Positions",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/organizations/{{org_id}}/positions",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "organizations",
+                                "{{org_id}}",
+                                "positions"
+                            ]
+                        },
+                        "description": "Получение списка всех должностей организации.\n\n**Требует:** Доступ к организации"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Department Positions",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/organizations/{{org_id}}/locations/{{loc_id}}/departments/{{dept_id}}/positions",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "organizations",
+                                "{{org_id}}",
+                                "locations",
+                                "{{loc_id}}",
+                                "departments",
+                                "{{dept_id}}",
+                                "positions"
+                            ]
+                        },
+                        "description": "Получение списка должностей конкретного отдела.\n\n**Фильтрует** позиции по department_id\n\n**Требует:** Доступ к организации"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Position by ID",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/organizations/{{org_id}}/positions/{{pos_id}}",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "organizations",
+                                "{{org_id}}",
+                                "positions",
+                                "{{pos_id}}"
+                            ]
+                        },
+                        "description": "Получение детальной информации о должности.\n\n**Требует:** Доступ к организации"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Update Position",
+                    "request": {
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"name\": \"Старший менеджер по продажам\",\n    \"department_id\": {{dept_id}},\n    \"is_admin\": false,\n    \"description\": \"Руководство командой продаж, работа с VIP-клиентами\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/organizations/{{org_id}}/positions/{{pos_id}}",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "organizations",
+                                "{{org_id}}",
+                                "positions",
+                                "{{pos_id}}"
+                            ]
+                        },
+                        "description": "Обновление данных должности.\n\n**Можно изменить:**\n- Название\n- Привязку к отделу\n- Административный статус\n- Описание\n\n**Требует:** Право positions.update"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Delete Position",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/organizations/{{org_id}}/positions/{{pos_id}}",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "organizations",
+                                "{{org_id}}",
+                                "positions",
+                                "{{pos_id}}"
+                            ]
+                        },
+                        "description": "Удаление должности.\n\n**⚠️ ВНИМАНИЕ:** Проверьте, есть ли сотрудники на этой позиции\n\n**Требует:** Право positions.delete"
+                    },
+                    "response": []
+                }
+            ],
+            "description": "Управление должностями в организации"
+        }
+    ],
+    "auth": {
+        "type": "bearer",
+        "bearer": [
+            {
+                "key": "token",
+                "value": "{{token}}",
+                "type": "string"
+            }
+        ]
+    },
+    "event": [
+        {
+            "listen": "prerequest",
+            "script": {
+                "type": "text/javascript",
+                "exec": [
+                    ""
+                ]
+            }
+        },
+        {
+            "listen": "test",
+            "script": {
+                "type": "text/javascript",
+                "exec": [
+                    ""
+                ]
+            }
+        }
+    ]
+}

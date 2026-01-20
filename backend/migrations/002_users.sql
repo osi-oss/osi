@@ -9,7 +9,8 @@ CREATE TABLE users (
     middle_name VARCHAR(100),
     is_email_verified BOOLEAN DEFAULT FALSE,
     is_phone_verified BOOLEAN DEFAULT FALSE,
-    created_at TIMESTAMPTZ DEFAULT now()
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now()
 );
 
 -- +goose Down

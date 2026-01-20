@@ -6,6 +6,8 @@ CREATE TABLE positions (
     name VARCHAR(255) NOT NULL,
     is_admin BOOLEAN DEFAULT FALSE,
     description TEXT,
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now(),
     UNIQUE (department_id, name)
 );
 

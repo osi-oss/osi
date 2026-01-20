@@ -9,7 +9,8 @@ CREATE TABLE organizations (
     kpp VARCHAR(20),
     legal_address TEXT,
     status org_status NOT NULL DEFAULT 'draft',
-    created_at TIMESTAMPTZ DEFAULT now()
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now()
 );
 
 -- +goose Down

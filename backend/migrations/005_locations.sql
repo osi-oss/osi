@@ -10,6 +10,7 @@ CREATE TABLE locations (
     is_verified BOOLEAN NOT NULL DEFAULT FALSE,
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now(),
     UNIQUE (organization_id, name)
 );
 

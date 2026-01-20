@@ -5,7 +5,9 @@ CREATE TABLE employees (
     position_id BIGINT NOT NULL REFERENCES positions (id),
     is_intern BOOLEAN DEFAULT FALSE,
     start_date DATE,
-    end_date DATE
+    end_date DATE,
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now()
 );
 
 -- +goose Down
