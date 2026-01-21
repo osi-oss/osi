@@ -1,8 +1,8 @@
 {
     "info": {
-        "_postman_id": "osi-api-collection",
-        "name": "OSI API",
-        "description": "Коллекция запросов для тестирования OSI API - системы управления организациями.\n\n## Настройка\n1. Установите переменную `base_url` (по умолчанию: http://localhost:8080)\n2. Выполните запрос Login или SignUp для получения токена\n3. Токен автоматически сохранится в переменную `token`\n\n## Порядок тестирования\n1. Auth → SignUp (регистрация)\n2. Auth → Login (вход)\n3. Organizations → Create (создать организацию)\n4. Locations → Create (создать локацию)\n5. Departments → Create (создать отдел)\n6. Positions → Create (создать должность)",
+        "_postman_id": "osi-api-collection-v2",
+        "name": "OSI API v2",
+        "description": "Коллекция запросов для тестирования OSI API - системы управления организациями.\n\n## Новая система аутентификации\nВход и регистрация осуществляются через email с кодом подтверждения.\n\n## Порядок тестирования\n1. Auth → Request Code (получить код на email)\n2. Auth → Verify Code (ввести код, получить токен)\n3. Auth → Complete Profile (заполнить профиль - для новых пользователей)\n4. Organizations → Create (создать организацию)\n5. Locations → Create (создать локацию)\n6. Departments → Create (создать отдел)\n7. Positions → Create (создать должность)\n\n## Настройка\n- Переменная `base_url` по умолчанию: http://localhost:8080\n- Токен автоматически сохраняется после Verify Code",
         "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
     },
     "variable": [
@@ -14,6 +14,11 @@
         {
             "key": "token",
             "value": "",
+            "type": "string"
+        },
+        {
+            "key": "test_email",
+            "value": "test@example.com",
             "type": "string"
         },
         {
@@ -66,18 +71,16 @@
             "name": "Auth",
             "item": [
                 {
-                    "name": "SignUp - Регистрация",
+                    "name": "1. Request Code - Запрос кода",
                     "event": [
                         {
                             "listen": "test",
                             "script": {
                                 "exec": [
-                                    "if (pm.response.code === 201) {",
+                                    "if (pm.response.code === 200) {",
                                     "    var jsonData = pm.response.json();",
-                                    "    if (jsonData.token) {",
-                                    "        pm.collectionVariables.set('token', jsonData.token);",
-                                    "        console.log('Token saved to collection variables');",
-                                    "    }",
+                                    "    console.log('Code sent! Check email. Is new user:', jsonData.is_new_user);",
+                                    "    console.log('Code expires in:', jsonData.expires_in, 'seconds');",
                                     "}"
                                 ],
                                 "type": "text/javascript"
@@ -94,24 +97,25 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n    \"email\": \"test@example.com\",\n    \"password\": \"SecurePass123\"\n}"
+                            "raw": "{\n    \"email\": \"{{test_email}}\"\n}"
                         },
                         "url": {
-                            "raw": "{{base_url}}/api/signup",
+                            "raw": "{{base_url}}/api/auth/request-code",
                             "host": [
                                 "{{base_url}}"
                             ],
                             "path": [
                                 "api",
-                                "signup"
+                                "auth",
+                                "request-code"
                             ]
                         },
-                        "description": "Регистрация нового пользователя в системе.\n\n**Требования:**\n- Email должен быть уникальным и валидным\n- Пароль минимум 6 символов\n\n**Возвращает:**\n- ID пользователя\n- JWT токен (автоматически сохраняется в переменные)"
+                        "description": "Запрос 4-символьного кода для входа/регистрации.\n\n**Процесс:**\n1. Если пользователь не существует - создаётся новый аккаунт\n2. Код отправляется на указанный email\n3. Код действителен 20 минут\n4. Максимум 5 запросов кода в час\n\n**Ответ содержит:**\n- `is_new_user` - новый ли это пользователь\n- `expires_in` - время действия кода в секундах"
                     },
                     "response": []
                 },
                 {
-                    "name": "Login - Вход",
+                    "name": "2. Verify Code - Проверка кода",
                     "event": [
                         {
                             "listen": "test",
@@ -121,7 +125,10 @@
                                     "    var jsonData = pm.response.json();",
                                     "    if (jsonData.token) {",
                                     "        pm.collectionVariables.set('token', jsonData.token);",
-                                    "        console.log('Token saved to collection variables');",
+                                    "        console.log('Token saved!');",
+                                    "        if (jsonData.next_step) {",
+                                    "            console.log('Next step required:', jsonData.next_step);",
+                                    "        }",
                                     "    }",
                                     "}"
                                 ],
@@ -139,24 +146,25 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n    \"email\": \"test@example.com\",\n    \"password\": \"SecurePass123\"\n}"
+                            "raw": "{\n    \"email\": \"{{test_email}}\",\n    \"code\": \"A3K7\"\n}"
                         },
                         "url": {
-                            "raw": "{{base_url}}/api/login",
+                            "raw": "{{base_url}}/api/auth/verify-code",
                             "host": [
                                 "{{base_url}}"
                             ],
                             "path": [
                                 "api",
-                                "login"
+                                "auth",
+                                "verify-code"
                             ]
                         },
-                        "description": "Авторизация пользователя.\n\n**Возвращает:**\n- JWT токен (автоматически сохраняется в переменные)\n\n**Токен действителен 24 часа**"
+                        "description": "Проверка кода подтверждения.\n\n**Замените `A3K7` на код из email!**\n\n**Ответ содержит:**\n- `token` - JWT токен (автоматически сохраняется)\n- `user` - данные пользователя\n- `next_step` - следующий шаг (если требуется)\n  - `complete_profile` - нужно заполнить профиль\n\n**Лимиты:**\n- Максимум 5 попыток ввода кода"
                     },
                     "response": []
                 },
                 {
-                    "name": "Forgot Password - Запрос сброса пароля",
+                    "name": "3. Resend Code - Повторная отправка",
                     "request": {
                         "method": "POST",
                         "header": [
@@ -167,51 +175,88 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n    \"email\": \"test@example.com\"\n}"
+                            "raw": "{\n    \"email\": \"{{test_email}}\"\n}"
                         },
                         "url": {
-                            "raw": "{{base_url}}/api/forgot-password",
+                            "raw": "{{base_url}}/api/auth/resend-code",
                             "host": [
                                 "{{base_url}}"
                             ],
                             "path": [
                                 "api",
-                                "forgot-password"
+                                "auth",
+                                "resend-code"
                             ]
                         },
-                        "description": "Запрос на сброс пароля. Отправляет email с инструкциями.\n\n**Примечание:** Всегда возвращает успех для предотвращения утечки информации о существующих email."
+                        "description": "Повторная отправка кода подтверждения.\n\nПредыдущий код становится недействительным."
                     },
                     "response": []
                 },
                 {
-                    "name": "Validate Reset Token",
+                    "name": "4. Complete Profile - Заполнение профиля",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "if (pm.response.code === 200) {",
+                                    "    console.log('Profile completed! Full access granted.');",
+                                    "}"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
                     "request": {
-                        "method": "GET",
-                        "header": [],
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"first_name\": \"Иван\",\n    \"last_name\": \"Петров\",\n    \"middle_name\": \"Сергеевич\"\n}"
+                        },
                         "url": {
-                            "raw": "{{base_url}}/api/reset-password/validate?token=YOUR_TOKEN_HERE",
+                            "raw": "{{base_url}}/api/auth/complete-profile",
                             "host": [
                                 "{{base_url}}"
                             ],
                             "path": [
                                 "api",
-                                "reset-password",
-                                "validate"
-                            ],
-                            "query": [
-                                {
-                                    "key": "token",
-                                    "value": "YOUR_TOKEN_HERE",
-                                    "description": "Токен из email для сброса пароля"
-                                }
+                                "auth",
+                                "complete-profile"
                             ]
                         },
-                        "description": "Проверка валидности токена сброса пароля.\n\n**Использование:**\n- Замените YOUR_TOKEN_HERE на токен из email\n- Токен действителен 1 час"
+                        "description": "Заполнение профиля для новых пользователей.\n\n**Требуется:**\n- JWT токен (из Verify Code)\n- Статус пользователя: `pending_profile`\n\n**Обязательные поля:**\n- `first_name` - имя (минимум 2 символа)\n- `last_name` - фамилия (минимум 2 символа)\n\n**Опциональные поля:**\n- `middle_name` - отчество\n\nПосле успешного заполнения статус меняется на `active`."
                     },
                     "response": []
                 },
                 {
-                    "name": "Reset Password - Установка нового пароля",
+                    "name": "Login with Password - Вход по паролю",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "if (pm.response.code === 200) {",
+                                    "    var jsonData = pm.response.json();",
+                                    "    if (jsonData.token) {",
+                                    "        pm.collectionVariables.set('token', jsonData.token);",
+                                    "        console.log('Token saved!');",
+                                    "    }",
+                                    "}"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
                     "request": {
                         "method": "POST",
                         "header": [
@@ -222,31 +267,62 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n    \"token\": \"YOUR_TOKEN_HERE\",\n    \"new_password\": \"NewSecurePass456\"\n}"
+                            "raw": "{\n    \"email\": \"{{test_email}}\",\n    \"password\": \"SecurePass123\"\n}"
                         },
                         "url": {
-                            "raw": "{{base_url}}/api/reset-password",
+                            "raw": "{{base_url}}/api/auth/login-password",
                             "host": [
                                 "{{base_url}}"
                             ],
                             "path": [
                                 "api",
-                                "reset-password"
+                                "auth",
+                                "login-password"
                             ]
                         },
-                        "description": "Установка нового пароля с использованием токена сброса.\n\n**Требования:**\n- Токен должен быть валидным и не истёкшим\n- Новый пароль минимум 6 символов"
+                        "description": "Вход по паролю (если пароль установлен).\n\n**Примечание:** Пароль опционален. Если не установлен, используйте Request Code."
                     },
                     "response": []
                 },
                 {
-                    "name": "Get Profile - Профиль пользователя",
+                    "name": "Logout - Выход",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/auth/logout",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "auth",
+                                "logout"
+                            ]
+                        },
+                        "description": "Выход из системы. Удаляет cookie с токеном."
+                    },
+                    "response": []
+                }
+            ],
+            "description": "Аутентификация через email с кодом подтверждения"
+        },
+        {
+            "name": "Profile",
+            "item": [
+                {
+                    "name": "Get Profile - Получить профиль",
                     "request": {
                         "method": "GET",
                         "header": [
                             {
                                 "key": "Authorization",
-                                "value": "Bearer {{token}}",
-                                "description": "JWT токен авторизации"
+                                "value": "Bearer {{token}}"
                             }
                         ],
                         "url": {
@@ -259,37 +335,111 @@
                                 "profile"
                             ]
                         },
-                        "description": "Получение профиля текущего авторизованного пользователя.\n\n**Требует:** Bearer токен в заголовке Authorization"
+                        "description": "Получение профиля текущего пользователя.\n\n**Требуется:** Статус `active`"
                     },
                     "response": []
                 },
                 {
-                    "name": "Logout - Выход",
+                    "name": "Set Password - Установить пароль",
                     "request": {
                         "method": "POST",
                         "header": [
                             {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
                                 "key": "Authorization",
-                                "value": "Bearer {{token}}",
-                                "description": "JWT токен авторизации"
+                                "value": "Bearer {{token}}"
                             }
                         ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"password\": \"SecurePass123\"\n}"
+                        },
                         "url": {
-                            "raw": "{{base_url}}/api/logout",
+                            "raw": "{{base_url}}/api/profile/set-password",
                             "host": [
                                 "{{base_url}}"
                             ],
                             "path": [
                                 "api",
-                                "logout"
+                                "profile",
+                                "set-password"
                             ]
                         },
-                        "description": "Выход из системы. Инвалидирует текущий токен.\n\n**Примечание:** После выхода токен больше не будет действителен."
+                        "description": "Установка пароля для быстрого входа (опционально).\n\n**Требования:**\n- Пароль минимум 6 символов\n- Статус пользователя: `active`\n\nПосле установки пароля можно входить через Login with Password."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Change Password - Изменить пароль",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"old_password\": \"SecurePass123\",\n    \"new_password\": \"NewSecurePass456\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/profile/change-password",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "profile",
+                                "change-password"
+                            ]
+                        },
+                        "description": "Изменение существующего пароля."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Remove Password - Удалить пароль",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"password\": \"SecurePass123\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/profile/remove-password",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "profile",
+                                "remove-password"
+                            ]
+                        },
+                        "description": "Удаление пароля. После этого вход возможен только через код на email."
                     },
                     "response": []
                 }
             ],
-            "description": "Аутентификация и управление пользователями"
+            "description": "Управление профилем пользователя"
         },
         {
             "name": "Organizations",
@@ -303,9 +453,9 @@
                                 "exec": [
                                     "if (pm.response.code === 201) {",
                                     "    var jsonData = pm.response.json();",
-                                    "    if (jsonData.id) {",
-                                    "        pm.collectionVariables.set('org_id', jsonData.id.toString());",
-                                    "        console.log('Organization ID saved:', jsonData.id);",
+                                    "    if (jsonData.organization && jsonData.organization.id) {",
+                                    "        pm.collectionVariables.set('org_id', jsonData.organization.id);",
+                                    "        console.log('Organization ID saved:', jsonData.organization.id);",
                                     "    }",
                                     "}"
                                 ],
@@ -317,12 +467,12 @@
                         "method": "POST",
                         "header": [
                             {
-                                "key": "Authorization",
-                                "value": "Bearer {{token}}"
-                            },
-                            {
                                 "key": "Content-Type",
                                 "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}"
                             }
                         ],
                         "body": {
@@ -339,7 +489,7 @@
                                 "organizations"
                             ]
                         },
-                        "description": "Создание новой организации.\n\n**Обязательные поля:**\n- name - название организации\n\n**Опциональные поля:**\n- legal_name - полное юридическое название\n- inn - ИНН (10 или 12 цифр)\n- ogrn - ОГРН (13 цифр)\n- kpp - КПП (9 цифр)\n- legal_address - юридический адрес\n- share_percent - доля владения (0-100)\n\n**ID организации автоматически сохраняется в переменные**"
+                        "description": "Создание новой организации.\n\n**Обязательно:** `name`\n**Опционально:** `legal_name`, `inn`, `ogrn`, `kpp`, `legal_address`, `share_percent`"
                     },
                     "response": []
                 },
@@ -363,12 +513,12 @@
                                 "organizations"
                             ]
                         },
-                        "description": "Получение списка всех организаций текущего пользователя.\n\n**Возвращает:**\n- Массив организаций, где пользователь является основателем или участником"
+                        "description": "Получение списка организаций пользователя."
                     },
                     "response": []
                 },
                 {
-                    "name": "Get Organization by ID",
+                    "name": "Get Organization",
                     "request": {
                         "method": "GET",
                         "header": [
@@ -388,7 +538,7 @@
                                 "{{org_id}}"
                             ]
                         },
-                        "description": "Получение детальной информации об организации по ID.\n\n**Требует:** Доступ к организации (быть основателем или участником)"
+                        "description": "Получение организации по ID."
                     },
                     "response": []
                 },
@@ -398,17 +548,17 @@
                         "method": "PUT",
                         "header": [
                             {
-                                "key": "Authorization",
-                                "value": "Bearer {{token}}"
-                            },
-                            {
                                 "key": "Content-Type",
                                 "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}"
                             }
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n    \"name\": \"ООО Ромашка Плюс\",\n    \"legal_name\": \"Общество с ограниченной ответственностью Ромашка Плюс\",\n    \"inn\": \"7707083893\",\n    \"ogrn\": \"1027700132195\",\n    \"kpp\": \"770701001\",\n    \"legal_address\": \"г. Москва, ул. Тверская, д. 2\"\n}"
+                            "raw": "{\n    \"name\": \"ООО Ромашка Плюс\",\n    \"legal_address\": \"г. Москва, ул. Тверская, д. 2\"\n}"
                         },
                         "url": {
                             "raw": "{{base_url}}/api/organizations/{{org_id}}",
@@ -421,7 +571,7 @@
                                 "{{org_id}}"
                             ]
                         },
-                        "description": "Обновление данных организации.\n\n**Передаются только изменяемые поля**\n\n**Требует:** Права на редактирование организации"
+                        "description": "Обновление организации."
                     },
                     "response": []
                 },
@@ -446,7 +596,7 @@
                                 "{{org_id}}"
                             ]
                         },
-                        "description": "Удаление организации.\n\n**⚠️ ВНИМАНИЕ:** Каскадно удаляет все связанные данные:\n- Локации\n- Отделы\n- Должности\n- Участников\n\n**Требует:** Права владельца организации"
+                        "description": "Удаление организации."
                     },
                     "response": []
                 }
@@ -465,9 +615,9 @@
                                 "exec": [
                                     "if (pm.response.code === 201) {",
                                     "    var jsonData = pm.response.json();",
-                                    "    if (jsonData.id) {",
-                                    "        pm.collectionVariables.set('loc_id', jsonData.id.toString());",
-                                    "        console.log('Location ID saved:', jsonData.id);",
+                                    "    if (jsonData.location && jsonData.location.id) {",
+                                    "        pm.collectionVariables.set('loc_id', jsonData.location.id);",
+                                    "        console.log('Location ID saved:', jsonData.location.id);",
                                     "    }",
                                     "}"
                                 ],
@@ -479,12 +629,12 @@
                         "method": "POST",
                         "header": [
                             {
-                                "key": "Authorization",
-                                "value": "Bearer {{token}}"
-                            },
-                            {
                                 "key": "Content-Type",
                                 "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}"
                             }
                         ],
                         "body": {
@@ -503,7 +653,7 @@
                                 "locations"
                             ]
                         },
-                        "description": "Создание новой локации (офиса, филиала, склада).\n\n**Обязательные поля:**\n- name - название локации\n- source - источник данных (manual, egrul, api)\n\n**Опциональные поля:**\n- address - физический адрес\n- is_verified - подтверждена ли локация\n\n**Требует:** Право locations.create\n\n**ID локации автоматически сохраняется в переменные**"
+                        "description": "Создание локации в организации."
                     },
                     "response": []
                 },
@@ -529,12 +679,12 @@
                                 "locations"
                             ]
                         },
-                        "description": "Получение списка всех локаций организации.\n\n**Требует:** Доступ к организации"
+                        "description": "Получение списка локаций организации."
                     },
                     "response": []
                 },
                 {
-                    "name": "Get Location by ID",
+                    "name": "Get Location",
                     "request": {
                         "method": "GET",
                         "header": [
@@ -556,7 +706,7 @@
                                 "{{loc_id}}"
                             ]
                         },
-                        "description": "Получение детальной информации о локации.\n\n**Требует:** Доступ к организации"
+                        "description": "Получение локации по ID."
                     },
                     "response": []
                 },
@@ -566,17 +716,17 @@
                         "method": "PUT",
                         "header": [
                             {
-                                "key": "Authorization",
-                                "value": "Bearer {{token}}"
-                            },
-                            {
                                 "key": "Content-Type",
                                 "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}"
                             }
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n    \"name\": \"Центральный офис\",\n    \"address\": \"г. Москва, ул. Пушкина, д. 5\",\n    \"source\": \"manual\",\n    \"is_verified\": true,\n    \"is_active\": true\n}"
+                            "raw": "{\n    \"name\": \"Центральный офис\",\n    \"address\": \"г. Москва, ул. Пушкина, д. 5\"\n}"
                         },
                         "url": {
                             "raw": "{{base_url}}/api/organizations/{{org_id}}/locations/{{loc_id}}",
@@ -591,7 +741,7 @@
                                 "{{loc_id}}"
                             ]
                         },
-                        "description": "Обновление данных локации.\n\n**Требует:** Право locations.update"
+                        "description": "Обновление локации."
                     },
                     "response": []
                 },
@@ -618,12 +768,12 @@
                                 "{{loc_id}}"
                             ]
                         },
-                        "description": "Удаление локации.\n\n**⚠️ ВНИМАНИЕ:** Каскадно удаляет все отделы в этой локации\n\n**Требует:** Право locations.delete"
+                        "description": "Удаление локации."
                     },
                     "response": []
                 }
             ],
-            "description": "Управление локациями (офисы, филиалы, склады)"
+            "description": "Управление локациями организации"
         },
         {
             "name": "Departments",
@@ -637,9 +787,9 @@
                                 "exec": [
                                     "if (pm.response.code === 201) {",
                                     "    var jsonData = pm.response.json();",
-                                    "    if (jsonData.id) {",
-                                    "        pm.collectionVariables.set('dept_id', jsonData.id.toString());",
-                                    "        console.log('Department ID saved:', jsonData.id);",
+                                    "    if (jsonData.department && jsonData.department.id) {",
+                                    "        pm.collectionVariables.set('dept_id', jsonData.department.id);",
+                                    "        console.log('Department ID saved:', jsonData.department.id);",
                                     "    }",
                                     "}"
                                 ],
@@ -651,17 +801,17 @@
                         "method": "POST",
                         "header": [
                             {
-                                "key": "Authorization",
-                                "value": "Bearer {{token}}"
-                            },
-                            {
                                 "key": "Content-Type",
                                 "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}"
                             }
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n    \"name\": \"Отдел продаж\",\n    \"description\": \"Отдел занимается продажами и работой с клиентами\",\n    \"parent_id\": null\n}"
+                            "raw": "{\n    \"name\": \"Отдел продаж\",\n    \"description\": \"Отдел занимается продажами и работой с клиентами\"\n}"
                         },
                         "url": {
                             "raw": "{{base_url}}/api/organizations/{{org_id}}/locations/{{loc_id}}/departments",
@@ -677,43 +827,7 @@
                                 "departments"
                             ]
                         },
-                        "description": "Создание нового отдела в локации.\n\n**Обязательные поля:**\n- name - название отдела\n\n**Опциональные поля:**\n- description - описание отдела\n- parent_id - ID родительского отдела (для иерархии)\n\n**Требует:** Право departments.create\n\n**ID отдела автоматически сохраняется в переменные**"
-                    },
-                    "response": []
-                },
-                {
-                    "name": "Create Sub-Department (Child)",
-                    "request": {
-                        "method": "POST",
-                        "header": [
-                            {
-                                "key": "Authorization",
-                                "value": "Bearer {{token}}"
-                            },
-                            {
-                                "key": "Content-Type",
-                                "value": "application/json"
-                            }
-                        ],
-                        "body": {
-                            "mode": "raw",
-                            "raw": "{\n    \"name\": \"Группа B2B продаж\",\n    \"description\": \"Подразделение для работы с корпоративными клиентами\",\n    \"parent_id\": {{dept_id}}\n}"
-                        },
-                        "url": {
-                            "raw": "{{base_url}}/api/organizations/{{org_id}}/locations/{{loc_id}}/departments",
-                            "host": [
-                                "{{base_url}}"
-                            ],
-                            "path": [
-                                "api",
-                                "organizations",
-                                "{{org_id}}",
-                                "locations",
-                                "{{loc_id}}",
-                                "departments"
-                            ]
-                        },
-                        "description": "Создание дочернего отдела (подразделения).\n\n**Пример иерархии:**\n- Отдел продаж (parent_id: null)\n  - Группа B2B продаж (parent_id: 1)\n  - Группа B2C продаж (parent_id: 1)\n\n**Требует:** Право departments.create"
+                        "description": "Создание отдела в локации."
                     },
                     "response": []
                 },
@@ -741,12 +855,12 @@
                                 "departments"
                             ]
                         },
-                        "description": "Получение списка всех отделов в локации.\n\n**Требует:** Доступ к организации"
+                        "description": "Получение списка отделов локации."
                     },
                     "response": []
                 },
                 {
-                    "name": "Get Department by ID",
+                    "name": "Get Department",
                     "request": {
                         "method": "GET",
                         "header": [
@@ -770,7 +884,7 @@
                                 "{{dept_id}}"
                             ]
                         },
-                        "description": "Получение детальной информации об отделе.\n\n**Требует:** Доступ к организации"
+                        "description": "Получение отдела по ID."
                     },
                     "response": []
                 },
@@ -780,17 +894,17 @@
                         "method": "PUT",
                         "header": [
                             {
-                                "key": "Authorization",
-                                "value": "Bearer {{token}}"
-                            },
-                            {
                                 "key": "Content-Type",
                                 "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}"
                             }
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n    \"name\": \"Отдел корпоративных продаж\",\n    \"description\": \"Отдел работает с корпоративными клиентами\",\n    \"parent_id\": null\n}"
+                            "raw": "{\n    \"name\": \"Отдел корпоративных продаж\",\n    \"description\": \"Отдел работает с корпоративными клиентами\"\n}"
                         },
                         "url": {
                             "raw": "{{base_url}}/api/organizations/{{org_id}}/locations/{{loc_id}}/departments/{{dept_id}}",
@@ -807,7 +921,7 @@
                                 "{{dept_id}}"
                             ]
                         },
-                        "description": "Обновление данных отдела.\n\n**Можно изменить:**\n- Название\n- Описание\n- Родительский отдел (перемещение в иерархии)\n\n**Требует:** Право departments.update"
+                        "description": "Обновление отдела."
                     },
                     "response": []
                 },
@@ -836,12 +950,12 @@
                                 "{{dept_id}}"
                             ]
                         },
-                        "description": "Удаление отдела.\n\n**⚠️ ВНИМАНИЕ:** Проверьте, есть ли дочерние отделы или сотрудники\n\n**Требует:** Право departments.delete"
+                        "description": "Удаление отдела."
                     },
                     "response": []
                 }
             ],
-            "description": "Управление отделами организации"
+            "description": "Управление отделами"
         },
         {
             "name": "Positions",
@@ -855,9 +969,9 @@
                                 "exec": [
                                     "if (pm.response.code === 201) {",
                                     "    var jsonData = pm.response.json();",
-                                    "    if (jsonData.id) {",
-                                    "        pm.collectionVariables.set('pos_id', jsonData.id.toString());",
-                                    "        console.log('Position ID saved:', jsonData.id);",
+                                    "    if (jsonData.position && jsonData.position.id) {",
+                                    "        pm.collectionVariables.set('pos_id', jsonData.position.id);",
+                                    "        console.log('Position ID saved:', jsonData.position.id);",
                                     "    }",
                                     "}"
                                 ],
@@ -869,12 +983,12 @@
                         "method": "POST",
                         "header": [
                             {
-                                "key": "Authorization",
-                                "value": "Bearer {{token}}"
-                            },
-                            {
                                 "key": "Content-Type",
                                 "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}"
                             }
                         ],
                         "body": {
@@ -893,41 +1007,7 @@
                                 "positions"
                             ]
                         },
-                        "description": "Создание новой должности в организации.\n\n**Обязательные поля:**\n- name - название должности\n\n**Опциональные поля:**\n- department_id - привязка к отделу\n- is_admin - административная позиция (расширенные права)\n- description - описание обязанностей\n\n**Требует:** Право positions.create\n\n**ID позиции автоматически сохраняется в переменные**"
-                    },
-                    "response": []
-                },
-                {
-                    "name": "Create Admin Position",
-                    "request": {
-                        "method": "POST",
-                        "header": [
-                            {
-                                "key": "Authorization",
-                                "value": "Bearer {{token}}"
-                            },
-                            {
-                                "key": "Content-Type",
-                                "value": "application/json"
-                            }
-                        ],
-                        "body": {
-                            "mode": "raw",
-                            "raw": "{\n    \"name\": \"Генеральный директор\",\n    \"department_id\": null,\n    \"is_admin\": true,\n    \"description\": \"Руководство компанией, стратегические решения\"\n}"
-                        },
-                        "url": {
-                            "raw": "{{base_url}}/api/organizations/{{org_id}}/positions",
-                            "host": [
-                                "{{base_url}}"
-                            ],
-                            "path": [
-                                "api",
-                                "organizations",
-                                "{{org_id}}",
-                                "positions"
-                            ]
-                        },
-                        "description": "Создание административной должности.\n\n**is_admin: true** даёт расширенные права в системе\n\n**Требует:** Право positions.create"
+                        "description": "Создание должности в организации."
                     },
                     "response": []
                 },
@@ -953,7 +1033,7 @@
                                 "positions"
                             ]
                         },
-                        "description": "Получение списка всех должностей организации.\n\n**Требует:** Доступ к организации"
+                        "description": "Получение списка должностей организации."
                     },
                     "response": []
                 },
@@ -983,12 +1063,12 @@
                                 "positions"
                             ]
                         },
-                        "description": "Получение списка должностей конкретного отдела.\n\n**Фильтрует** позиции по department_id\n\n**Требует:** Доступ к организации"
+                        "description": "Получение должностей отдела."
                     },
                     "response": []
                 },
                 {
-                    "name": "Get Position by ID",
+                    "name": "Get Position",
                     "request": {
                         "method": "GET",
                         "header": [
@@ -1010,7 +1090,7 @@
                                 "{{pos_id}}"
                             ]
                         },
-                        "description": "Получение детальной информации о должности.\n\n**Требует:** Доступ к организации"
+                        "description": "Получение должности по ID."
                     },
                     "response": []
                 },
@@ -1020,17 +1100,17 @@
                         "method": "PUT",
                         "header": [
                             {
-                                "key": "Authorization",
-                                "value": "Bearer {{token}}"
-                            },
-                            {
                                 "key": "Content-Type",
                                 "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}"
                             }
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n    \"name\": \"Старший менеджер по продажам\",\n    \"department_id\": {{dept_id}},\n    \"is_admin\": false,\n    \"description\": \"Руководство командой продаж, работа с VIP-клиентами\"\n}"
+                            "raw": "{\n    \"name\": \"Старший менеджер по продажам\",\n    \"is_admin\": true,\n    \"description\": \"Руководство отделом продаж\"\n}"
                         },
                         "url": {
                             "raw": "{{base_url}}/api/organizations/{{org_id}}/positions/{{pos_id}}",
@@ -1045,7 +1125,7 @@
                                 "{{pos_id}}"
                             ]
                         },
-                        "description": "Обновление данных должности.\n\n**Можно изменить:**\n- Название\n- Привязку к отделу\n- Административный статус\n- Описание\n\n**Требует:** Право positions.update"
+                        "description": "Обновление должности."
                     },
                     "response": []
                 },
@@ -1072,42 +1152,12 @@
                                 "{{pos_id}}"
                             ]
                         },
-                        "description": "Удаление должности.\n\n**⚠️ ВНИМАНИЕ:** Проверьте, есть ли сотрудники на этой позиции\n\n**Требует:** Право positions.delete"
+                        "description": "Удаление должности."
                     },
                     "response": []
                 }
             ],
-            "description": "Управление должностями в организации"
-        }
-    ],
-    "auth": {
-        "type": "bearer",
-        "bearer": [
-            {
-                "key": "token",
-                "value": "{{token}}",
-                "type": "string"
-            }
-        ]
-    },
-    "event": [
-        {
-            "listen": "prerequest",
-            "script": {
-                "type": "text/javascript",
-                "exec": [
-                    ""
-                ]
-            }
-        },
-        {
-            "listen": "test",
-            "script": {
-                "type": "text/javascript",
-                "exec": [
-                    ""
-                ]
-            }
+            "description": "Управление должностями"
         }
     ]
 }

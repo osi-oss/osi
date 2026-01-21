@@ -26,23 +26,22 @@ func NewEmailService(host, port, user, password, fromEmail, fromName string) *Em
 	}
 }
 
-// SendPasswordResetEmail отправляет email с токеном для восстановления пароля
-func (e *EmailService) SendPasswordResetEmail(toEmail, resetToken, baseURL string) error {
-	resetURL := fmt.Sprintf("%s/reset-password?token=%s", baseURL, resetToken)
-
-	subject := "Восстановление пароля"
+// SendAuthCode отправляет код подтверждения для входа/регистрации
+func (e *EmailService) SendAuthCode(toEmail, code string) error {
+	subject := "Код подтверждения OSI"
 	body := fmt.Sprintf(`
 		<html>
-		<body>
-			<h2>Восстановление пароля</h2>
-			<p>Вы запросили восстановление пароля для вашего аккаунта.</p>
-			<p>Перейдите по ссылке ниже для сброса пароля:</p>
-			<p><a href="%s">Сбросить пароль</a></p>
-			<p>Ссылка действительна в течение 1 часа.</p>
-			<p>Если вы не запрашивали восстановление пароля, проигнорируйте это письмо.</p>
+		<body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+			<h2 style="color: #333;">Ваш код подтверждения</h2>
+			<p style="font-size: 16px; color: #666;">Используйте этот код для входа в систему OSI:</p>
+			<div style="background: #f5f5f5; padding: 20px; text-align: center; margin: 20px 0; border-radius: 8px;">
+				<span style="font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #333;">%s</span>
+			</div>
+			<p style="font-size: 14px; color: #999;">Код действителен 20 минут.</p>
+			<p style="font-size: 14px; color: #999;">Если вы не запрашивали этот код, проигнорируйте это письмо.</p>
 		</body>
 		</html>
-	`, resetURL)
+	`, code)
 
 	return e.sendEmail(toEmail, subject, body)
 }
@@ -52,11 +51,11 @@ func (e *EmailService) SendWelcomeEmail(toEmail, userName string) error {
 	subject := "Добро пожаловать в OSI!"
 	body := fmt.Sprintf(`
 		<html>
-		<body>
-			<h2>Добро пожаловать!</h2>
-			<p>Привет %s,</p>
-			<p>Спасибо за регистрацию в нашей системе OSI.</p>
-			<p>Теперь вы можете пользоваться всеми возможностями платформы.</p>
+		<body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+			<h2 style="color: #333;">Добро пожаловать!</h2>
+			<p style="font-size: 16px; color: #666;">Привет %s,</p>
+			<p style="font-size: 16px; color: #666;">Спасибо за регистрацию в системе OSI.</p>
+			<p style="font-size: 16px; color: #666;">Теперь вы можете пользоваться всеми возможностями платформы.</p>
 		</body>
 		</html>
 	`, userName)

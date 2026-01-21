@@ -2,48 +2,110 @@ package dto
 
 import "time"
 
-// ===== User DTOs =====
+// ===== Auth DTOs =====
 
-// SignUpRequest запрос на регистрацию нового пользователя
-// @Description Данные для регистрации нового пользователя в системе
-type SignUpRequest struct {
-	// Email пользователя (должен быть уникальным)
+// RequestCodeRequest запрос кода для входа/регистрации
+// @Description Email для получения кода подтверждения
+type RequestCodeRequest struct {
+	// Email пользователя
 	// Example: user@example.com
 	Email string `json:"email" binding:"required,email" example:"user@example.com"`
+}
+
+// RequestCodeResponse ответ на запрос кода
+// @Description Результат отправки кода подтверждения
+type RequestCodeResponse struct {
+	// Сообщение о результате
+	// Example: Verification code sent to your email
+	Message string `json:"message" example:"Verification code sent to your email"`
+	// Новый ли пользователь (для UI)
+	// Example: false
+	IsNewUser bool `json:"is_new_user" example:"false"`
+	// Время действия кода в секундах
+	// Example: 1200
+	ExpiresIn int `json:"expires_in" example:"1200"`
+}
+
+// VerifyCodeRequest проверка кода подтверждения
+// @Description Email и код для верификации
+type VerifyCodeRequest struct {
+	// Email пользователя
+	// Example: user@example.com
+	Email string `json:"email" binding:"required,email" example:"user@example.com"`
+	// 4-символьный код из email
+	// Example: A3K7
+	Code string `json:"code" binding:"required,len=4" example:"A3K7"`
+}
+
+// AuthResponse ответ с токеном аутентификации
+// @Description Результат успешной аутентификации
+type AuthResponse struct {
+	// JWT токен для авторизации запросов
+	// Example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+	Token string `json:"token" example:"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U"`
+	// Время жизни токена в секундах
+	// Example: 86400
+	ExpiresIn int `json:"expires_in" example:"86400"`
+	// Данные пользователя
+	User UserResponse `json:"user"`
+	// Следующий шаг (complete_profile или пусто)
+	// Example: complete_profile
+	NextStep string `json:"next_step,omitempty" example:"complete_profile"`
+}
+
+// CompleteProfileRequest заполнение профиля
+// @Description Обязательные данные профиля после подтверждения email
+type CompleteProfileRequest struct {
+	// Имя (минимум 2 символа)
+	// Example: Иван
+	FirstName string `json:"first_name" binding:"required,min=2" example:"Иван"`
+	// Фамилия (минимум 2 символа)
+	// Example: Петров
+	LastName string `json:"last_name" binding:"required,min=2" example:"Петров"`
+	// Отчество (опционально)
+	// Example: Сергеевич
+	MiddleName *string `json:"middle_name" example:"Сергеевич"`
+}
+
+// SetPasswordRequest установка пароля
+// @Description Установка пароля для быстрого входа (опционально)
+type SetPasswordRequest struct {
 	// Пароль (минимум 6 символов)
 	// Example: SecurePass123
 	Password string `json:"password" binding:"required,min=6" example:"SecurePass123"`
 }
 
-// LoginRequest запрос на авторизацию
-// @Description Учётные данные для входа в систему
-type LoginRequest struct {
+// ChangePasswordRequest изменение пароля
+// @Description Изменение существующего пароля
+type ChangePasswordRequest struct {
+	// Текущий пароль
+	// Example: OldSecurePass123
+	OldPassword string `json:"old_password" binding:"required" example:"OldSecurePass123"`
+	// Новый пароль (минимум 6 символов)
+	// Example: NewSecurePass456
+	NewPassword string `json:"new_password" binding:"required,min=6" example:"NewSecurePass456"`
+}
+
+// RemovePasswordRequest удаление пароля
+// @Description Удаление пароля (вход только через код)
+type RemovePasswordRequest struct {
+	// Текущий пароль для подтверждения
+	// Example: SecurePass123
+	Password string `json:"password" binding:"required" example:"SecurePass123"`
+}
+
+// PasswordLoginRequest вход по паролю
+// @Description Авторизация по email и паролю (если пароль установлен)
+type PasswordLoginRequest struct {
 	// Email пользователя
 	// Example: user@example.com
 	Email string `json:"email" binding:"required,email" example:"user@example.com"`
 	// Пароль пользователя
 	// Example: SecurePass123
-	Password string `json:"password" binding:"required,min=6" example:"SecurePass123"`
+	Password string `json:"password" binding:"required" example:"SecurePass123"`
 }
 
-// PasswordResetRequest запрос на сброс пароля
-// @Description Email для отправки инструкций по сбросу пароля
-type PasswordResetRequest struct {
-	// Email пользователя для восстановления доступа
-	// Example: user@example.com
-	Email string `json:"email" binding:"required,email" example:"user@example.com"`
-}
-
-// ResetPasswordRequest запрос на установку нового пароля
-// @Description Токен сброса и новый пароль
-type ResetPasswordRequest struct {
-	// Токен из письма для сброса пароля
-	// Example: a1b2c3d4e5f6g7h8i9j0
-	Token string `json:"token" binding:"required" example:"a1b2c3d4e5f6g7h8i9j0"`
-	// Новый пароль (минимум 6 символов)
-	// Example: NewSecurePass456
-	NewPassword string `json:"new_password" binding:"required,min=6" example:"NewSecurePass456"`
-}
+// ===== User DTOs =====
 
 // UserResponse данные пользователя
 // @Description Публичные данные пользователя
@@ -53,16 +115,25 @@ type UserResponse struct {
 	ID int64 `json:"id" example:"1"`
 	// Email пользователя
 	// Example: user@example.com
-	Email *string `json:"email" example:"user@example.com"`
+	Email string `json:"email" example:"user@example.com"`
 	// Имя пользователя
 	// Example: Иван
-	FirstName string `json:"first_name" example:"Иван"`
+	FirstName *string `json:"first_name" example:"Иван"`
 	// Фамилия пользователя
 	// Example: Петров
-	LastName string `json:"last_name" example:"Петров"`
+	LastName *string `json:"last_name" example:"Петров"`
+	// Отчество пользователя
+	// Example: Сергеевич
+	MiddleName *string `json:"middle_name,omitempty" example:"Сергеевич"`
+	// Статус пользователя: pending_email, pending_profile, active
+	// Example: active
+	Status string `json:"status" example:"active" enums:"pending_email,pending_profile,active"`
 	// Подтверждён ли email
 	// Example: true
 	EmailVerified bool `json:"email_verified" example:"true"`
+	// Установлен ли пароль
+	// Example: false
+	HasPassword bool `json:"has_password" example:"false"`
 	// Дата регистрации
 	// Example: 2024-01-15T10:30:00Z
 	CreatedAt time.Time `json:"created_at" example:"2024-01-15T10:30:00Z"`

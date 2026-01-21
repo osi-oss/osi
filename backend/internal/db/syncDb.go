@@ -16,6 +16,6 @@ func SyncDb(db *gorm.DB) error {
 		&models.Position{},
 		&models.Employee{},
 		&models.Permission{},
-		&models.PasswordResetToken{},
+		&models.AuthCode{},
 	)
 }

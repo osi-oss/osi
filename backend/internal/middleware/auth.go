@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/osi-oss/osi/internal/models"
 )
 
 // AuthRequired проверяет JWT токен из куки или Authorization header
@@ -52,7 +53,19 @@ func AuthRequired(jwtSecret string) gin.HandlerFunc {
 				c.Abort()
 				return
 			}
-			c.Set("email", claims["email"])
+
+			// Email
+			if email, ok := claims["email"].(string); ok {
+				c.Set("email", email)
+			}
+
+			// Status пользователя
+			if status, ok := claims["status"].(string); ok {
+				c.Set("status", status)
+			} else {
+				// Для совместимости со старыми токенами
+				c.Set("status", string(models.UserStatusActive))
+			}
 		} else {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token claims"})
 			c.Abort()

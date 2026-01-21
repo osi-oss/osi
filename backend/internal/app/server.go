@@ -8,6 +8,7 @@ import (
 	"github.com/osi-oss/osi/internal/controllers"
 	"github.com/osi-oss/osi/internal/db"
 	"github.com/osi-oss/osi/internal/middleware"
+	"github.com/osi-oss/osi/internal/models"
 	"github.com/osi-oss/osi/internal/repository"
 	"github.com/osi-oss/osi/internal/services"
 	swaggerFiles "github.com/swaggo/files"
@@ -28,7 +29,7 @@ func Start(cfg *config.Config) {
 
 	// Создание репозиториев
 	userRepo := repository.NewUserRepository(dbConn)
-	resetRepo := repository.NewPasswordResetRepository(dbConn)
+	authCodeRepo := repository.NewAuthCodeRepository(dbConn)
 	orgRepo := repository.NewOrganizationRepository(dbConn)
 	locationRepo := repository.NewLocationRepository(dbConn)
 	departmentRepo := repository.NewDepartmentRepository(dbConn)
@@ -47,13 +48,12 @@ func Start(cfg *config.Config) {
 		cfg.FromName,
 	)
 
-	// Создание пользовательского сервиса со всеми зависимостями
-	userService := services.NewUserService(
+	// Создание сервиса аутентификации
+	authService := services.NewAuthService(
 		userRepo,
-		resetRepo,
+		authCodeRepo,
 		emailService,
 		cfg.JWTSecret,
-		cfg.BaseURL,
 	)
 
 	// Создание сервиса прав
@@ -84,7 +84,8 @@ func Start(cfg *config.Config) {
 	// Создание middleware
 	permMiddleware := middleware.NewPermissionMiddleware(permissionService)
 
-	userController := controllers.NewUserController(userService)
+	// Создание контроллеров
+	authController := controllers.NewAuthController(authService)
 	orgController := controllers.NewOrganizationController(orgService)
 	locationController := controllers.NewLocationController(locationService)
 	departmentController := controllers.NewDepartmentController(departmentService)
@@ -111,21 +112,38 @@ func Start(cfg *config.Config) {
 
 	api := r.Group("/api")
 	{
-		// Открытые роуты
-		api.POST("/signup", userController.SignUp)
-		api.POST("/login", userController.LogIn)
-		api.POST("/forgot-password", userController.RequestPasswordReset)
+		// ===== Публичные роуты аутентификации =====
+		auth := api.Group("/auth")
+		{
+			auth.POST("/request-code", authController.RequestCode)
+			auth.POST("/verify-code", authController.VerifyCode)
+			auth.POST("/resend-code", authController.ResendCode)
+			auth.POST("/login-password", authController.LoginWithPassword)
+		}
 
-		// Сброс пароля
-		api.GET("/reset-password/validate", userController.ValidateResetToken)
-		api.POST("/reset-password", userController.ResetPassword)
+		// ===== Роуты требующие JWT (любой статус) =====
+		authRequired := api.Group("/")
+		authRequired.Use(middleware.AuthRequired(cfg.JWTSecret))
+		{
+			// Выход доступен всегда
+			authRequired.POST("/auth/logout", authController.Logout)
 
-		// Защищенные роуты (требуют аутентификации)
+			// Заполнение профиля (только для pending_profile)
+			authRequired.POST("/auth/complete-profile",
+				middleware.RequireStatus(models.UserStatusPendingProfile),
+				authController.CompleteProfile)
+		}
+
+		// ===== Защищённые роуты (только active пользователи) =====
 		protected := api.Group("/")
 		protected.Use(middleware.AuthRequired(cfg.JWTSecret))
+		protected.Use(middleware.RequireActiveUser())
 		{
-			protected.GET("/profile", userController.GetProfile)
-			protected.POST("/logout", userController.Logout)
+			// Профиль
+			protected.GET("/profile", authController.GetProfile)
+			protected.POST("/profile/set-password", authController.SetPassword)
+			protected.POST("/profile/change-password", authController.ChangePassword)
+			protected.POST("/profile/remove-password", authController.RemovePassword)
 
 			// Организации
 			protected.POST("/organizations", orgController.CreateOrganization)
