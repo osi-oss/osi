@@ -3,10 +3,12 @@ package services
 import (
 	"crypto/rand"
 	"errors"
+	"log/slog"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/osi-oss/osi/internal/apperrors"
+	"github.com/osi-oss/osi/internal/logger"
 	"github.com/osi-oss/osi/internal/models"
 	"github.com/osi-oss/osi/internal/repository"
 	"github.com/osi-oss/osi/internal/validators"
@@ -182,31 +184,41 @@ func (s *AuthService) VerifyCode(email, code string) (*AuthResult, error) {
 	}, nil
 }
 
-// CompleteProfile заполняет профиль пользователя
-func (s *AuthService) CompleteProfile(userID int64, firstName, lastName string, middleName *string) error {
+// CompleteProfileResult результат заполнения профиля
+type CompleteProfileResult struct {
+	Token string
+	User  *models.User
+}
+
+// CompleteProfile заполняет профиль пользователя и возвращает новый JWT с активным статусом
+func (s *AuthService) CompleteProfile(userID int64, firstName, lastName string, middleName *string) (*CompleteProfileResult, error) {
 	// Получаем пользователя
 	user, err := s.userRepo.GetById(userID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return apperrors.ErrUserNotFound
+			logger.Warn("User not found for profile completion", slog.Int64("user_id", userID))
+			return nil, apperrors.ErrUserNotFound
 		}
-		return apperrors.Wrap(err, 500, "database error")
+		logger.Error("Database error fetching user", err, slog.Int64("user_id", userID))
+		return nil, apperrors.Wrap(err, 500, "database error")
 	}
 
 	// Проверяем статус
 	if user.Status != models.UserStatusPendingProfile {
 		if user.Status == models.UserStatusActive {
-			return apperrors.BadRequest("profile already completed")
+			logger.Warn("Profile already completed", slog.Int64("user_id", userID), slog.String("email", user.Email))
+			return nil, apperrors.BadRequest("profile already completed")
 		}
-		return apperrors.BadRequest("email not verified")
+		logger.Warn("User email not verified", slog.Int64("user_id", userID), slog.String("email", user.Email))
+		return nil, apperrors.BadRequest("email not verified")
 	}
 
 	// Валидация имени и фамилии
 	if len(firstName) < 2 {
-		return apperrors.BadRequest("first name must be at least 2 characters")
+		return nil, apperrors.BadRequest("first name must be at least 2 characters")
 	}
 	if len(lastName) < 2 {
-		return apperrors.BadRequest("last name must be at least 2 characters")
+		return nil, apperrors.BadRequest("last name must be at least 2 characters")
 	}
 
 	// Обновляем профиль
@@ -216,10 +228,23 @@ func (s *AuthService) CompleteProfile(userID int64, firstName, lastName string, 
 	user.Status = models.UserStatusActive
 
 	if err := s.userRepo.Update(user); err != nil {
-		return apperrors.Wrap(err, 500, "failed to update profile")
+		logger.Error("Failed to update user profile", err, slog.Int64("user_id", userID))
+		return nil, apperrors.Wrap(err, 500, "failed to update profile")
 	}
 
-	return nil
+	// Генерируем новый JWT с активным статусом
+	token, err := s.generateJWT(user)
+	if err != nil {
+		logger.Error("Failed to generate JWT after profile completion", err, slog.Int64("user_id", userID))
+		return nil, apperrors.Wrap(err, 500, "failed to generate token")
+	}
+
+	logger.Info("Profile completed successfully", slog.Int64("user_id", userID), slog.String("email", user.Email), slog.String("first_name", firstName), slog.String("last_name", lastName))
+
+	return &CompleteProfileResult{
+		Token: token,
+		User:  user,
+	}, nil
 }
 
 // SetPassword устанавливает пароль пользователя

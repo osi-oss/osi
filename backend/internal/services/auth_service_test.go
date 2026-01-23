@@ -1,9 +1,12 @@
 package services
 
 import (
+	"log/slog"
+	"os"
 	"testing"
 	"time"
 
+	"github.com/osi-oss/osi/internal/logger"
 	"github.com/osi-oss/osi/internal/models"
 	"github.com/osi-oss/osi/internal/repository"
 	"github.com/stretchr/testify/assert"
@@ -36,6 +39,13 @@ func (m *mockEmailService) SendAuthCode(toEmail, code string) error {
 
 // setupAuthTestDB создает тестовую базу данных для auth тестов
 func setupAuthTestDB(t *testing.T) *gorm.DB {
+	// Инициализируем logger для тестов
+	handler := slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+		Level: slog.LevelDebug,
+	})
+	logger.Log = slog.New(handler)
+	slog.SetDefault(logger.Log)
+
 	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
 	require.NoError(t, err, "failed to open test database")
 
@@ -215,8 +225,11 @@ func TestCompleteProfile_Success(t *testing.T) {
 
 	// Заполняем профиль
 	middleName := "Иванович"
-	err = service.CompleteProfile(result.User.ID, "Иван", "Петров", &middleName)
+	profileResult, err := service.CompleteProfile(result.User.ID, "Иван", "Петров", &middleName)
 	require.NoError(t, err)
+	assert.NotNil(t, profileResult)
+	assert.NotEmpty(t, profileResult.Token)
+	assert.NotNil(t, profileResult.User)
 
 	// Проверяем результат
 	var user models.User
@@ -238,7 +251,7 @@ func TestCompleteProfile_ShortName(t *testing.T) {
 	}
 	require.NoError(t, db.Create(user).Error)
 
-	err := service.CompleteProfile(user.ID, "A", "B", nil)
+	_, err := service.CompleteProfile(user.ID, "A", "B", nil)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "at least 2 characters")
 }
@@ -255,7 +268,7 @@ func TestCompleteProfile_WrongStatus(t *testing.T) {
 	}
 	require.NoError(t, db.Create(user).Error)
 
-	err := service.CompleteProfile(user.ID, "Иван", "Петров", nil)
+	_, err := service.CompleteProfile(user.ID, "Иван", "Петров", nil)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "already completed")
 }
@@ -488,8 +501,10 @@ func TestFullRegistrationFlow(t *testing.T) {
 	assert.Equal(t, "complete_profile", verifyResult.NextStep)
 
 	// 3. Заполнение профиля
-	err = service.CompleteProfile(verifyResult.User.ID, "Алексей", "Смирнов", nil)
+	profileResult, err := service.CompleteProfile(verifyResult.User.ID, "Алексей", "Смирнов", nil)
 	require.NoError(t, err)
+	assert.NotNil(t, profileResult)
+	assert.NotEmpty(t, profileResult.Token)
 
 	// 4. Установка пароля (опционально)
 	err = service.SetPassword(verifyResult.User.ID, "MySecurePass123")

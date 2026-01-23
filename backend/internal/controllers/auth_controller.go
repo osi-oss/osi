@@ -1,11 +1,13 @@
 package controllers
 
 import (
+	"log/slog"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/osi-oss/osi/internal/dto"
 	"github.com/osi-oss/osi/internal/helpers"
+	"github.com/osi-oss/osi/internal/logger"
 	"github.com/osi-oss/osi/internal/services"
 )
 
@@ -133,31 +135,34 @@ func (ctrl *AuthController) ResendCode(c *gin.Context) {
 func (ctrl *AuthController) CompleteProfile(c *gin.Context) {
 	userID, err := helpers.GetUserID(c)
 	if err != nil {
+		logger.Warn("CompleteProfile: failed to get user ID", slog.String("error", err.Error()))
 		helpers.RespondError(c, err)
 		return
 	}
 
 	var req dto.CompleteProfileRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
+		logger.Warn("CompleteProfile: failed to bind JSON", slog.Int64("user_id", userID), slog.String("error", err.Error()))
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	if err := ctrl.authService.CompleteProfile(userID, req.FirstName, req.LastName, req.MiddleName); err != nil {
-		helpers.RespondError(c, err)
-		return
-	}
+	logger.Info("CompleteProfile request", slog.Int64("user_id", userID), slog.String("first_name", req.FirstName), slog.String("last_name", req.LastName))
 
-	// Получаем обновлённого пользователя
-	user, err := ctrl.authService.GetUserByID(userID)
+	result, err := ctrl.authService.CompleteProfile(userID, req.FirstName, req.LastName, req.MiddleName)
 	if err != nil {
+		logger.Warn("CompleteProfile: service error", slog.Int64("user_id", userID), slog.String("error", err.Error()))
 		helpers.RespondError(c, err)
 		return
 	}
 
-	helpers.RespondOK(c, dto.ProfileResponse{
-		Message: "Profile completed successfully",
-		User:    dto.ToUserResponse(user),
+	// Возвращаем новый JWT и данные пользователя
+	logger.Info("CompleteProfile success", slog.Int64("user_id", userID), slog.String("email", result.User.Email), slog.String("status", string(result.User.Status)))
+	helpers.RespondOK(c, dto.AuthResponse{
+		Token:     result.Token,
+		ExpiresIn: 24 * 60 * 60,
+		User:      dto.ToUserResponse(result.User),
+		NextStep:  "",
 	})
 }
 
