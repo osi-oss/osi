@@ -200,6 +200,11 @@
                             "script": {
                                 "exec": [
                                     "if (pm.response.code === 200) {",
+                                    "    var jsonData = pm.response.json();",
+                                    "    if (jsonData.token) {",
+                                    "        pm.collectionVariables.set('token', jsonData.token);",
+                                    "        console.log('Token saved!');",
+                                    "    }",
                                     "    console.log('Profile completed! Full access granted.');",
                                     "}"
                                 ],
