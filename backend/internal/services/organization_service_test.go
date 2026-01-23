@@ -33,12 +33,14 @@ func setupOrgTestDB(t *testing.T) *gorm.DB {
 
 // createOrgTestUser создает тестового пользователя для организаций
 func createOrgTestUser(t *testing.T, db *gorm.DB, email string) *models.User {
+	firstName := "Test"
+	lastName := "User"
 	user := &models.User{
-		Email:           stringPtr(email),
-		PasswordHash:    "hashed_password",
+		Email:           email,
 		IsEmailVerified: true,
-		FirstName:       "Test",
-		LastName:        "User",
+		FirstName:       &firstName,
+		LastName:        &lastName,
+		Status:          models.UserStatusActive,
 	}
 	err := db.Create(user).Error
 	require.NoError(t, err, "failed to create test user")

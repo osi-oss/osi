@@ -4,14 +4,31 @@ package models
 type User struct {
 	BaseModel
 
-	Email        *string `gorm:"uniqueIndex"`
+	Email        string  `gorm:"uniqueIndex;not null"`
 	Phone        *string `gorm:"uniqueIndex"`
-	PasswordHash string  `gorm:"not null"`
+	PasswordHash *string // nullable - пароль опционален
 
-	FirstName  string `gorm:"not null"`
-	LastName   string `gorm:"not null"`
+	FirstName  *string // nullable - заполняется после подтверждения email
+	LastName   *string // nullable - заполняется после подтверждения email
 	MiddleName *string
 
-	IsEmailVerified bool `gorm:"default:false"`
-	IsPhoneVerified bool `gorm:"default:false"`
+	Status          UserStatus `gorm:"type:user_status;default:'pending_email'"`
+	IsEmailVerified bool       `gorm:"default:false"`
+	IsPhoneVerified bool       `gorm:"default:false"`
+}
+
+// HasPassword проверяет, установлен ли пароль
+func (u *User) HasPassword() bool {
+	return u.PasswordHash != nil && *u.PasswordHash != ""
+}
+
+// IsProfileComplete проверяет, заполнен ли профиль
+func (u *User) IsProfileComplete() bool {
+	return u.FirstName != nil && *u.FirstName != "" &&
+		u.LastName != nil && *u.LastName != ""
+}
+
+// CanAccessSystem проверяет, имеет ли пользователь полный доступ
+func (u *User) CanAccessSystem() bool {
+	return u.Status == UserStatusActive
 }

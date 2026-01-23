@@ -5,6 +5,8 @@ CREATE TABLE departments (
     parent_id BIGINT REFERENCES departments (id),
     name VARCHAR(255) NOT NULL,
     description TEXT,
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now(),
     UNIQUE (location_id, name)
 );
 

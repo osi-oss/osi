@@ -1,5 +1,26 @@
 package models
 
+// ===== User Status =====
+
+type UserStatus string
+
+const (
+	UserStatusPendingEmail   UserStatus = "pending_email"   // Ожидание подтверждения email
+	UserStatusPendingProfile UserStatus = "pending_profile" // Email подтверждён, профиль не заполнен
+	UserStatusActive         UserStatus = "active"          // Полный доступ к системе
+)
+
+// IsValid проверяет валидность статуса пользователя
+func (s UserStatus) IsValid() bool {
+	switch s {
+	case UserStatusPendingEmail, UserStatusPendingProfile, UserStatusActive:
+		return true
+	}
+	return false
+}
+
+// ===== Organization Status =====
+
 type OrgStatus string
 
 const (
@@ -9,6 +30,8 @@ const (
 	OrgRejected OrgStatus = "rejected"
 )
 
+// ===== Member Status =====
+
 type MemberStatus string
 
 const (
@@ -16,6 +39,8 @@ const (
 	MemberActive  MemberStatus = "active"
 	MemberBlocked MemberStatus = "blocked"
 )
+
+// ===== Scope Type =====
 
 type ScopeType string
 

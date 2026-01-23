@@ -1,25 +1,34 @@
 package server
 
 import (
-	"log"
+	"log/slog"
 
 	"github.com/gin-gonic/gin"
 	"github.com/osi-oss/osi/internal/config"
 	"github.com/osi-oss/osi/internal/controllers"
 	"github.com/osi-oss/osi/internal/db"
+	"github.com/osi-oss/osi/internal/logger"
 	"github.com/osi-oss/osi/internal/middleware"
+	"github.com/osi-oss/osi/internal/models"
 	"github.com/osi-oss/osi/internal/repository"
 	"github.com/osi-oss/osi/internal/services"
+
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
 func Start(cfg *config.Config) {
+	// Инициализируем логгер
+	logger.Init(cfg.IsDev)
+	logger.Info("🚀 Server starting", slog.String("port", cfg.AppPort))
+
 	// Reading config && Connection to db
 	dbConn, err := db.Connect(cfg)
 	if err != nil {
-		log.Fatalf("DB connection error: %v", err)
+		logger.Error("DB connection error", err, slog.String("host", cfg.PgHost), slog.String("db", cfg.PgDb))
+		panic(err)
 	}
+	logger.Info("✅ Database connected", slog.String("database", cfg.PgDb))
 
 	// // Migrations
 	// if err := db.SyncDb(dbConn); err != nil {
@@ -28,7 +37,7 @@ func Start(cfg *config.Config) {
 
 	// Создание репозиториев
 	userRepo := repository.NewUserRepository(dbConn)
-	resetRepo := repository.NewPasswordResetRepository(dbConn)
+	authCodeRepo := repository.NewAuthCodeRepository(dbConn)
 	orgRepo := repository.NewOrganizationRepository(dbConn)
 	locationRepo := repository.NewLocationRepository(dbConn)
 	departmentRepo := repository.NewDepartmentRepository(dbConn)
@@ -47,13 +56,12 @@ func Start(cfg *config.Config) {
 		cfg.FromName,
 	)
 
-	// Создание пользовательского сервиса со всеми зависимостями
-	userService := services.NewUserService(
+	// Создание сервиса аутентификации
+	authService := services.NewAuthService(
 		userRepo,
-		resetRepo,
+		authCodeRepo,
 		emailService,
 		cfg.JWTSecret,
-		cfg.BaseURL,
 	)
 
 	// Создание сервиса прав
@@ -84,16 +92,18 @@ func Start(cfg *config.Config) {
 	// Создание middleware
 	permMiddleware := middleware.NewPermissionMiddleware(permissionService)
 
-	userController := controllers.NewUserController(userService)
+	// Создание контроллеров
+	authController := controllers.NewAuthController(authService)
 	orgController := controllers.NewOrganizationController(orgService)
 	locationController := controllers.NewLocationController(locationService)
 	departmentController := controllers.NewDepartmentController(departmentService)
 	positionController := controllers.NewPositionController(positionService)
 
-	log.Printf("🚀 Server starting on port %s", cfg.AppPort)
-	log.Printf("📊 Database: %s@%s:%s/%s", cfg.PgUser, cfg.PgHost, cfg.PgPort, cfg.PgDb)
+	logger.Info("✅ Services initialized", slog.String("port", cfg.AppPort))
 
 	r := gin.Default()
+
+	r.SetTrustedProxies([]string{"127.0.0.1"})
 
 	// Добавляем middleware
 	// r.Use(middleware.CORS())
@@ -109,21 +119,37 @@ func Start(cfg *config.Config) {
 
 	api := r.Group("/api")
 	{
-		// Открытые роуты
-		api.POST("/signup", userController.SignUp)
-		api.POST("/login", userController.LogIn)
-		api.POST("/forgot-password", userController.RequestPasswordReset)
+		// ===== Публичные роуты аутентификации =====
+		auth := api.Group("/auth")
+		{
+			auth.POST("/request-code", authController.RequestCode)
+			auth.POST("/verify-code", authController.VerifyCode)
+			auth.POST("/login-password", authController.LoginWithPassword)
+		}
 
-		// Сброс пароля
-		api.GET("/reset-password/validate", userController.ValidateResetToken)
-		api.POST("/reset-password", userController.ResetPassword)
+		// ===== Роуты требующие JWT (любой статус) =====
+		authRequired := api.Group("/")
+		authRequired.Use(middleware.AuthRequired(cfg.JWTSecret))
+		{
+			// Выход доступен всегда
+			authRequired.POST("/auth/logout", authController.Logout)
 
-		// Защищенные роуты (требуют аутентификации)
+			// Заполнение профиля (только для pending_profile + jwt token)
+			authRequired.POST("/auth/complete-profile",
+				middleware.RequireStatus(models.UserStatusPendingProfile),
+				authController.CompleteProfile)
+		}
+
+		// ===== Защищённые роуты (только active пользователи) =====
 		protected := api.Group("/")
 		protected.Use(middleware.AuthRequired(cfg.JWTSecret))
+		protected.Use(middleware.RequireActiveUser())
 		{
-			protected.GET("/profile", userController.GetProfile)
-			protected.POST("/logout", userController.Logout)
+			// Профиль
+			protected.GET("/profile", authController.GetProfile)
+			protected.POST("/profile/set-password", authController.SetPassword)
+			protected.POST("/profile/change-password", authController.ChangePassword)
+			protected.POST("/profile/remove-password", authController.RemovePassword)
 
 			// Организации
 			protected.POST("/organizations", orgController.CreateOrganization)
@@ -194,6 +220,9 @@ func Start(cfg *config.Config) {
 		}
 	}
 
-	log.Printf("✅ Server ready at http://localhost:%s", cfg.AppPort)
-	r.Run(":" + cfg.AppPort)
+	logger.Info("✅ Server ready", slog.String("url", "http://localhost:"+cfg.AppPort))
+	if err := r.Run(":" + cfg.AppPort); err != nil {
+		logger.Error("Server failed to start", err)
+		panic(err)
+	}
 }

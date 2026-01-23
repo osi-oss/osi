@@ -9,7 +9,10 @@ func ToUserResponse(u *models.User) UserResponse {
 		Email:         u.Email,
 		FirstName:     u.FirstName,
 		LastName:      u.LastName,
+		MiddleName:    u.MiddleName,
+		Status:        string(u.Status),
 		EmailVerified: u.IsEmailVerified,
+		HasPassword:   u.HasPassword(),
 		CreatedAt:     u.CreatedAt,
 	}
 }

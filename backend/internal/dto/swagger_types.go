@@ -7,8 +7,8 @@ package dto
 // @Description Стандартный формат ответа при ошибке
 type ErrorResponse struct {
 	// Сообщение об ошибке
-	// Example: invalid email or password
-	Error string `json:"error" example:"invalid email or password"`
+	// Example: invalid email or code
+	Error string `json:"error" example:"invalid email or code"`
 }
 
 // MessageResponse представляет ответ с сообщением
@@ -21,27 +21,6 @@ type MessageResponse struct {
 
 // ===== Auth Responses =====
 
-// SignUpResponse ответ при успешной регистрации
-// @Description Ответ при успешной регистрации пользователя
-type SignUpResponse struct {
-	// Сообщение о результате
-	// Example: User created successfully
-	Message string `json:"message" example:"User created successfully"`
-	// Данные созданного пользователя
-	User UserResponse `json:"user"`
-}
-
-// LoginResponse ответ при успешной авторизации
-// @Description Ответ при успешной авторизации с JWT токеном
-type LoginResponse struct {
-	// Сообщение о результате
-	// Example: Login successful
-	Message string `json:"message" example:"Login successful"`
-	// JWT токен для авторизации запросов
-	// Example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-	Token string `json:"token" example:"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ"`
-}
-
 // ProfileResponse ответ с профилем пользователя
 // @Description Ответ с данными профиля пользователя
 type ProfileResponse struct {
@@ -50,17 +29,6 @@ type ProfileResponse struct {
 	Message string `json:"message" example:"Profile retrieved successfully"`
 	// Данные пользователя
 	User UserResponse `json:"user"`
-}
-
-// TokenValidationResponse ответ проверки токена
-// @Description Результат проверки токена сброса пароля
-type TokenValidationResponse struct {
-	// Валиден ли токен
-	// Example: true
-	Valid bool `json:"valid" example:"true"`
-	// Сообщение о результате
-	// Example: Token is valid
-	Message string `json:"message" example:"Token is valid"`
 }
 
 // ===== Organization Responses =====
