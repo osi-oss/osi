@@ -1,26 +1,34 @@
 package server
 
 import (
-	"log"
+	"log/slog"
 
 	"github.com/gin-gonic/gin"
 	"github.com/osi-oss/osi/internal/config"
 	"github.com/osi-oss/osi/internal/controllers"
 	"github.com/osi-oss/osi/internal/db"
+	"github.com/osi-oss/osi/internal/logger"
 	"github.com/osi-oss/osi/internal/middleware"
 	"github.com/osi-oss/osi/internal/models"
 	"github.com/osi-oss/osi/internal/repository"
 	"github.com/osi-oss/osi/internal/services"
+
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
 func Start(cfg *config.Config) {
+	// Инициализируем логгер
+	logger.Init(cfg.IsDev)
+	logger.Info("🚀 Server starting", slog.String("port", cfg.AppPort))
+
 	// Reading config && Connection to db
 	dbConn, err := db.Connect(cfg)
 	if err != nil {
-		log.Fatalf("DB connection error: %v", err)
+		logger.Error("DB connection error", err, slog.String("host", cfg.PgHost), slog.String("db", cfg.PgDb))
+		panic(err)
 	}
+	logger.Info("✅ Database connected", slog.String("database", cfg.PgDb))
 
 	// // Migrations
 	// if err := db.SyncDb(dbConn); err != nil {
@@ -91,8 +99,7 @@ func Start(cfg *config.Config) {
 	departmentController := controllers.NewDepartmentController(departmentService)
 	positionController := controllers.NewPositionController(positionService)
 
-	log.Printf("🚀 Server starting on port %s", cfg.AppPort)
-	log.Printf("📊 Database: %s@%s:%s/%s", cfg.PgUser, cfg.PgHost, cfg.PgPort, cfg.PgDb)
+	logger.Info("✅ Services initialized", slog.String("port", cfg.AppPort))
 
 	r := gin.Default()
 
@@ -128,7 +135,7 @@ func Start(cfg *config.Config) {
 			// Выход доступен всегда
 			authRequired.POST("/auth/logout", authController.Logout)
 
-			// Заполнение профиля (только для pending_profile)
+			// Заполнение профиля (только для pending_profile + jwt token)
 			authRequired.POST("/auth/complete-profile",
 				middleware.RequireStatus(models.UserStatusPendingProfile),
 				authController.CompleteProfile)
@@ -214,6 +221,9 @@ func Start(cfg *config.Config) {
 		}
 	}
 
-	log.Printf("✅ Server ready at http://localhost:%s", cfg.AppPort)
-	r.Run(":" + cfg.AppPort)
+	logger.Info("✅ Server ready", slog.String("url", "http://localhost:"+cfg.AppPort))
+	if err := r.Run(":" + cfg.AppPort); err != nil {
+		logger.Error("Server failed to start", err)
+		panic(err)
+	}
 }

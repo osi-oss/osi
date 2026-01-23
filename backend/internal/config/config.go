@@ -15,6 +15,7 @@ type Config struct {
 	PgPassword string
 	PgPort     string
 	JWTSecret  string
+	IsDev      bool
 
 	// Email настройки
 	SMTPHost     string
@@ -46,6 +47,7 @@ func LoadFromEnv(paths ...string) Config {
 	cfg.PgPassword = mustEnv("POSTGRES_PASSWORD")
 	cfg.PgPort = mustEnv("POSTGRES_PORT")
 	cfg.JWTSecret = mustEnv("JWT_SECRET")
+	cfg.IsDev = getEnv("ENV", "production") == "development"
 
 	// Email настройки
 	cfg.SMTPHost = getEnv("SMTP_HOST", "smtp.gmail.com")

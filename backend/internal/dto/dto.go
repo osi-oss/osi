@@ -125,9 +125,9 @@ type UserResponse struct {
 	// Отчество пользователя
 	// Example: Сергеевич
 	MiddleName *string `json:"middle_name,omitempty" example:"Сергеевич"`
-	// Статус пользователя: pending_email, pending_profile, active
+	// Статус пользователя: pending_profile, active
 	// Example: active
-	Status string `json:"status" example:"active" enums:"pending_email,pending_profile,active"`
+	Status string `json:"status" example:"active" enums:"pending_profile,active"`
 	// Подтверждён ли email
 	// Example: true
 	EmailVerified bool `json:"email_verified" example:"true"`
