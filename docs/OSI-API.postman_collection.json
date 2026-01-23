@@ -164,35 +164,6 @@
                     "response": []
                 },
                 {
-                    "name": "3. Resend Code - Повторная отправка",
-                    "request": {
-                        "method": "POST",
-                        "header": [
-                            {
-                                "key": "Content-Type",
-                                "value": "application/json"
-                            }
-                        ],
-                        "body": {
-                            "mode": "raw",
-                            "raw": "{\n    \"email\": \"{{test_email}}\"\n}"
-                        },
-                        "url": {
-                            "raw": "{{base_url}}/api/auth/resend-code",
-                            "host": [
-                                "{{base_url}}"
-                            ],
-                            "path": [
-                                "api",
-                                "auth",
-                                "resend-code"
-                            ]
-                        },
-                        "description": "Повторная отправка кода подтверждения.\n\nПредыдущий код становится недействительным."
-                    },
-                    "response": []
-                },
-                {
                     "name": "4. Complete Profile - Заполнение профиля",
                     "event": [
                         {

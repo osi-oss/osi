@@ -1,5 +1,78 @@
 basePath: /api
 definitions:
+  github_com_osi-oss_osi_internal_dto.AuthResponse:
+    description: Результат успешной аутентификации
+    properties:
+      expires_in:
+        description: |-
+          Время жизни токена в секундах
+          Example: 86400
+        example: 86400
+        type: integer
+      next_step:
+        description: |-
+          Следующий шаг (complete_profile или пусто)
+          Example: complete_profile
+        example: complete_profile
+        type: string
+      token:
+        description: |-
+          JWT токен для авторизации запросов
+          Example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U
+        type: string
+      user:
+        allOf:
+        - $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.UserResponse'
+        description: Данные пользователя
+    type: object
+  github_com_osi-oss_osi_internal_dto.ChangePasswordRequest:
+    description: Изменение существующего пароля
+    properties:
+      new_password:
+        description: |-
+          Новый пароль (минимум 6 символов)
+          Example: NewSecurePass456
+        example: NewSecurePass456
+        minLength: 6
+        type: string
+      old_password:
+        description: |-
+          Текущий пароль
+          Example: OldSecurePass123
+        example: OldSecurePass123
+        type: string
+    required:
+    - new_password
+    - old_password
+    type: object
+  github_com_osi-oss_osi_internal_dto.CompleteProfileRequest:
+    description: Обязательные данные профиля после подтверждения email
+    properties:
+      first_name:
+        description: |-
+          Имя (минимум 2 символа)
+          Example: Иван
+        example: Иван
+        minLength: 2
+        type: string
+      last_name:
+        description: |-
+          Фамилия (минимум 2 символа)
+          Example: Петров
+        example: Петров
+        minLength: 2
+        type: string
+      middle_name:
+        description: |-
+          Отчество (опционально)
+          Example: Сергеевич
+        example: Сергеевич
+        type: string
+    required:
+    - first_name
+    - last_name
+    type: object
   github_com_osi-oss_osi_internal_dto.CreateDepartmentRequest:
     description: Данные для создания нового отдела в локации
     properties:
@@ -195,8 +268,8 @@ definitions:
       error:
         description: |-
           Сообщение об ошибке
-          Example: invalid email or password
-        example: invalid email or password
+          Example: invalid email or code
+        example: invalid email or code
         type: string
     type: object
   github_com_osi-oss_osi_internal_dto.LocationResponse:
@@ -269,42 +342,6 @@ definitions:
         items:
           $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.LocationResponse'
         type: array
-    type: object
-  github_com_osi-oss_osi_internal_dto.LoginRequest:
-    description: Учётные данные для входа в систему
-    properties:
-      email:
-        description: |-
-          Email пользователя
-          Example: user@example.com
-        example: user@example.com
-        type: string
-      password:
-        description: |-
-          Пароль пользователя
-          Example: SecurePass123
-        example: SecurePass123
-        minLength: 6
-        type: string
-    required:
-    - email
-    - password
-    type: object
-  github_com_osi-oss_osi_internal_dto.LoginResponse:
-    description: Ответ при успешной авторизации с JWT токеном
-    properties:
-      message:
-        description: |-
-          Сообщение о результате
-          Example: Login successful
-        example: Login successful
-        type: string
-      token:
-        description: |-
-          JWT токен для авторизации запросов
-          Example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-        example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ
-        type: string
     type: object
   github_com_osi-oss_osi_internal_dto.MessageResponse:
     description: Стандартный формат успешного ответа с сообщением
@@ -394,17 +431,24 @@ definitions:
           $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.OrganizationResponse'
         type: array
     type: object
-  github_com_osi-oss_osi_internal_dto.PasswordResetRequest:
-    description: Email для отправки инструкций по сбросу пароля
+  github_com_osi-oss_osi_internal_dto.PasswordLoginRequest:
+    description: Авторизация по email и паролю (если пароль установлен)
     properties:
       email:
         description: |-
-          Email пользователя для восстановления доступа
+          Email пользователя
           Example: user@example.com
         example: user@example.com
         type: string
+      password:
+        description: |-
+          Пароль пользователя
+          Example: SecurePass123
+        example: SecurePass123
+        type: string
     required:
     - email
+    - password
     type: object
   github_com_osi-oss_osi_internal_dto.PositionResponse:
     description: Полная информация о должности
@@ -481,35 +525,55 @@ definitions:
         - $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.UserResponse'
         description: Данные пользователя
     type: object
-  github_com_osi-oss_osi_internal_dto.ResetPasswordRequest:
-    description: Токен сброса и новый пароль
+  github_com_osi-oss_osi_internal_dto.RemovePasswordRequest:
+    description: Удаление пароля (вход только через код)
     properties:
-      new_password:
+      password:
         description: |-
-          Новый пароль (минимум 6 символов)
-          Example: NewSecurePass456
-        example: NewSecurePass456
-        minLength: 6
-        type: string
-      token:
-        description: |-
-          Токен из письма для сброса пароля
-          Example: a1b2c3d4e5f6g7h8i9j0
-        example: a1b2c3d4e5f6g7h8i9j0
+          Текущий пароль для подтверждения
+          Example: SecurePass123
+        example: SecurePass123
         type: string
     required:
-    - new_password
-    - token
+    - password
     type: object
-  github_com_osi-oss_osi_internal_dto.SignUpRequest:
-    description: Данные для регистрации нового пользователя в системе
+  github_com_osi-oss_osi_internal_dto.RequestCodeRequest:
+    description: Email для получения кода подтверждения
     properties:
       email:
         description: |-
-          Email пользователя (должен быть уникальным)
+          Email пользователя
           Example: user@example.com
         example: user@example.com
         type: string
+    required:
+    - email
+    type: object
+  github_com_osi-oss_osi_internal_dto.RequestCodeResponse:
+    description: Результат отправки кода подтверждения
+    properties:
+      expires_in:
+        description: |-
+          Время действия кода в секундах
+          Example: 1200
+        example: 1200
+        type: integer
+      is_new_user:
+        description: |-
+          Новый ли пользователь (для UI)
+          Example: false
+        example: false
+        type: boolean
+      message:
+        description: |-
+          Сообщение о результате
+          Example: Verification code sent to your email
+        example: Verification code sent to your email
+        type: string
+    type: object
+  github_com_osi-oss_osi_internal_dto.SetPasswordRequest:
+    description: Установка пароля для быстрого входа (опционально)
+    properties:
       password:
         description: |-
           Пароль (минимум 6 символов)
@@ -518,38 +582,7 @@ definitions:
         minLength: 6
         type: string
     required:
-    - email
     - password
-    type: object
-  github_com_osi-oss_osi_internal_dto.SignUpResponse:
-    description: Ответ при успешной регистрации пользователя
-    properties:
-      message:
-        description: |-
-          Сообщение о результате
-          Example: User created successfully
-        example: User created successfully
-        type: string
-      user:
-        allOf:
-        - $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.UserResponse'
-        description: Данные созданного пользователя
-    type: object
-  github_com_osi-oss_osi_internal_dto.TokenValidationResponse:
-    description: Результат проверки токена сброса пароля
-    properties:
-      message:
-        description: |-
-          Сообщение о результате
-          Example: Token is valid
-        example: Token is valid
-        type: string
-      valid:
-        description: |-
-          Валиден ли токен
-          Example: true
-        example: true
-        type: boolean
     type: object
   github_com_osi-oss_osi_internal_dto.UpdateDepartmentRequest:
     description: Данные для обновления отдела
@@ -706,6 +739,12 @@ definitions:
           Example: Иван
         example: Иван
         type: string
+      has_password:
+        description: |-
+          Установлен ли пароль
+          Example: false
+        example: false
+        type: boolean
       id:
         description: |-
           Уникальный идентификатор пользователя
@@ -718,6 +757,40 @@ definitions:
           Example: Петров
         example: Петров
         type: string
+      middle_name:
+        description: |-
+          Отчество пользователя
+          Example: Сергеевич
+        example: Сергеевич
+        type: string
+      status:
+        description: |-
+          Статус пользователя: pending_profile, active
+          Example: active
+        enum:
+        - pending_profile
+        - active
+        example: active
+        type: string
+    type: object
+  github_com_osi-oss_osi_internal_dto.VerifyCodeRequest:
+    description: Email и код для верификации
+    properties:
+      code:
+        description: |-
+          4-символьный код из email
+          Example: A3K7
+        example: A3K7
+        type: string
+      email:
+        description: |-
+          Email пользователя
+          Example: user@example.com
+        example: user@example.com
+        type: string
+    required:
+    - code
+    - email
     type: object
 host: localhost:8080
 info:
@@ -733,59 +806,67 @@ info:
   title: OSI API
   version: "1.0"
 paths:
-  /forgot-password:
+  /auth/complete-profile:
     post:
       consumes:
       - application/json
       description: |-
-        Отправляет письмо с инструкциями по сбросу пароля на указанный email.
-        В целях безопасности всегда возвращает успех, даже если email не найден.
-        Токен сброса действителен 1 час.
+        Заполняет обязательные данные профиля после подтверждения email.
+        Требуется для новых пользователей перед доступом к системе.
       parameters:
-      - description: Email для восстановления доступа
+      - description: Данные профиля
         in: body
         name: request
         required: true
         schema:
-          $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.PasswordResetRequest'
+          $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.CompleteProfileRequest'
       produces:
       - application/json
       responses:
         "200":
-          description: Инструкции отправлены (если email существует)
+          description: Профиль успешно заполнен
           schema:
-            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.MessageResponse'
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ProfileResponse'
         "400":
-          description: Неверный формат email
+          description: Ошибка валидации или профиль уже заполнен
           schema:
             $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
-      summary: Запрос сброса пароля
+        "401":
+          description: Требуется авторизация
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Заполнение профиля
       tags:
       - Аутентификация
-  /login:
+  /auth/login-password:
     post:
       consumes:
       - application/json
       description: |-
-        Авторизует пользователя по email и паролю.
-        Возвращает JWT токен, который нужно передавать в заголовке Authorization: Bearer <token>.
-        Токен действителен 24 часа.
+        Авторизация по email и паролю (если пароль установлен).
+        Если пароль не установлен, используйте /auth/request-code.
       parameters:
-      - description: Учётные данные для входа
+      - description: Email и пароль
         in: body
         name: request
         required: true
         schema:
-          $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.LoginRequest'
+          $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.PasswordLoginRequest'
       produces:
       - application/json
       responses:
         "200":
-          description: Успешная авторизация, возвращается JWT токен
+          description: Успешная авторизация
           schema:
-            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.LoginResponse'
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.AuthResponse'
         "400":
-          description: 'Ошибка валидации: неверный формат запроса'
+          description: Пароль не установлен
           schema:
             $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
         "401":
@@ -796,27 +877,90 @@ paths:
           description: Внутренняя ошибка сервера
           schema:
             $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
-      summary: Авторизация пользователя
+      summary: Вход по паролю
       tags:
       - Аутентификация
-  /logout:
+  /auth/logout:
     post:
       consumes:
       - application/json
-      description: |-
-        Завершает сессию пользователя.
-        Удаляет токен из cookies (auth_token).
-        После выхода JWT токен остаётся валидным до истечения срока.
+      description: Завершает сессию пользователя. Удаляет cookie с токеном.
       produces:
       - application/json
       responses:
         "200":
-          description: Успешный выход из системы
+          description: Успешный выход
           schema:
             $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.MessageResponse'
       security:
       - BearerAuth: []
       summary: Выход из системы
+      tags:
+      - Аутентификация
+  /auth/request-code:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Отправляет 4-символьный код на указанный email.
+        Если пользователь не существует, создаётся новый аккаунт.
+        Код действителен 20 минут. Максимум 5 запросов в час.
+      parameters:
+      - description: Email для получения кода
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.RequestCodeRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Код отправлен
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.RequestCodeResponse'
+        "400":
+          description: Неверный формат email или превышен лимит запросов
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "500":
+          description: Ошибка отправки email
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+      summary: Запрос кода для входа/регистрации
+      tags:
+      - Аутентификация
+  /auth/verify-code:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Проверяет код подтверждения и возвращает JWT токен.
+        Для новых пользователей требуется заполнение профиля (next_step: complete_profile).
+        Максимум 5 попыток ввода кода.
+      parameters:
+      - description: Email и код подтверждения
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.VerifyCodeRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Успешная аутентификация
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.AuthResponse'
+        "400":
+          description: Неверный или истёкший код
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+      summary: Проверка кода и получение токена
       tags:
       - Аутентификация
   /organizations:
@@ -1902,18 +2046,16 @@ paths:
     get:
       consumes:
       - application/json
-      description: |-
-        Возвращает данные профиля авторизованного пользователя.
-        Требует авторизацию через JWT токен.
+      description: Возвращает данные текущего авторизованного пользователя.
       produces:
       - application/json
       responses:
         "200":
-          description: Данные профиля пользователя
+          description: Данные профиля
           schema:
             $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ProfileResponse'
         "401":
-          description: Отсутствует или невалидный токен авторизации
+          description: Требуется авторизация
           schema:
             $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
         "404":
@@ -1926,112 +2068,119 @@ paths:
             $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
       security:
       - BearerAuth: []
-      summary: Получение профиля текущего пользователя
+      summary: Получение профиля
       tags:
-      - Пользователь
-  /reset-password:
+      - Профиль
+  /profile/change-password:
     post:
       consumes:
       - application/json
-      description: |-
-        Устанавливает новый пароль с использованием токена из письма.
-        Токен можно использовать только один раз.
-        Новый пароль должен быть не менее 6 символов.
+      description: Изменяет существующий пароль на новый.
       parameters:
-      - description: Токен сброса и новый пароль
+      - description: Старый и новый пароль
         in: body
         name: request
         required: true
         schema:
-          $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ResetPasswordRequest'
+          $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ChangePasswordRequest'
       produces:
       - application/json
       responses:
         "200":
-          description: Пароль успешно изменён
+          description: Пароль изменён
           schema:
             $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.MessageResponse'
         "400":
-          description: Невалидный или истёкший токен, или пароль слишком короткий
+          description: Неверный старый пароль или ошибка валидации
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "401":
+          description: Требуется авторизация
           schema:
             $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
         "500":
           description: Внутренняя ошибка сервера
           schema:
             $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
-      summary: Сброс пароля
+      security:
+      - BearerAuth: []
+      summary: Изменение пароля
       tags:
-      - Аутентификация
-  /reset-password/validate:
-    get:
-      consumes:
-      - application/json
-      description: |-
-        Проверяет, действителен ли токен для сброса пароля.
-        Используется для предварительной проверки перед отображением формы сброса.
-      parameters:
-      - description: Токен из письма для сброса пароля
-        example: abc123def456
-        in: query
-        name: token
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Токен валиден, можно сбрасывать пароль
-          schema:
-            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.TokenValidationResponse'
-        "400":
-          description: Токен не указан, невалиден или истёк
-          schema:
-            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
-        "500":
-          description: Внутренняя ошибка сервера
-          schema:
-            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
-      summary: Проверка токена сброса пароля
-      tags:
-      - Аутентификация
-  /signup:
+      - Профиль
+  /profile/remove-password:
     post:
       consumes:
       - application/json
-      description: |-
-        Создаёт нового пользователя в системе.
-        Email должен быть уникальным, пароль минимум 6 символов.
-        После успешной регистрации пользователь может авторизоваться через /login.
+      description: Удаляет пароль. После этого вход возможен только через код на email.
       parameters:
-      - description: Данные для регистрации
+      - description: Текущий пароль для подтверждения
         in: body
         name: request
         required: true
         schema:
-          $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.SignUpRequest'
+          $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.RemovePasswordRequest'
       produces:
       - application/json
       responses:
-        "201":
-          description: Пользователь успешно создан
+        "200":
+          description: Пароль удалён
           schema:
-            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.SignUpResponse'
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.MessageResponse'
         "400":
-          description: 'Ошибка валидации: неверный формат email или пароль короче
-            6 символов'
+          description: Неверный пароль
           schema:
             $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
-        "409":
-          description: Пользователь с таким email уже существует
+        "401":
+          description: Требуется авторизация
           schema:
             $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
         "500":
           description: Внутренняя ошибка сервера
           schema:
             $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
-      summary: Регистрация нового пользователя
+      security:
+      - BearerAuth: []
+      summary: Удаление пароля
       tags:
-      - Аутентификация
+      - Профиль
+  /profile/set-password:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Устанавливает пароль для быстрого входа (опционально).
+        Требуется статус active (профиль должен быть заполнен).
+      parameters:
+      - description: Новый пароль
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.SetPasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Пароль установлен
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.MessageResponse'
+        "400":
+          description: Ошибка валидации пароля
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "401":
+          description: Требуется авторизация
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Установка пароля
+      tags:
+      - Профиль
 securityDefinitions:
   BearerAuth:
     description: Type "Bearer" followed by a space and JWT token.

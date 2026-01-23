@@ -24,9 +24,14 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/forgot-password": {
+        "/auth/complete-profile": {
             "post": {
-                "description": "Отправляет письмо с инструкциями по сбросу пароля на указанный email.\nВ целях безопасности всегда возвращает успех, даже если email не найден.\nТокен сброса действителен 1 час.",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Заполняет обязательные данные профиля после подтверждения email.\nТребуется для новых пользователей перед доступом к системе.",
                 "consumes": [
                     "application/json"
                 ],
@@ -36,27 +41,39 @@ const docTemplate = `{
                 "tags": [
                     "Аутентификация"
                 ],
-                "summary": "Запрос сброса пароля",
+                "summary": "Заполнение профиля",
                 "parameters": [
                     {
-                        "description": "Email для восстановления доступа",
+                        "description": "Данные профиля",
                         "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.PasswordResetRequest"
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.CompleteProfileRequest"
                         }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "Инструкции отправлены (если email существует)",
+                        "description": "Профиль успешно заполнен",
                         "schema": {
-                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.MessageResponse"
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ProfileResponse"
                         }
                     },
                     "400": {
-                        "description": "Неверный формат email",
+                        "description": "Ошибка валидации или профиль уже заполнен",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Требуется авторизация",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
                         "schema": {
                             "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
                         }
@@ -64,9 +81,9 @@ const docTemplate = `{
                 }
             }
         },
-        "/login": {
+        "/auth/login-password": {
             "post": {
-                "description": "Авторизует пользователя по email и паролю.\nВозвращает JWT токен, который нужно передавать в заголовке Authorization: Bearer \u003ctoken\u003e.\nТокен действителен 24 часа.",
+                "description": "Авторизация по email и паролю (если пароль установлен).\nЕсли пароль не установлен, используйте /auth/request-code.",
                 "consumes": [
                     "application/json"
                 ],
@@ -76,27 +93,27 @@ const docTemplate = `{
                 "tags": [
                     "Аутентификация"
                 ],
-                "summary": "Авторизация пользователя",
+                "summary": "Вход по паролю",
                 "parameters": [
                     {
-                        "description": "Учётные данные для входа",
+                        "description": "Email и пароль",
                         "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.LoginRequest"
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.PasswordLoginRequest"
                         }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "Успешная авторизация, возвращается JWT токен",
+                        "description": "Успешная авторизация",
                         "schema": {
-                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.LoginResponse"
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.AuthResponse"
                         }
                     },
                     "400": {
-                        "description": "Ошибка валидации: неверный формат запроса",
+                        "description": "Пароль не установлен",
                         "schema": {
                             "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
                         }
@@ -116,14 +133,14 @@ const docTemplate = `{
                 }
             }
         },
-        "/logout": {
+        "/auth/logout": {
             "post": {
                 "security": [
                     {
                         "BearerAuth": []
                     }
                 ],
-                "description": "Завершает сессию пользователя.\nУдаляет токен из cookies (auth_token).\nПосле выхода JWT токен остаётся валидным до истечения срока.",
+                "description": "Завершает сессию пользователя. Удаляет cookie с токеном.",
                 "consumes": [
                     "application/json"
                 ],
@@ -136,9 +153,101 @@ const docTemplate = `{
                 "summary": "Выход из системы",
                 "responses": {
                     "200": {
-                        "description": "Успешный выход из системы",
+                        "description": "Успешный выход",
                         "schema": {
                             "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.MessageResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/request-code": {
+            "post": {
+                "description": "Отправляет 4-символьный код на указанный email.\nЕсли пользователь не существует, создаётся новый аккаунт.\nКод действителен 20 минут. Максимум 5 запросов в час.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Аутентификация"
+                ],
+                "summary": "Запрос кода для входа/регистрации",
+                "parameters": [
+                    {
+                        "description": "Email для получения кода",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.RequestCodeRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Код отправлен",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.RequestCodeResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Неверный формат email или превышен лимит запросов",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Ошибка отправки email",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/verify-code": {
+            "post": {
+                "description": "Проверяет код подтверждения и возвращает JWT токен.\nДля новых пользователей требуется заполнение профиля (next_step: complete_profile).\nМаксимум 5 попыток ввода кода.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Аутентификация"
+                ],
+                "summary": "Проверка кода и получение токена",
+                "parameters": [
+                    {
+                        "description": "Email и код подтверждения",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.VerifyCodeRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Успешная аутентификация",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.AuthResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Неверный или истёкший код",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
                         }
                     }
                 }
@@ -1682,7 +1791,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Возвращает данные профиля авторизованного пользователя.\nТребует авторизацию через JWT токен.",
+                "description": "Возвращает данные текущего авторизованного пользователя.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1690,18 +1799,18 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Пользователь"
+                    "Профиль"
                 ],
-                "summary": "Получение профиля текущего пользователя",
+                "summary": "Получение профиля",
                 "responses": {
                     "200": {
-                        "description": "Данные профиля пользователя",
+                        "description": "Данные профиля",
                         "schema": {
                             "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ProfileResponse"
                         }
                     },
                     "401": {
-                        "description": "Отсутствует или невалидный токен авторизации",
+                        "description": "Требуется авторизация",
                         "schema": {
                             "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
                         }
@@ -1721,9 +1830,14 @@ const docTemplate = `{
                 }
             }
         },
-        "/reset-password": {
+        "/profile/change-password": {
             "post": {
-                "description": "Устанавливает новый пароль с использованием токена из письма.\nТокен можно использовать только один раз.\nНовый пароль должен быть не менее 6 символов.",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Изменяет существующий пароль на новый.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1731,29 +1845,35 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Аутентификация"
+                    "Профиль"
                 ],
-                "summary": "Сброс пароля",
+                "summary": "Изменение пароля",
                 "parameters": [
                     {
-                        "description": "Токен сброса и новый пароль",
+                        "description": "Старый и новый пароль",
                         "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ResetPasswordRequest"
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ChangePasswordRequest"
                         }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "Пароль успешно изменён",
+                        "description": "Пароль изменён",
                         "schema": {
                             "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.MessageResponse"
                         }
                     },
                     "400": {
-                        "description": "Невалидный или истёкший токен, или пароль слишком короткий",
+                        "description": "Неверный старый пароль или ошибка валидации",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Требуется авторизация",
                         "schema": {
                             "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
                         }
@@ -1767,54 +1887,14 @@ const docTemplate = `{
                 }
             }
         },
-        "/reset-password/validate": {
-            "get": {
-                "description": "Проверяет, действителен ли токен для сброса пароля.\nИспользуется для предварительной проверки перед отображением формы сброса.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Аутентификация"
-                ],
-                "summary": "Проверка токена сброса пароля",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "example": "abc123def456",
-                        "description": "Токен из письма для сброса пароля",
-                        "name": "token",
-                        "in": "query",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Токен валиден, можно сбрасывать пароль",
-                        "schema": {
-                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.TokenValidationResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Токен не указан, невалиден или истёк",
-                        "schema": {
-                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Внутренняя ошибка сервера",
-                        "schema": {
-                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/signup": {
+        "/profile/remove-password": {
             "post": {
-                "description": "Создаёт нового пользователя в системе.\nEmail должен быть уникальным, пароль минимум 6 символов.\nПосле успешной регистрации пользователь может авторизоваться через /login.",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Удаляет пароль. После этого вход возможен только через код на email.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1822,35 +1902,92 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Аутентификация"
+                    "Профиль"
                 ],
-                "summary": "Регистрация нового пользователя",
+                "summary": "Удаление пароля",
                 "parameters": [
                     {
-                        "description": "Данные для регистрации",
+                        "description": "Текущий пароль для подтверждения",
                         "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.SignUpRequest"
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.RemovePasswordRequest"
                         }
                     }
                 ],
                 "responses": {
-                    "201": {
-                        "description": "Пользователь успешно создан",
+                    "200": {
+                        "description": "Пароль удалён",
                         "schema": {
-                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.SignUpResponse"
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.MessageResponse"
                         }
                     },
                     "400": {
-                        "description": "Ошибка валидации: неверный формат email или пароль короче 6 символов",
+                        "description": "Неверный пароль",
                         "schema": {
                             "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
                         }
                     },
-                    "409": {
-                        "description": "Пользователь с таким email уже существует",
+                    "401": {
+                        "description": "Требуется авторизация",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/profile/set-password": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Устанавливает пароль для быстрого входа (опционально).\nТребуется статус active (профиль должен быть заполнен).",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Профиль"
+                ],
+                "summary": "Установка пароля",
+                "parameters": [
+                    {
+                        "description": "Новый пароль",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.SetPasswordRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Пароль установлен",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.MessageResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Ошибка валидации пароля",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Требуется авторизация",
                         "schema": {
                             "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
                         }
@@ -1866,6 +2003,83 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "github_com_osi-oss_osi_internal_dto.AuthResponse": {
+            "description": "Результат успешной аутентификации",
+            "type": "object",
+            "properties": {
+                "expires_in": {
+                    "description": "Время жизни токена в секундах\nExample: 86400",
+                    "type": "integer",
+                    "example": 86400
+                },
+                "next_step": {
+                    "description": "Следующий шаг (complete_profile или пусто)\nExample: complete_profile",
+                    "type": "string",
+                    "example": "complete_profile"
+                },
+                "token": {
+                    "description": "JWT токен для авторизации запросов\nExample: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+                    "type": "string",
+                    "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U"
+                },
+                "user": {
+                    "description": "Данные пользователя",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.UserResponse"
+                        }
+                    ]
+                }
+            }
+        },
+        "github_com_osi-oss_osi_internal_dto.ChangePasswordRequest": {
+            "description": "Изменение существующего пароля",
+            "type": "object",
+            "required": [
+                "new_password",
+                "old_password"
+            ],
+            "properties": {
+                "new_password": {
+                    "description": "Новый пароль (минимум 6 символов)\nExample: NewSecurePass456",
+                    "type": "string",
+                    "minLength": 6,
+                    "example": "NewSecurePass456"
+                },
+                "old_password": {
+                    "description": "Текущий пароль\nExample: OldSecurePass123",
+                    "type": "string",
+                    "example": "OldSecurePass123"
+                }
+            }
+        },
+        "github_com_osi-oss_osi_internal_dto.CompleteProfileRequest": {
+            "description": "Обязательные данные профиля после подтверждения email",
+            "type": "object",
+            "required": [
+                "first_name",
+                "last_name"
+            ],
+            "properties": {
+                "first_name": {
+                    "description": "Имя (минимум 2 символа)\nExample: Иван",
+                    "type": "string",
+                    "minLength": 2,
+                    "example": "Иван"
+                },
+                "last_name": {
+                    "description": "Фамилия (минимум 2 символа)\nExample: Петров",
+                    "type": "string",
+                    "minLength": 2,
+                    "example": "Петров"
+                },
+                "middle_name": {
+                    "description": "Отчество (опционально)\nExample: Сергеевич",
+                    "type": "string",
+                    "example": "Сергеевич"
+                }
+            }
+        },
         "github_com_osi-oss_osi_internal_dto.CreateDepartmentRequest": {
             "description": "Данные для создания нового отдела в локации",
             "type": "object",
@@ -2056,9 +2270,9 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "error": {
-                    "description": "Сообщение об ошибке\nExample: invalid email or password",
+                    "description": "Сообщение об ошибке\nExample: invalid email or code",
                     "type": "string",
-                    "example": "invalid email or password"
+                    "example": "invalid email or code"
                 }
             }
         },
@@ -2128,43 +2342,6 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.LocationResponse"
                     }
-                }
-            }
-        },
-        "github_com_osi-oss_osi_internal_dto.LoginRequest": {
-            "description": "Учётные данные для входа в систему",
-            "type": "object",
-            "required": [
-                "email",
-                "password"
-            ],
-            "properties": {
-                "email": {
-                    "description": "Email пользователя\nExample: user@example.com",
-                    "type": "string",
-                    "example": "user@example.com"
-                },
-                "password": {
-                    "description": "Пароль пользователя\nExample: SecurePass123",
-                    "type": "string",
-                    "minLength": 6,
-                    "example": "SecurePass123"
-                }
-            }
-        },
-        "github_com_osi-oss_osi_internal_dto.LoginResponse": {
-            "description": "Ответ при успешной авторизации с JWT токеном",
-            "type": "object",
-            "properties": {
-                "message": {
-                    "description": "Сообщение о результате\nExample: Login successful",
-                    "type": "string",
-                    "example": "Login successful"
-                },
-                "token": {
-                    "description": "JWT токен для авторизации запросов\nExample: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-                    "type": "string",
-                    "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ"
                 }
             }
         },
@@ -2254,17 +2431,23 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_osi-oss_osi_internal_dto.PasswordResetRequest": {
-            "description": "Email для отправки инструкций по сбросу пароля",
+        "github_com_osi-oss_osi_internal_dto.PasswordLoginRequest": {
+            "description": "Авторизация по email и паролю (если пароль установлен)",
             "type": "object",
             "required": [
-                "email"
+                "email",
+                "password"
             ],
             "properties": {
                 "email": {
-                    "description": "Email пользователя для восстановления доступа\nExample: user@example.com",
+                    "description": "Email пользователя\nExample: user@example.com",
                     "type": "string",
                     "example": "user@example.com"
+                },
+                "password": {
+                    "description": "Пароль пользователя\nExample: SecurePass123",
+                    "type": "string",
+                    "example": "SecurePass123"
                 }
             }
         },
@@ -2346,80 +2529,67 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_osi-oss_osi_internal_dto.ResetPasswordRequest": {
-            "description": "Токен сброса и новый пароль",
+        "github_com_osi-oss_osi_internal_dto.RemovePasswordRequest": {
+            "description": "Удаление пароля (вход только через код)",
             "type": "object",
             "required": [
-                "new_password",
-                "token"
-            ],
-            "properties": {
-                "new_password": {
-                    "description": "Новый пароль (минимум 6 символов)\nExample: NewSecurePass456",
-                    "type": "string",
-                    "minLength": 6,
-                    "example": "NewSecurePass456"
-                },
-                "token": {
-                    "description": "Токен из письма для сброса пароля\nExample: a1b2c3d4e5f6g7h8i9j0",
-                    "type": "string",
-                    "example": "a1b2c3d4e5f6g7h8i9j0"
-                }
-            }
-        },
-        "github_com_osi-oss_osi_internal_dto.SignUpRequest": {
-            "description": "Данные для регистрации нового пользователя в системе",
-            "type": "object",
-            "required": [
-                "email",
                 "password"
             ],
             "properties": {
+                "password": {
+                    "description": "Текущий пароль для подтверждения\nExample: SecurePass123",
+                    "type": "string",
+                    "example": "SecurePass123"
+                }
+            }
+        },
+        "github_com_osi-oss_osi_internal_dto.RequestCodeRequest": {
+            "description": "Email для получения кода подтверждения",
+            "type": "object",
+            "required": [
+                "email"
+            ],
+            "properties": {
                 "email": {
-                    "description": "Email пользователя (должен быть уникальным)\nExample: user@example.com",
+                    "description": "Email пользователя\nExample: user@example.com",
                     "type": "string",
                     "example": "user@example.com"
+                }
+            }
+        },
+        "github_com_osi-oss_osi_internal_dto.RequestCodeResponse": {
+            "description": "Результат отправки кода подтверждения",
+            "type": "object",
+            "properties": {
+                "expires_in": {
+                    "description": "Время действия кода в секундах\nExample: 1200",
+                    "type": "integer",
+                    "example": 1200
                 },
+                "is_new_user": {
+                    "description": "Новый ли пользователь (для UI)\nExample: false",
+                    "type": "boolean",
+                    "example": false
+                },
+                "message": {
+                    "description": "Сообщение о результате\nExample: Verification code sent to your email",
+                    "type": "string",
+                    "example": "Verification code sent to your email"
+                }
+            }
+        },
+        "github_com_osi-oss_osi_internal_dto.SetPasswordRequest": {
+            "description": "Установка пароля для быстрого входа (опционально)",
+            "type": "object",
+            "required": [
+                "password"
+            ],
+            "properties": {
                 "password": {
                     "description": "Пароль (минимум 6 символов)\nExample: SecurePass123",
                     "type": "string",
                     "minLength": 6,
                     "example": "SecurePass123"
-                }
-            }
-        },
-        "github_com_osi-oss_osi_internal_dto.SignUpResponse": {
-            "description": "Ответ при успешной регистрации пользователя",
-            "type": "object",
-            "properties": {
-                "message": {
-                    "description": "Сообщение о результате\nExample: User created successfully",
-                    "type": "string",
-                    "example": "User created successfully"
-                },
-                "user": {
-                    "description": "Данные созданного пользователя",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.UserResponse"
-                        }
-                    ]
-                }
-            }
-        },
-        "github_com_osi-oss_osi_internal_dto.TokenValidationResponse": {
-            "description": "Результат проверки токена сброса пароля",
-            "type": "object",
-            "properties": {
-                "message": {
-                    "description": "Сообщение о результате\nExample: Token is valid",
-                    "type": "string",
-                    "example": "Token is valid"
-                },
-                "valid": {
-                    "description": "Валиден ли токен\nExample: true",
-                    "type": "boolean",
-                    "example": true
                 }
             }
         },
@@ -2566,6 +2736,11 @@ const docTemplate = `{
                     "type": "string",
                     "example": "Иван"
                 },
+                "has_password": {
+                    "description": "Установлен ли пароль\nExample: false",
+                    "type": "boolean",
+                    "example": false
+                },
                 "id": {
                     "description": "Уникальный идентификатор пользователя\nExample: 1",
                     "type": "integer",
@@ -2575,6 +2750,40 @@ const docTemplate = `{
                     "description": "Фамилия пользователя\nExample: Петров",
                     "type": "string",
                     "example": "Петров"
+                },
+                "middle_name": {
+                    "description": "Отчество пользователя\nExample: Сергеевич",
+                    "type": "string",
+                    "example": "Сергеевич"
+                },
+                "status": {
+                    "description": "Статус пользователя: pending_profile, active\nExample: active",
+                    "type": "string",
+                    "enum": [
+                        "pending_profile",
+                        "active"
+                    ],
+                    "example": "active"
+                }
+            }
+        },
+        "github_com_osi-oss_osi_internal_dto.VerifyCodeRequest": {
+            "description": "Email и код для верификации",
+            "type": "object",
+            "required": [
+                "code",
+                "email"
+            ],
+            "properties": {
+                "code": {
+                    "description": "4-символьный код из email\nExample: A3K7",
+                    "type": "string",
+                    "example": "A3K7"
+                },
+                "email": {
+                    "description": "Email пользователя\nExample: user@example.com",
+                    "type": "string",
+                    "example": "user@example.com"
                 }
             }
         }
