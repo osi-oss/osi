@@ -124,7 +124,6 @@ func Start(cfg *config.Config) {
 		{
 			auth.POST("/request-code", authController.RequestCode)
 			auth.POST("/verify-code", authController.VerifyCode)
-			auth.POST("/resend-code", authController.ResendCode)
 			auth.POST("/login-password", authController.LoginWithPassword)
 		}
 

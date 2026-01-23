@@ -86,38 +86,6 @@ func (ctrl *AuthController) VerifyCode(c *gin.Context) {
 	})
 }
 
-// ResendCode godoc
-// @Summary      Повторная отправка кода
-// @Description  Повторно отправляет код подтверждения на email.
-// @Description  Предыдущий код становится недействительным.
-// @Tags         Аутентификация
-// @Accept       json
-// @Produce      json
-// @Param        request body dto.RequestCodeRequest true "Email для получения кода"
-// @Success      200 {object} dto.RequestCodeResponse "Код отправлен повторно"
-// @Failure      400 {object} dto.ErrorResponse "Превышен лимит запросов"
-// @Failure      500 {object} dto.ErrorResponse "Ошибка отправки email"
-// @Router       /auth/resend-code [post]
-func (ctrl *AuthController) ResendCode(c *gin.Context) {
-	var req dto.RequestCodeRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	result, err := ctrl.authService.ResendCode(req.Email)
-	if err != nil {
-		helpers.RespondError(c, err)
-		return
-	}
-
-	helpers.RespondOK(c, dto.RequestCodeResponse{
-		Message:   "Verification code resent to your email",
-		IsNewUser: result.IsNewUser,
-		ExpiresIn: result.ExpiresIn,
-	})
-}
-
 // CompleteProfile godoc
 // @Summary      Заполнение профиля
 // @Description  Заполняет обязательные данные профиля после подтверждения email.
