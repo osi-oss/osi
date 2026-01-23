@@ -30,4 +30,4 @@ DROP TYPE IF EXISTS location_source_type;
 
 DROP TYPE IF EXISTS member_status;
 
-DROP TYPE IF EXISTS org_status
+DROP TYPE IF EXISTS org_status;
