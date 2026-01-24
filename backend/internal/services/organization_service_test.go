@@ -24,7 +24,6 @@ func setupOrgTestDB(t *testing.T) *gorm.DB {
 		&models.User{},
 		&models.Organization{},
 		&models.OrganizationFounder{},
-		&models.OrganizationMember{},
 	)
 	require.NoError(t, err, "failed to run migrations")
 

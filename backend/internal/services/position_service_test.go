@@ -23,7 +23,6 @@ func setupPositionTestDB(t *testing.T) *gorm.DB {
 		&models.User{},
 		&models.Organization{},
 		&models.OrganizationFounder{},
-		&models.OrganizationMember{},
 		&models.Location{},
 		&models.Department{},
 		&models.Position{},

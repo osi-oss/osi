@@ -23,7 +23,6 @@ func setupLocationTestDB(t *testing.T) *gorm.DB {
 		&models.User{},
 		&models.Organization{},
 		&models.OrganizationFounder{},
-		&models.OrganizationMember{},
 		&models.Location{},
 		&models.Department{},
 	)
@@ -492,4 +491,14 @@ func TestDeleteLocation(t *testing.T) {
 // boolPtr возвращает указатель на bool
 func boolPtr(b bool) *bool {
 	return &b
+}
+
+// stringPtr возвращает указатель на string
+func stringPtr(s string) *string {
+	return &s
+}
+
+// float64Ptr возвращает указатель на float64
+func float64Ptr(f float64) *float64 {
+	return &f
 }

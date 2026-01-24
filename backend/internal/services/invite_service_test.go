@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/osi-oss/osi/internal/models"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
 
@@ -117,17 +116,12 @@ func (m *MockOrganizationRepository) GetFounderByUserAndOrgID(userID, orgID int6
 	return args.Get(0).(*models.OrganizationFounder), args.Error(1)
 }
 
-func (m *MockOrganizationRepository) GetMemberByUserAndOrgID(userID, orgID int64) (*models.OrganizationMember, error) {
+func (m *MockOrganizationRepository) GetEmployeeByUserAndOrgID(userID, orgID int64) (*models.Employee, error) {
 	args := m.Called(userID, orgID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*models.OrganizationMember), args.Error(1)
-}
-
-func (m *MockOrganizationRepository) CreateMember(member *models.OrganizationMember) error {
-	args := m.Called(member)
-	return args.Error(0)
+	return args.Get(0).(*models.Employee), args.Error(1)
 }
 
 // MockPositionRepository mock для тестирования
@@ -233,5 +227,4 @@ func TestDeclineInvite_Success(t *testing.T) {
 // TestGetMyInvites_Success тест получения приглашений
 func TestGetMyInvites_Success(t *testing.T) {
 	t.Skip("Unit tests require interface-based repositories; use integration tests instead")
-	assert.Equal(t, models.InvitePending, result[0].Status)
 }
