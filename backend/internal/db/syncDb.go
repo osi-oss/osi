@@ -10,7 +10,6 @@ func SyncDb(db *gorm.DB) error {
 		&models.User{},
 		&models.Organization{},
 		&models.OrganizationFounder{},
-		&models.OrganizationMember{},
 		&models.Location{},
 		&models.Department{},
 		&models.Position{},

@@ -14,4 +14,4 @@ CREATE TABLE organizations (
 );
 
 -- +goose Down
-DROP TABLE organizations;
+DROP TABLE IF EXISTS organizations;

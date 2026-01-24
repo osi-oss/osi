@@ -66,9 +66,9 @@ func (s *OrganizationService) GetOrganization(orgID int64, userID int64) (*model
 	}
 
 	if !hasAccess {
-		// Check members
-		for _, member := range org.Members {
-			if member.UserID == userID && member.Status == models.MemberActive {
+		// Check employees (members)
+		for _, employee := range org.Employees {
+			if employee.UserID == userID && employee.Status == models.MemberActive {
 				hasAccess = true
 				break
 			}
@@ -93,8 +93,8 @@ func (s *OrganizationService) UserHasAccessToOrganization(userID int64, orgID in
 		return true, nil
 	}
 
-	member, err := s.orgRepo.GetMemberByUserAndOrgID(userID, orgID)
-	if err == nil && member != nil && member.ID > 0 && member.Status == models.MemberActive {
+	employee, err := s.orgRepo.GetEmployeeByUserAndOrgID(userID, orgID)
+	if err == nil && employee != nil && employee.ID > 0 && employee.Status == models.MemberActive {
 		return true, nil
 	}
 
@@ -142,28 +142,4 @@ func (s *OrganizationService) DeleteOrganization(orgID int64, userID int64) erro
 	}
 
 	return s.orgRepo.Delete(org.ID)
-}
-
-func (s *OrganizationService) GetMembers(orgID int64, userID int64) ([]models.OrganizationMember, error) {
-	_, err := s.GetOrganization(orgID, userID)
-	if err != nil {
-		return nil, err
-	}
-	return s.orgRepo.GetMembersByOrganizationID(orgID)
-}
-
-func (s *OrganizationService) UpdateMemberStatus(orgID int64, memberID int64, userID int64, status models.MemberStatus) error {
-	_, err := s.GetOrganization(orgID, userID)
-	if err != nil {
-		return err
-	}
-	return s.orgRepo.UpdateMemberStatus(memberID, status)
-}
-
-func (s *OrganizationService) RemoveMember(orgID int64, memberID int64, userID int64) error {
-	_, err := s.GetOrganization(orgID, userID)
-	if err != nil {
-		return err
-	}
-	return s.orgRepo.DeleteMember(memberID)
 }

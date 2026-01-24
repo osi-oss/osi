@@ -85,17 +85,14 @@ func (m *PermissionMiddleware) RequireOrgAccess(c *gin.Context) {
 	c.Next()
 }
 
-// RequirePermission returns a middleware that checks org-level permission (no scope)
-func (m *PermissionMiddleware) RequirePermission(permissionCode string) gin.HandlerFunc {
-	return m.RequireScopedPermission(permissionCode, models.ScopeOrganization)
-}
-
-// RequireScopedPermission returns a middleware that checks scoped permission
-// scopeType determines which URL parameter to use for scope_id:
-// - ScopeOrganization: no scope_id needed
-// - ScopeLocation: uses :locId from URL
-// - ScopeDepartment: uses :deptId from URL
-func (m *PermissionMiddleware) RequireScopedPermission(permissionCode string, scopeType models.ScopeType) gin.HandlerFunc {
+// RequireScopedPermissionHierarchy checks permission with full scope hierarchy support
+// This middleware validates that user has the required permission considering
+// the full context hierarchy (organization → location → department)
+func (m *PermissionMiddleware) RequireScopedPermissionHierarchy(
+	permissionCode string,
+	requestedScope models.ScopeType,
+	extractContext func(*gin.Context) *models.PermissionContext,
+) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID, exists := c.Get("userID")
 		if !exists {
@@ -111,7 +108,6 @@ func (m *PermissionMiddleware) RequireScopedPermission(permissionCode string, sc
 			return
 		}
 
-		// Store orgID in context for later use
 		c.Set("orgID", orgID)
 
 		// Check if user has access to organization first
@@ -128,11 +124,17 @@ func (m *PermissionMiddleware) RequireScopedPermission(permissionCode string, sc
 			return
 		}
 
-		// Parse scope ID from URL
-		scopeID := parseScopeID(c, scopeType)
+		// Extract full context hierarchy
+		context := extractContext(c)
 
-		// Check scoped permission
-		hasPermission, err := m.permissionSvc.UserHasScopedPermission(userID.(int64), orgID, permissionCode, scopeType, scopeID)
+		// Check permission with hierarchy
+		hasPermission, err := m.permissionSvc.UserHasScopedPermissionWithHierarchy(
+			userID.(int64),
+			orgID,
+			permissionCode,
+			requestedScope,
+			context,
+		)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to check permission"})
 			c.Abort()
@@ -145,6 +147,33 @@ func (m *PermissionMiddleware) RequireScopedPermission(permissionCode string, sc
 			return
 		}
 
+		// Store context in request for controller use
+		c.Set("permissionContext", context)
 		c.Next()
+	}
+}
+
+// Helper functions to extract context from URL parameters
+
+// extractOrganizationContext extracts organization-level context
+func extractOrganizationContext(c *gin.Context) *models.PermissionContext {
+	return &models.PermissionContext{}
+}
+
+// extractLocationContext extracts location-level context
+func extractLocationContext(c *gin.Context) *models.PermissionContext {
+	locID, _ := strconv.ParseInt(c.Param("locId"), 10, 64)
+	return &models.PermissionContext{
+		LocationID: &locID,
+	}
+}
+
+// extractDepartmentContext extracts department-level context (includes location)
+func extractDepartmentContext(c *gin.Context) *models.PermissionContext {
+	locID, _ := strconv.ParseInt(c.Param("locId"), 10, 64)
+	deptID, _ := strconv.ParseInt(c.Param("deptId"), 10, 64)
+	return &models.PermissionContext{
+		LocationID:   &locID,
+		DepartmentID: &deptID,
 	}
 }

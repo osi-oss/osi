@@ -95,14 +95,6 @@ func (s *InviteService) CreateInvite(
 		return nil, apperrors.Wrap(err, 500, "failed to get inviter")
 	}
 
-	// === КРИТИЧЕСКОЕ: Проверяем права приглашать ===
-	// Нужно проверить:
-	// 1. Является ли пользователь основателем организации (может приглашать в любую позицию)
-	// 2. Или у него есть scoped право "invites.create" на этот отдел/локацию
-	if err := s.validateInviteAccess(inviterID, orgID, position); err != nil {
-		return nil, err
-	}
-
 	// Получаем или создаём пользователя с этим email
 	var invitedUserID *int64
 	invitedUser, err := s.userRepo.GetByEmail(invitedEmail)
@@ -117,8 +109,8 @@ func (s *InviteService) CreateInvite(
 		invitedUserID = &invitedUser.ID
 
 		// Проверяем: не является ли пользователь уже активным членом организации
-		existingMember, _ := s.orgRepo.GetMemberByUserAndOrgID(invitedUser.ID, orgID)
-		if existingMember != nil && existingMember.ID > 0 && existingMember.Status == models.MemberActive {
+		existingEmployee, _ := s.orgRepo.GetEmployeeByUserAndOrgID(invitedUser.ID, orgID)
+		if existingEmployee != nil && existingEmployee.ID > 0 && existingEmployee.Status == models.MemberActive {
 			return nil, apperrors.BadRequest("user is already an active member of this organization")
 		}
 
@@ -203,8 +195,8 @@ func (s *InviteService) AcceptInvite(inviteID int64, currentUserID int64) error 
 	}
 
 	// Проверяем, что пользователь не является уже членом
-	existingMember, _ := s.orgRepo.GetMemberByUserAndOrgID(currentUserID, invite.OrganizationID)
-	if existingMember != nil && existingMember.ID > 0 && existingMember.Status == models.MemberActive {
+	existingEmployee, _ := s.orgRepo.GetEmployeeByUserAndOrgID(currentUserID, invite.OrganizationID)
+	if existingEmployee != nil && existingEmployee.ID > 0 && existingEmployee.Status == models.MemberActive {
 		return apperrors.BadRequest("user is already a member of this organization")
 	}
 
@@ -213,31 +205,21 @@ func (s *InviteService) AcceptInvite(inviteID int64, currentUserID int64) error 
 		return apperrors.Wrap(err, 500, "failed to update invite")
 	}
 
-	// Создаём OrganizationMember с активным статусом
+	// Создаём Employee с активным статусом и привязкой к позиции
 	now := time.Now()
-	member := &models.OrganizationMember{
+	employee := &models.Employee{
 		OrganizationID: invite.OrganizationID,
 		UserID:         currentUserID,
+		PositionID:     invite.PositionID,
 		Status:         models.MemberActive,
 		JoinedAt:       &now,
-	}
-
-	if err := s.orgRepo.CreateMember(member); err != nil {
-		// Если не удалось создать члена, откатываем статус приглашения
-		_ = s.inviteRepo.UpdateStatus(inviteID, models.InvitePending)
-		return apperrors.Wrap(err, 500, "failed to create organization member")
-	}
-
-	// Создаём Employee для этой позиции
-	employee := &models.Employee{
-		MemberID:   member.ID,
-		PositionID: invite.PositionID,
-		StartDate:  &now,
+		StartDate:      &now,
 	}
 
 	if err := s.employeeRepo.Create(employee); err != nil {
-		s.logger.Error("failed to create employee", slog.Any("error", err))
-		// Не возвращаем ошибку - важное всё равно создано
+		// Если не удалось создать employee, откатываем статус приглашения
+		_ = s.inviteRepo.UpdateStatus(inviteID, models.InvitePending)
+		return apperrors.Wrap(err, 500, "failed to create organization member")
 	}
 
 	return nil
@@ -313,63 +295,7 @@ func (s *InviteService) GetOrganizationInvites(orgID int64, currentUserID int64)
 	return s.inviteRepo.GetByOrganization(orgID)
 }
 
-// validateInviteAccess проверяет права пользователя на создание приглашений в организацию
-// Учитывает:
-// - Является ли основателем (может приглашать в любую позицию)
-// - Есть ли scoped право "invites.create" на конкретный отдел/локацию
-func (s *InviteService) validateInviteAccess(userID int64, orgID int64, position *models.Position) error {
-	// Сначала проверяем: является ли пользователь основателем организации
-	founder, err := s.orgRepo.GetFounderByUserAndOrgID(userID, orgID)
-	if err == nil && founder != nil && founder.ID > 0 {
-		// Основатель имеет все права
-		return nil
-	}
-
-	// Пользователь не основатель - проверяем scoped права
-	// Определяем scope для проверки прав:
-	// - Если у позиции есть отдел - проверяем право на отдел
-	// - Иначе проверяем право на организацию
-
-	var scopeType models.ScopeType
-	var scopeID *int64
-
-	if position.DepartmentID != nil {
-		scopeType = models.ScopeDepartment
-		scopeID = position.DepartmentID
-	} else {
-		scopeType = models.ScopeOrganization
-		scopeID = nil
-	}
-
-	// Проверяем право "invites.create" на нужный scope
-	hasPermission, err := s.permissionSvc.UserHasScopedPermission(userID, orgID, "invites.create", scopeType, scopeID)
-	if err != nil {
-		return apperrors.Wrap(err, 500, "failed to check permission")
-	}
-
-	if !hasPermission {
-		return apperrors.ErrForbidden
-	}
-
-	return nil
-}
-
-// validateOrgAccess проверяет базовый доступ к организации
-func (s *InviteService) validateOrgAccess(userID int64, orgID int64) error {
-	hasAccess, err := s.permissionSvc.UserHasAccessToOrganization(userID, orgID)
-	if err != nil {
-		return apperrors.Wrap(err, 500, "failed to check access")
-	}
-
-	if !hasAccess {
-		return apperrors.ErrForbidden
-	}
-
-	return nil
-}
-
 // Helper функции
-
 func ptrTime(t time.Time) *time.Time {
 	return &t
 }

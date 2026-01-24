@@ -417,58 +417,7 @@ type PositionResponse struct {
 }
 
 // ===== Member DTOs =====
-
-// InviteMemberRequest запрос на приглашение участника
-// @Description Данные для приглашения нового участника в организацию
-type InviteMemberRequest struct {
-	// ID организации для приглашения
-	// Example: 1
-	OrganizationID int64 `json:"organization_id" binding:"required" example:"1"`
-	// Email приглашаемого пользователя
-	// Example: newmember@example.com
-	Email string `json:"email" binding:"required,email" example:"newmember@example.com"`
-}
-
-// MemberResponse данные участника организации
-// @Description Информация об участнике организации
-type MemberResponse struct {
-	// Уникальный идентификатор участника
-	// Example: 1
-	ID int64 `json:"id" example:"1"`
-	// ID организации
-	// Example: 1
-	OrganizationID int64 `json:"organization_id" example:"1"`
-	// ID пользователя
-	// Example: 5
-	UserID int64 `json:"user_id" example:"5"`
-	// Статус участника: invited, active, blocked
-	// Example: active
-	Status string `json:"status" example:"active" enums:"invited,active,blocked"`
-	// Дата вступления в организацию
-	// Example: 2024-01-15T10:30:00Z
-	JoinedAt *time.Time `json:"joined_at" example:"2024-01-15T10:30:00Z"`
-	// Данные пользователя (опционально)
-	User UserResponse `json:"user,omitempty"`
-}
-
 // ===== Employee DTOs =====
-
-// AssignPositionRequest запрос на назначение на должность
-// @Description Данные для назначения участника на должность
-type AssignPositionRequest struct {
-	// ID участника организации
-	// Example: 1
-	MemberID int64 `json:"member_id" binding:"required" example:"1"`
-	// ID должности
-	// Example: 3
-	PositionID int64 `json:"position_id" binding:"required" example:"3"`
-	// Дата начала работы (по умолчанию - текущая дата)
-	// Example: 2024-02-01T00:00:00Z
-	StartDate *time.Time `json:"start_date" example:"2024-02-01T00:00:00Z"`
-	// Является ли стажёром
-	// Example: false
-	IsIntern bool `json:"is_intern" example:"false"`
-}
 
 // UpdateEmployeeRequest запрос на обновление данных сотрудника
 // @Description Данные для обновления информации о сотруднике
@@ -487,9 +436,6 @@ type EmployeeResponse struct {
 	// Уникальный идентификатор записи о сотруднике
 	// Example: 1
 	ID int64 `json:"id" example:"1"`
-	// ID участника организации
-	// Example: 1
-	MemberID int64 `json:"member_id" example:"1"`
 	// ID должности
 	// Example: 3
 	PositionID int64 `json:"position_id" example:"3"`

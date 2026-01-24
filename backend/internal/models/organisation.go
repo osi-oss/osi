@@ -13,7 +13,7 @@ type Organization struct {
 	Status OrgStatus `gorm:"type:org_status;not null;default:'draft'"`
 
 	Founders  []OrganizationFounder `gorm:"foreignKey:OrganizationID"`
-	Members   []OrganizationMember  `gorm:"foreignKey:OrganizationID"`
+	Employees []Employee            `gorm:"foreignKey:OrganizationID"` // Changed from Members
 	Locations []Location            `gorm:"foreignKey:OrganizationID"`
 	Positions []Position            `gorm:"foreignKey:OrganizationID"`
 }

@@ -111,26 +111,10 @@ func ToPositionResponses(positions []models.Position) []PositionResponse {
 	return result
 }
 
-// ToMemberResponse преобразует OrganizationMember в MemberResponse
-func ToMemberResponse(m *models.OrganizationMember) MemberResponse {
-	resp := MemberResponse{
-		ID:             m.ID,
-		OrganizationID: m.OrganizationID,
-		UserID:         m.UserID,
-		Status:         string(m.Status),
-		JoinedAt:       m.JoinedAt,
-	}
-	if m.User.ID != 0 {
-		resp.User = ToUserResponse(&m.User)
-	}
-	return resp
-}
-
 // ToEmployeeResponse преобразует Employee в EmployeeResponse
 func ToEmployeeResponse(e *models.Employee) EmployeeResponse {
 	resp := EmployeeResponse{
 		ID:         e.ID,
-		MemberID:   e.MemberID,
 		PositionID: e.PositionID,
 		IsIntern:   e.IsIntern,
 		StartDate:  e.StartDate,

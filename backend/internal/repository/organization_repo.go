@@ -19,7 +19,7 @@ func (r *OrganizationRepository) Create(org *models.Organization) error {
 
 func (r *OrganizationRepository) GetByID(id int64) (*models.Organization, error) {
 	var org models.Organization
-	err := r.db.Preload("Founders").Preload("Founders.User").Preload("Members").First(&org, id).Error
+	err := r.db.Preload("Founders").Preload("Founders.User").Preload("Employees").First(&org, id).Error
 	return &org, err
 }
 
@@ -29,7 +29,7 @@ func (r *OrganizationRepository) GetByUserID(userID int64) ([]models.Organizatio
 		Joins("JOIN organization_founders ON organizations.id = organization_founders.organization_id").
 		Where("organization_founders.user_id = ?", userID).
 		Preload("Founders").
-		Preload("Members").
+		Preload("Employees").
 		Find(&organizations).Error
 	return organizations, err
 }
@@ -52,41 +52,50 @@ func (r *OrganizationRepository) GetFoundersByOrganizationID(orgID int64) ([]mod
 	return founders, err
 }
 
-// Member methods
+// Employee methods (formerly Member methods)
 
-func (r *OrganizationRepository) CreateMember(member *models.OrganizationMember) error {
-	return r.db.Create(member).Error
+// GetEmployeesByOrganizationID returns all employees in an organization
+func (r *OrganizationRepository) GetEmployeesByOrganizationID(orgID int64) ([]models.Employee, error) {
+	var employees []models.Employee
+	err := r.db.Where("organization_id = ?", orgID).Preload("User").Preload("Position").Find(&employees).Error
+	return employees, err
 }
 
-func (r *OrganizationRepository) GetMembersByOrganizationID(orgID int64) ([]models.OrganizationMember, error) {
-	var members []models.OrganizationMember
-	err := r.db.Where("organization_id = ?", orgID).Preload("User").Find(&members).Error
-	return members, err
+// GetEmployeeByID returns an employee by ID
+func (r *OrganizationRepository) GetEmployeeByID(employeeID int64) (*models.Employee, error) {
+	var employee models.Employee
+	err := r.db.Preload("User").Preload("Position").First(&employee, employeeID).Error
+	return &employee, err
 }
 
-func (r *OrganizationRepository) GetMemberByID(memberID int64) (*models.OrganizationMember, error) {
-	var member models.OrganizationMember
-	err := r.db.Preload("User").First(&member, memberID).Error
-	return &member, err
+// UpdateEmployeeStatus updates an employee's status
+func (r *OrganizationRepository) UpdateEmployeeStatus(employeeID int64, status models.MemberStatus) error {
+	return r.db.Model(&models.Employee{}).Where("id = ?", employeeID).Update("status", status).Error
 }
 
-func (r *OrganizationRepository) UpdateMemberStatus(memberID int64, status models.MemberStatus) error {
-	return r.db.Model(&models.OrganizationMember{}).Where("id = ?", memberID).Update("status", status).Error
+// DeleteEmployee deletes an employee
+func (r *OrganizationRepository) DeleteEmployee(employeeID int64) error {
+	return r.db.Delete(&models.Employee{}, employeeID).Error
 }
 
-func (r *OrganizationRepository) DeleteMember(memberID int64) error {
-	return r.db.Delete(&models.OrganizationMember{}, memberID).Error
-}
-
-// GetMemberByUserAndOrgID returns a member by user_id and organization_id
-func (r *OrganizationRepository) GetMemberByUserAndOrgID(userID int64, orgID int64) (*models.OrganizationMember, error) {
-	var member models.OrganizationMember
+// GetEmployeeByUserAndOrgID returns an employee of a user in an organization
+func (r *OrganizationRepository) GetEmployeeByUserAndOrgID(userID int64, orgID int64) (*models.Employee, error) {
+	var employee models.Employee
 	err := r.db.Where("user_id = ? AND organization_id = ?", userID, orgID).
 		Preload("User").
-		Preload("Employees").
-		Preload("Employees.Position").
-		First(&member).Error
-	return &member, err
+		Preload("Position").
+		First(&employee).Error
+	return &employee, err
+}
+
+// GetEmployeesByUserAndOrgID returns all employees of a user in an organization
+func (r *OrganizationRepository) GetEmployeesByUserAndOrgID(userID int64, orgID int64) ([]models.Employee, error) {
+	var employees []models.Employee
+	err := r.db.Where("user_id = ? AND organization_id = ?", userID, orgID).
+		Preload("User").
+		Preload("Position").
+		Find(&employees).Error
+	return employees, err
 }
 
 // GetFounderByUserAndOrgID returns a founder by user_id and organization_id

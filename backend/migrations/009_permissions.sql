@@ -14,6 +14,11 @@ VALUES (
         'Members'
     ),
     (
+        'readHierarchy',
+        'Смотреть иерахию отделов',
+        'Hierarchy'
+    ),
+    (
         'members.view',
         'Просматривать сотрудников',
         'Members'

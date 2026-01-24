@@ -23,18 +23,6 @@ func (r *EmployeeRepository) GetByID(id int64) (*models.Employee, error) {
 	return &employee, err
 }
 
-func (r *EmployeeRepository) GetByMemberID(memberID int64) ([]models.Employee, error) {
-	var employees []models.Employee
-	err := r.db.Where("member_id = ?", memberID).Preload("Position").Find(&employees).Error
-	return employees, err
-}
-
-func (r *EmployeeRepository) GetByPositionID(positionID int64) ([]models.Employee, error) {
-	var employees []models.Employee
-	err := r.db.Where("position_id = ?", positionID).Preload("Member").Preload("Member.User").Find(&employees).Error
-	return employees, err
-}
-
 func (r *EmployeeRepository) Update(employee *models.Employee) error {
 	return r.db.Save(employee).Error
 }
