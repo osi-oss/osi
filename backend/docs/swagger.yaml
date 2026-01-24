@@ -1,5 +1,15 @@
 basePath: /api
 definitions:
+  github_com_osi-oss_osi_internal_dto.AcceptInviteResponse:
+    description: Результат принятия приглашения
+    properties:
+      message:
+        description: |-
+          Сообщение об успехе
+          Example: Invite accepted successfully
+        example: Invite accepted successfully
+        type: string
+    type: object
   github_com_osi-oss_osi_internal_dto.AuthResponse:
     description: Результат успешной аутентификации
     properties:
@@ -96,6 +106,25 @@ definitions:
         type: integer
     required:
     - name
+    type: object
+  github_com_osi-oss_osi_internal_dto.CreateInviteRequest:
+    description: Приглашение пользователя на должность в организацию
+    properties:
+      email:
+        description: |-
+          Email приглашаемого пользователя
+          Example: john@example.com
+        example: john@example.com
+        type: string
+      position_id:
+        description: |-
+          ID должности
+          Example: 42
+        example: 42
+        type: integer
+    required:
+    - email
+    - position_id
     type: object
   github_com_osi-oss_osi_internal_dto.CreateLocationRequest:
     description: Данные для создания новой локации (офиса, филиала, склада и т.д.)
@@ -210,6 +239,16 @@ definitions:
     required:
     - name
     type: object
+  github_com_osi-oss_osi_internal_dto.DeclineInviteResponse:
+    description: Результат отклонения приглашения
+    properties:
+      message:
+        description: |-
+          Сообщение об успехе
+          Example: Invite declined successfully
+        example: Invite declined successfully
+        type: string
+    type: object
   github_com_osi-oss_osi_internal_dto.DepartmentResponse:
     description: Полная информация об отделе
     properties:
@@ -270,6 +309,83 @@ definitions:
           Сообщение об ошибке
           Example: invalid email or code
         example: invalid email or code
+        type: string
+    type: object
+  github_com_osi-oss_osi_internal_dto.InviteResponse:
+    description: Полная информация о приглашении в организацию
+    properties:
+      accepted_at:
+        description: |-
+          Дата принятия приглашения
+          Example: 2024-01-24T11:00:00Z
+        example: "2024-01-24T11:00:00Z"
+        type: string
+      created_at:
+        description: |-
+          Дата отправки приглашения
+          Example: 2024-01-24T10:30:00Z
+        example: "2024-01-24T10:30:00Z"
+        type: string
+      declined_at:
+        description: Дата отклонения приглашения
+        type: string
+      id:
+        description: |-
+          Уникальный идентификатор приглашения
+          Example: 1
+        example: 1
+        type: integer
+      invited_by_user:
+        allOf:
+        - $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.UserResponse'
+        description: Информация о том кто пригласил (опционально)
+      invited_by_user_id:
+        description: |-
+          ID пользователя, создавшего приглашение
+          Example: 1
+        example: 1
+        type: integer
+      invited_email:
+        description: |-
+          Email приглашённого пользователя
+          Example: john@example.com
+        example: john@example.com
+        type: string
+      invited_user_id:
+        description: |-
+          ID приглашённого пользователя (может быть null для неregistered пользователей)
+          Example: 10
+        example: 10
+        type: integer
+      organization:
+        allOf:
+        - $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.OrganizationResponse'
+        description: Информация об организации (опционально)
+      organization_id:
+        description: |-
+          ID организации
+          Example: 5
+        example: 5
+        type: integer
+      position:
+        allOf:
+        - $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.PositionResponse'
+        description: Информация о должности (опционально)
+      position_id:
+        description: |-
+          ID должности
+          Example: 42
+        example: 42
+        type: integer
+      status:
+        description: |-
+          Статус приглашения: pending, accepted, declined
+          Example: pending
+        enum:
+        - pending
+        - accepted
+        - declined
+        example: pending
         type: string
     type: object
   github_com_osi-oss_osi_internal_dto.LocationResponse:
@@ -963,6 +1079,161 @@ paths:
       summary: Проверка кода и получение токена
       tags:
       - Аутентификация
+  /invites/{inviteId}:
+    delete:
+      consumes:
+      - application/json
+      description: |-
+        Отменить выданное приглашение.
+        Может отменить только создатель приглашения или основатель организации.
+      parameters:
+      - description: ID приглашения
+        example: 1
+        in: path
+        minimum: 1
+        name: inviteId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Приглашение отменено
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.AcceptInviteResponse'
+        "400":
+          description: Приглашение не найдено
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "401":
+          description: Отсутствует или невалидный токен авторизации
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "403":
+          description: Нет прав на отмену этого приглашения
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Отменить приглашение
+      tags:
+      - Invites
+  /invites/{inviteId}/accept:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Принять приглашение в организацию на должность.
+        Автоматически добавляет пользователя в организацию и создаёт запись сотрудника.
+      parameters:
+      - description: ID приглашения
+        example: 1
+        in: path
+        minimum: 1
+        name: inviteId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Приглашение принято
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.AcceptInviteResponse'
+        "400":
+          description: Приглашение не найдено или уже обработано
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "401":
+          description: Отсутствует или невалидный токен авторизации
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "403":
+          description: Нет прав на принятие этого приглашения
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Принять приглашение
+      tags:
+      - Invites
+  /invites/{inviteId}/decline:
+    post:
+      consumes:
+      - application/json
+      description: Отклонить приглашение в организацию.
+      parameters:
+      - description: ID приглашения
+        example: 1
+        in: path
+        minimum: 1
+        name: inviteId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Приглашение отклонено
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.DeclineInviteResponse'
+        "400":
+          description: Приглашение не найдено или уже обработано
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "401":
+          description: Отсутствует или невалидный токен авторизации
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "403":
+          description: Нет прав на отклонение этого приглашения
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Отклонить приглашение
+      tags:
+      - Invites
+  /invites/my:
+    get:
+      consumes:
+      - application/json
+      description: Возвращает все pending приглашения, отправленные на email текущего
+        пользователя.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Список приглашений
+          schema:
+            items:
+              $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.InviteResponse'
+            type: array
+        "401":
+          description: Отсутствует или невалидный токен авторизации
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Получить мои приглашения
+      tags:
+      - Invites
   /organizations:
     get:
       consumes:
@@ -1179,6 +1450,104 @@ paths:
       summary: Обновление данных организации
       tags:
       - Организации
+  /organizations/{orgId}/invites:
+    get:
+      consumes:
+      - application/json
+      description: |-
+        Возвращает все приглашения организации.
+        Доступно только основателям/администраторам организации.
+      parameters:
+      - description: ID организации
+        example: 1
+        in: path
+        minimum: 1
+        name: orgId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Список приглашений
+          schema:
+            items:
+              $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.InviteResponse'
+            type: array
+        "400":
+          description: Неверный формат ID организации
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "401":
+          description: Отсутствует или невалидный токен авторизации
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "403":
+          description: Нет прав на просмотр приглашений
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Получить приглашения организации
+      tags:
+      - Invites
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Пригласить пользователя на должность в организацию по email.
+        Требует право "invites.create" на уровне организации или отдела, где находится позиция.
+        Если пользователь с таким email не существует, он будет автоматически создан со статусом pending_email.
+      parameters:
+      - description: ID организации
+        example: 1
+        in: path
+        minimum: 1
+        name: orgId
+        required: true
+        type: integer
+      - description: Данные приглашения
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.CreateInviteRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Приглашение успешно создано
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.InviteResponse'
+        "400":
+          description: Ошибка валидации
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "401":
+          description: Отсутствует или невалидный токен авторизации
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "403":
+          description: Нет прав на создание приглашения
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "404":
+          description: Организация или должность не найдена
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Создать приглашение в организацию
+      tags:
+      - Invites
   /organizations/{orgId}/locations:
     get:
       consumes:
