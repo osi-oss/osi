@@ -47,7 +47,6 @@ func (s *PermissionService) UserHasAccessToOrganization(userID int64, orgID int6
 	return false, nil
 }
 
-
 // UserHasScopedPermissionWithHierarchy checks permission with full hierarchy support
 // It validates that the scope matches the context hierarchy:
 // - scope=organization: always applies
