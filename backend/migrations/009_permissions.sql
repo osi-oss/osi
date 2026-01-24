@@ -9,14 +9,14 @@ CREATE TABLE permissions (
 INSERT INTO
     permissions (code, description, group_name)
 VALUES (
-        'members.invite',
-        'Приглашать сотрудников',
-        'Members'
-    ),
-    (
         'readHierarchy',
         'Смотреть иерахию отделов',
         'Hierarchy'
+    ),
+    (
+        'members.invite',
+        'Приглашать сотрудников',
+        'Members'
     ),
     (
         'members.view',
@@ -50,4 +50,4 @@ VALUES (
     );
 
 -- +goose Down
-DROP TABLE permissions;
+DROP TABLE IF EXISTS permissions CASCADE;

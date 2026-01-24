@@ -14,4 +14,4 @@ CREATE TABLE organizations (
 );
 
 -- +goose Down
-DROP TABLE IF EXISTS organizations;
+DROP TABLE IF EXISTS organizations CASCADE;

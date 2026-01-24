@@ -14,5 +14,4 @@ CREATE TABLE employees (
 );
 
 -- +goose Down
-
-DROP TABLE employees;
+DROP TABLE IF EXISTS employees CASCADE;

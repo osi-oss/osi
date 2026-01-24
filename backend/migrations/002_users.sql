@@ -15,4 +15,4 @@ CREATE TABLE users (
 );
 
 -- +goose Down
-DDROP TABLE IF EXISTS users;
+DROP TABLE IF EXISTS users CASCADE;

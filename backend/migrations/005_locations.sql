@@ -15,7 +15,7 @@ CREATE TABLE locations (
 );
 
 -- +goose Down
-DROP TABLE locations;
+DROP TABLE IF EXISTS locations CASCADE;
 
 -- | Сценарий            | source   | is_verified |
 -- | ------------------- | -------- | ----------- |

@@ -30,4 +30,4 @@ CREATE INDEX idx_invites_status ON invites (status);
 CREATE INDEX idx_invites_organization_id ON invites (organization_id);
 
 -- +goose Down
-DROP TABLE invites;
+DROP TABLE IF EXISTS invites CASCADE;

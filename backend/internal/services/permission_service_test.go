@@ -74,31 +74,6 @@ func createPermTestOrg(t *testing.T, db *gorm.DB, userID int64, name string) *mo
 	return org
 }
 
-// createPermTestPosition creates a test position
-func createPermTestPosition(t *testing.T, db *gorm.DB, orgID int64, name string, deptID *int64) *models.Position {
-	position := &models.Position{
-		OrganizationID: orgID,
-		DepartmentID:   deptID,
-		Name:           name,
-	}
-	err := db.Create(position).Error
-	require.NoError(t, err, "failed to create test position")
-	return position
-}
-
-// createPermTestEmployee creates a test employee (member)
-func createPermTestEmployee(t *testing.T, db *gorm.DB, userID, orgID, positionID int64) *models.Employee {
-	employee := &models.Employee{
-		UserID:         userID,
-		OrganizationID: orgID,
-		PositionID:     positionID,
-		Status:         models.MemberActive,
-	}
-	err := db.Create(employee).Error
-	require.NoError(t, err, "failed to create test employee")
-	return employee
-}
-
 // createPermTestLocation creates a test location
 func createPermTestLocation(t *testing.T, db *gorm.DB, orgID int64, name string) *models.Location {
 	location := &models.Location{
@@ -135,13 +110,32 @@ func createPermTestPosition(t *testing.T, db *gorm.DB, orgID int64, name string,
 	return position
 }
 
-// createPermTestEmployee creates a test employee
-func createPermTestEmployee(t *testing.T, db *gorm.DB, memberID, positionID int64) *models.Employee {
-	employee := &models.Employee{
-		MemberID:   memberID,
-		PositionID: positionID,
+// createPermTestMember creates a test organization member (OrganizationMember)
+func createPermTestMember(t *testing.T, db *gorm.DB, userID, orgID int64) *models.OrganizationMember {
+	member := &models.OrganizationMember{
+		UserID:         userID,
+		OrganizationID: orgID,
+		Status:         models.MemberActive,
 	}
-	err := db.Create(employee).Error
+	err := db.Create(member).Error
+	require.NoError(t, err, "failed to create test member")
+	return member
+}
+
+// createPermTestEmployee creates a test employee (position holder within organization)
+func createPermTestEmployee(t *testing.T, db *gorm.DB, memberID, positionID int64) *models.Employee {
+	// First get the member to get userID and orgID
+	var member models.OrganizationMember
+	err := db.First(&member, memberID).Error
+	require.NoError(t, err, "failed to get member")
+
+	employee := &models.Employee{
+		UserID:         member.UserID,
+		OrganizationID: member.OrganizationID,
+		PositionID:     positionID,
+		Status:         models.MemberActive,
+	}
+	err = db.Create(employee).Error
 	require.NoError(t, err, "failed to create test employee")
 	return employee
 }
@@ -581,4 +575,11 @@ func TestGrantNonExistentPermission(t *testing.T) {
 	// Try to grant non-existent permission
 	err := svc.GrantPermissionToPosition(position.ID, "nonexistent.permission", models.ScopeOrganization, nil)
 	require.ErrorIs(t, err, apperrors.ErrPermissionNotFound)
+}
+
+// ===== Helper Functions =====
+
+// float64Ptr returns a pointer to a float64
+func float64Ptr(f float64) *float64 {
+	return &f
 }
