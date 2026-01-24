@@ -141,3 +141,45 @@ func ToEmployeeResponse(e *models.Employee) EmployeeResponse {
 	}
 	return resp
 }
+
+// ToInviteResponse преобразует Invite в InviteResponse
+func ToInviteResponse(i *models.Invite) InviteResponse {
+	resp := InviteResponse{
+		ID:              i.ID,
+		OrganizationID:  i.OrganizationID,
+		PositionID:      i.PositionID,
+		InvitedEmail:    i.InvitedEmail,
+		Status:          string(i.Status),
+		InvitedUserID:   i.InvitedUserID,
+		InvitedByUserID: i.InvitedByUserID,
+		CreatedAt:       i.CreatedAt,
+		AcceptedAt:      i.AcceptedAt,
+		DeclinedAt:      i.DeclinedAt,
+	}
+
+	if i.Organization.ID != 0 {
+		orgResp := ToOrganizationResponse(&i.Organization)
+		resp.Organization = &orgResp
+	}
+
+	if i.Position.ID != 0 {
+		posResp := ToPositionResponse(&i.Position)
+		resp.Position = &posResp
+	}
+
+	if i.InvitedByUser.ID != 0 {
+		userResp := ToUserResponse(&i.InvitedByUser)
+		resp.InvitedByUser = &userResp
+	}
+
+	return resp
+}
+
+// ToInviteResponses преобразует slice Invite в slice InviteResponse
+func ToInviteResponses(invites []models.Invite) []InviteResponse {
+	result := make([]InviteResponse, len(invites))
+	for i, inv := range invites {
+		result[i] = ToInviteResponse(&inv)
+	}
+	return result
+}

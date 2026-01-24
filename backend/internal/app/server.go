@@ -45,6 +45,7 @@ func Start(cfg *config.Config) {
 	permissionRepo := repository.NewPermissionRepository(dbConn)
 	permissionGrantRepo := repository.NewPermissionGrantRepository(dbConn)
 	employeeRepo := repository.NewEmployeeRepository(dbConn)
+	inviteRepo := repository.NewInviteRepository(dbConn)
 
 	// Создание email сервиса
 	emailService := services.NewEmailService(
@@ -85,6 +86,18 @@ func Start(cfg *config.Config) {
 	// Создание сервиса сотрудников (без permissionSvc)
 	employeeService := services.NewEmployeeService(employeeRepo, orgRepo, positionRepo)
 
+	// Создание сервиса приглашений
+	inviteService := services.NewInviteService(
+		inviteRepo,
+		orgRepo,
+		positionRepo,
+		userRepo,
+		employeeRepo,
+		permissionService,
+		emailService,
+		logger.Log,
+	)
+
 	// TODO: Create controllers for memberService and employeeService
 	_ = memberService
 	_ = employeeService
@@ -98,6 +111,7 @@ func Start(cfg *config.Config) {
 	locationController := controllers.NewLocationController(locationService)
 	departmentController := controllers.NewDepartmentController(departmentService)
 	positionController := controllers.NewPositionController(positionService)
+	inviteController := controllers.NewInviteController(inviteService)
 
 	logger.Info("✅ Services initialized", slog.String("port", cfg.AppPort))
 
@@ -217,6 +231,22 @@ func Start(cfg *config.Config) {
 			protected.DELETE("/organizations/:orgId/positions/:posId",
 				permMiddleware.RequirePermission("positions.delete"),
 				positionController.DeletePosition)
+
+			// Приглашения
+			protected.POST("/organizations/:orgId/invites",
+				permMiddleware.RequireScopedPermission("invites.create", models.ScopeOrganization),
+				inviteController.CreateInvite)
+			protected.GET("/invites/my",
+				inviteController.GetMyInvites)
+			protected.POST("/invites/:inviteId/accept",
+				inviteController.AcceptInvite)
+			protected.POST("/invites/:inviteId/decline",
+				inviteController.DeclineInvite)
+			protected.DELETE("/invites/:inviteId",
+				inviteController.CancelInvite)
+			protected.GET("/organizations/:orgId/invites",
+				permMiddleware.RequireOrgAccess,
+				inviteController.GetOrganizationInvites)
 		}
 	}
 

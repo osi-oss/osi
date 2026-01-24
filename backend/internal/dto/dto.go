@@ -504,3 +504,72 @@ type EmployeeResponse struct {
 	// Информация о должности (опционально)
 	Position PositionResponse `json:"position,omitempty"`
 }
+
+// ===== Invite DTOs =====
+
+// CreateInviteRequest запрос на создание приглашения
+// @Description Приглашение пользователя на должность в организацию
+type CreateInviteRequest struct {
+	// Email приглашаемого пользователя
+	// Example: john@example.com
+	Email string `json:"email" binding:"required,email" example:"john@example.com"`
+	// ID должности
+	// Example: 42
+	PositionID int64 `json:"position_id" binding:"required" example:"42"`
+}
+
+// InviteResponse информация о приглашении
+// @Description Полная информация о приглашении в организацию
+type InviteResponse struct {
+	// Уникальный идентификатор приглашения
+	// Example: 1
+	ID int64 `json:"id" example:"1"`
+	// ID организации
+	// Example: 5
+	OrganizationID int64 `json:"organization_id" example:"5"`
+	// ID должности
+	// Example: 42
+	PositionID int64 `json:"position_id" example:"42"`
+	// Email приглашённого пользователя
+	// Example: john@example.com
+	InvitedEmail string `json:"invited_email" example:"john@example.com"`
+	// Статус приглашения: pending, accepted, declined
+	// Example: pending
+	Status string `json:"status" example:"pending" enums:"pending,accepted,declined"`
+	// ID приглашённого пользователя (может быть null для неregistered пользователей)
+	// Example: 10
+	InvitedUserID *int64 `json:"invited_user_id" example:"10"`
+	// ID пользователя, создавшего приглашение
+	// Example: 1
+	InvitedByUserID int64 `json:"invited_by_user_id" example:"1"`
+	// Дата отправки приглашения
+	// Example: 2024-01-24T10:30:00Z
+	CreatedAt time.Time `json:"created_at" example:"2024-01-24T10:30:00Z"`
+	// Дата принятия приглашения
+	// Example: 2024-01-24T11:00:00Z
+	AcceptedAt *time.Time `json:"accepted_at,omitempty" example:"2024-01-24T11:00:00Z"`
+	// Дата отклонения приглашения
+	DeclinedAt *time.Time `json:"declined_at,omitempty"`
+	// Информация об организации (опционально)
+	Organization *OrganizationResponse `json:"organization,omitempty"`
+	// Информация о должности (опционально)
+	Position *PositionResponse `json:"position,omitempty"`
+	// Информация о том кто пригласил (опционально)
+	InvitedByUser *UserResponse `json:"invited_by_user,omitempty"`
+}
+
+// AcceptInviteResponse ответ на принятие приглашения
+// @Description Результат принятия приглашения
+type AcceptInviteResponse struct {
+	// Сообщение об успехе
+	// Example: Invite accepted successfully
+	Message string `json:"message" example:"Invite accepted successfully"`
+}
+
+// DeclineInviteResponse ответ на отклонение приглашения
+// @Description Результат отклонения приглашения
+type DeclineInviteResponse struct {
+	// Сообщение об успехе
+	// Example: Invite declined successfully
+	Message string `json:"message" example:"Invite declined successfully"`
+}

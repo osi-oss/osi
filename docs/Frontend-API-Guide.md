@@ -243,3 +243,183 @@ psql -h localhost -p 5432 -U osi_user -d osi_db
 ---
 
 **Нужна помощь?** Обращайтесь к backend разработчикам или смотрите логи: `docker-compose logs backend`
+
+---
+
+## 🎟️ Приглашения в организацию (Invites)
+
+### Концепция
+
+Система приглашений позволяет добавлять пользователей в организацию на конкретные должности по email.
+
+**Ключевые особенности:**
+- ✅ Приглашение может быть создано только основателем организации
+- ✅ Email используется как адрес уведомления
+- ✅ Приглашение принимается только залогиненным пользователем
+- ✅ Нет необходимости в специальных токенах (без invite-token'ов)
+
+### Workflow приглашения
+
+#### 1️⃣ Создание приглашения (Administrator)
+
+```http
+POST /api/organizations/{orgId}/invites
+Authorization: Bearer <JWT_TOKEN>
+Content-Type: application/json
+
+{
+  "email": "john.doe@company.com",
+  "position_id": 42
+}
+```
+
+**Ответ (201 Created):**
+```json
+{
+  "id": 1,
+  "organization_id": 5,
+  "position_id": 42,
+  "invited_email": "john.doe@company.com",
+  "invited_user_id": 10,
+  "invited_by_user_id": 1,
+  "status": "pending",
+  "created_at": "2024-01-24T10:30:00Z",
+  "accepted_at": null,
+  "declined_at": null
+}
+```
+
+**Что происходит:**
+- Проверяются права доступа (только основатель организации)
+- Проверяется валидность должности (принадлежит организации)
+- Если пользователя с таким email нет, он автоматически создаётся со статусом `pending_email`
+- Отправляется email с приглашением (содержит ссылку для UX редиректа)
+
+#### 2️⃣ Пользователь получает письмо
+
+Письмо содержит:
+- Название организации и должности
+- Инструкции как присоединиться
+- Ссылка для UX редиректа (опционально): `https://app.com/login?invite_org_id=5&invite_position_id=42`
+
+#### 3️⃣ Пользователь логинится
+
+Обычный flow аутентификации:
+```http
+POST /api/auth/request-code
+Content-Type: application/json
+
+{"email": "john.doe@company.com"}
+```
+
+После получения кода:
+```http
+POST /api/auth/verify-code
+Content-Type: application/json
+
+{
+  "email": "john.doe@company.com",
+  "code": "A3K7"
+}
+```
+
+**Получает JWT токен**
+
+#### 4️⃣ Принятие приглашения (User)
+
+```http
+POST /api/invites/{inviteId}/accept
+Authorization: Bearer <JWT_TOKEN>
+```
+
+**Ответ (200 OK):**
+```json
+{
+  "message": "Invite accepted successfully"
+}
+```
+
+**Что происходит:**
+- Проверяется, что email залогиненного пользователя совпадает с invited_email
+- Статус приглашения меняется на `accepted`
+- Пользователь добавляется в организацию как активный члена
+- Автоматически создаётся запись сотрудника на этой должности
+
+#### 5️⃣ Отклонение приглашения (User)
+
+```http
+POST /api/invites/{inviteId}/decline
+Authorization: Bearer <JWT_TOKEN>
+```
+
+**Ответ (200 OK):**
+```json
+{
+  "message": "Invite declined successfully"
+}
+```
+
+### Endpoints для управления приглашениями
+
+| Метод | Путь | Действие | Права |
+|-------|------|----------|-------|
+| `POST` | `/api/organizations/{orgId}/invites` | Создать приглашение | Основатель организации |
+| `GET` | `/api/invites/my` | Мои приглашения | Залогиненный пользователь |
+| `POST` | `/api/invites/{inviteId}/accept` | Принять приглашение | Должен быть email == invited_email |
+| `POST` | `/api/invites/{inviteId}/decline` | Отклонить приглашение | Должен быть email == invited_email |
+| `DELETE` | `/api/invites/{inviteId}` | Отменить приглашение | Создатель или основатель организации |
+| `GET` | `/api/organizations/{orgId}/invites` | Все приглашения организации | Основатель организации |
+
+### Статусы приглашения
+
+- `pending` — ожидает принятия/отклонения
+- `accepted` — принято, пользователь добавлен в организацию
+- `declined` — отклонено пользователем
+
+### Обработка ошибок
+
+```json
+// Email не валиден
+{
+  "error": "invited email is required"
+}
+
+// Пользователь уже член организации
+{
+  "error": "user is already an active member of this organization"
+}
+
+// Нет pending приглашения
+{
+  "error": "invite is not pending"
+}
+
+// Нет прав на операцию
+{
+  "error": "forbidden"
+}
+
+// Позиция не принадлежит организации
+{
+  "error": "position does not belong to this organization"
+}
+```
+
+### Рекомендации для фронтенда
+
+1. **При создании приглашения:**
+   - Валидируйте email на фронтенде
+   - Проверяйте ошибки и показывайте пользователю понятные сообщения
+   - Подтвердите действие перед отправкой
+
+2. **При логине пользователя, приглашённого по email:**
+   - Проверяйте есть ли pending приглашения в `/api/invites/my` после успешного логина
+   - Если есть приглашение, покажите UI для его принятия
+   - Используйте `?invite_org_id` и `?invite_position_id` из ссылки письма для автоматического выделения приглашения
+
+3. **В интерфейсе приглашений:**
+   - Показывайте статус приглашения
+   - Позволяйте отклонить или принять
+   - Показывайте дату создания и статус обработки
+
+```

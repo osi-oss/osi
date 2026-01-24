@@ -63,6 +63,58 @@ func (e *EmailService) SendWelcomeEmail(toEmail, userName string) error {
 	return e.sendEmail(toEmail, subject, body)
 }
 
+// SendInviteEmail отправляет приглашение в организацию
+func (e *EmailService) SendInviteEmail(toEmail, orgName, positionName, inviteLink string) error {
+	subject := fmt.Sprintf("Приглашение в %s", orgName)
+
+	linkHTML := ""
+	if inviteLink != "" {
+		linkHTML = fmt.Sprintf(`<p style="text-align: center; margin-top: 30px;">
+			<a href="%s" style="background-color: #007bff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold;">
+				Перейти к приглашению
+			</a>
+		</p>`, inviteLink)
+	}
+
+	body := fmt.Sprintf(`
+		<html>
+		<body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #333;">
+			<h2 style="color: #333; border-bottom: 2px solid #007bff; padding-bottom: 10px;">Вас пригласили в организацию</h2>
+			
+			<p style="font-size: 16px; margin: 20px 0;">Здравствуйте!</p>
+			
+			<p style="font-size: 16px; margin: 20px 0;">
+				Вас пригласили на должность <strong style="color: #007bff;">%s</strong> 
+				в организацию <strong style="color: #007bff;">%s</strong>
+			</p>
+			
+			<h3 style="color: #333; margin-top: 30px;">Как принять приглашение:</h3>
+			<ol style="font-size: 15px; line-height: 1.8;">
+				<li>Убедитесь, что вы зарегистрированы и вошли в систему</li>
+				<li>Если у вас нет аккаунта, зарегистрируйтесь с этим email адресом</li>
+				<li>После входа в систему найдите приглашение в разделе "Мои приглашения"</li>
+				<li>Нажмите кнопку "Принять" чтобы присоединиться к организации</li>
+			</ol>
+			
+			%s
+			
+			<hr style="border: none; border-top: 1px solid #e0e0e0; margin: 30px 0;">
+			
+			<p style="font-size: 12px; color: #999;">
+				Это письмо отправлено автоматически. 
+				Если вы не запрашивали это приглашение, просто проигнорируйте письмо.
+			</p>
+			
+			<p style="font-size: 12px; color: #999;">
+				Если у вас есть вопросы, свяжитесь с администратором организации.
+			</p>
+		</body>
+		</html>
+	`, positionName, orgName, linkHTML)
+
+	return e.sendEmail(toEmail, subject, body)
+}
+
 // sendEmail внутренний метод для отправки email
 func (e *EmailService) sendEmail(to, subject, body string) error {
 	// Настройка аутентификации
