@@ -7,32 +7,58 @@ import (
 	"github.com/osi-oss/osi/internal/dto"
 	"github.com/osi-oss/osi/internal/models"
 	"github.com/osi-oss/osi/internal/repository"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
 
-// setupLocationTestDB создает тестовую базу данных в памяти для локаций
-func setupLocationTestDB(t *testing.T) *gorm.DB {
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
-	require.NoError(t, err, "failed to open test database")
+// LocationServiceTestSuite - тестовый набор для LocationService
+type LocationServiceTestSuite struct {
+	suite.Suite
+	db           *gorm.DB
+	service      *LocationService
+	locationRepo *repository.LocationRepository
+	orgRepo      *repository.OrganizationRepository
+	testOrg      *models.Organization
+	testUser     *models.User
+}
 
-	// Миграции
-	err = db.AutoMigrate(
+// SetupTest выполняется перед каждым тестом
+func (s *LocationServiceTestSuite) SetupTest() {
+	var err error
+	s.db, err = gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	s.Require().NoError(err)
+
+	err = s.db.AutoMigrate(
 		&models.User{},
 		&models.Organization{},
 		&models.OrganizationFounder{},
 		&models.Location{},
 		&models.Department{},
 	)
-	require.NoError(t, err, "failed to run migrations")
+	s.Require().NoError(err)
 
-	return db
+	s.locationRepo = repository.NewLocationRepository(s.db)
+	s.orgRepo = repository.NewOrganizationRepository(s.db)
+	s.service = NewLocationService(s.locationRepo, s.orgRepo)
+
+	// Создаём тестовые данные
+	s.testUser = s.createTestUser("founder@example.com")
+	s.testOrg = s.createTestOrg(s.testUser.ID, "Test Org")
 }
 
-// createLocationTestUser создает тестового пользователя
-func createLocationTestUser(t *testing.T, db *gorm.DB, email string) *models.User {
+// TearDownTest выполняется после каждого теста
+func (s *LocationServiceTestSuite) TearDownTest() {
+	if s.db != nil {
+		sqlDB, _ := s.db.DB()
+		if sqlDB != nil {
+			sqlDB.Close()
+		}
+	}
+}
+
+// createTestUser создаёт тестового пользователя
+func (s *LocationServiceTestSuite) createTestUser(email string) *models.User {
 	firstName := "Test"
 	lastName := "User"
 	user := &models.User{
@@ -42,195 +68,164 @@ func createLocationTestUser(t *testing.T, db *gorm.DB, email string) *models.Use
 		LastName:        &lastName,
 		Status:          models.UserStatusActive,
 	}
-	err := db.Create(user).Error
-	require.NoError(t, err, "failed to create test user")
+	s.Require().NoError(s.db.Create(user).Error)
 	return user
 }
 
-// createLocationTestOrg создает тестовую организацию
-func createLocationTestOrg(t *testing.T, db *gorm.DB, userID int64, name string) *models.Organization {
+// createTestOrg создаёт тестовую организацию
+func (s *LocationServiceTestSuite) createTestOrg(userID int64, name string) *models.Organization {
 	org := &models.Organization{
 		Name:   name,
 		Status: models.OrgDraft,
 	}
-	err := db.Create(org).Error
-	require.NoError(t, err, "failed to create test organization")
+	s.Require().NoError(s.db.Create(org).Error)
 
-	// Создаем основателя
 	founder := &models.OrganizationFounder{
 		OrganizationID: org.ID,
 		UserID:         userID,
 		IsMain:         true,
 		SharePercent:   float64Ptr(100.0),
 	}
-	err = db.Create(founder).Error
-	require.NoError(t, err, "failed to create test founder")
+	s.Require().NoError(s.db.Create(founder).Error)
 
-	// Загружаем организацию с основателями
-	err = db.Preload("Founders").First(org, org.ID).Error
-	require.NoError(t, err, "failed to reload organization")
-
+	s.Require().NoError(s.db.Preload("Founders").First(org, org.ID).Error)
 	return org
 }
 
-// TestCreateLocation тестирует создание локации
-func TestCreateLocation(t *testing.T) {
-	db := setupLocationTestDB(t)
-	orgRepo := repository.NewOrganizationRepository(db)
-	locationRepo := repository.NewLocationRepository(db)
-
-	locationService := NewLocationService(locationRepo, orgRepo)
-
-	founder := createLocationTestUser(t, db, "founder@example.com")
-	org := createLocationTestOrg(t, db, founder.ID, "Test Org")
-
-	tests := []struct {
-		name        string
-		orgID       int64
-		input       dto.CreateLocationRequest
-		expectError bool
-		errorCheck  func(*testing.T, error)
-		checkLoc    func(*testing.T, *models.Location)
+// TestCreateLocation_Success тестирует успешное создание локации
+func (s *LocationServiceTestSuite) TestCreateLocation_Success() {
+	testCases := []struct {
+		name     string
+		input    dto.CreateLocationRequest
+		checkLoc func(*models.Location)
 	}{
 		{
-			name:  "Success - Create location with all fields",
-			orgID: org.ID,
+			name: "with all fields",
 			input: dto.CreateLocationRequest{
 				Name:       "Main Office",
 				Address:    stringPtr("123 Main St, Moscow"),
 				Source:     "manual",
 				IsVerified: false,
 			},
-			expectError: false,
-			checkLoc: func(t *testing.T, loc *models.Location) {
-				assert.Equal(t, "Main Office", loc.Name)
-				assert.Equal(t, "123 Main St, Moscow", *loc.Address)
-				assert.Equal(t, "manual", loc.Source)
-				assert.False(t, loc.IsVerified)
-				assert.True(t, loc.IsActive)
-				assert.Equal(t, org.ID, loc.OrganizationID)
-				assert.NotZero(t, loc.ID)
-				assert.NotZero(t, loc.CreatedAt)
+			checkLoc: func(loc *models.Location) {
+				s.Assert().Equal("Main Office", loc.Name)
+				s.Assert().NotNil(loc.Address)
+				if loc.Address != nil {
+					s.Assert().Equal("123 Main St, Moscow", *loc.Address)
+				}
+				s.Assert().Equal("manual", loc.Source)
+				s.Assert().False(loc.IsVerified)
+				s.Assert().True(loc.IsActive)
+				s.Assert().Equal(s.testOrg.ID, loc.OrganizationID)
+				s.Assert().NotZero(loc.ID)
+				s.Assert().False(loc.CreatedAt.IsZero())
 			},
 		},
 		{
-			name:  "Success - Create location without address",
-			orgID: org.ID,
+			name: "without address",
 			input: dto.CreateLocationRequest{
 				Name:       "Branch Office",
 				Address:    nil,
 				Source:     "registry",
 				IsVerified: true,
 			},
-			expectError: false,
-			checkLoc: func(t *testing.T, loc *models.Location) {
-				assert.Equal(t, "Branch Office", loc.Name)
-				assert.Nil(t, loc.Address)
-				assert.Equal(t, "registry", loc.Source)
-				assert.True(t, loc.IsVerified)
-				assert.True(t, loc.IsActive)
+			checkLoc: func(loc *models.Location) {
+				s.Assert().Equal("Branch Office", loc.Name)
+				s.Assert().Nil(loc.Address)
+				s.Assert().Equal("registry", loc.Source)
+				s.Assert().True(loc.IsVerified)
+				s.Assert().True(loc.IsActive)
 			},
 		},
 		{
-			name:  "Error - Organization not found",
-			orgID: 99999,
+			name: "minimal fields",
 			input: dto.CreateLocationRequest{
-				Name:       "Nonexistent Org Location",
-				Address:    stringPtr("789 Wrong St"),
-				Source:     "manual",
-				IsVerified: false,
+				Name:   "Simple Location",
+				Source: "manual",
 			},
-			expectError: true,
-			errorCheck: func(t *testing.T, err error) {
-				assert.ErrorIs(t, err, apperrors.ErrOrganizationNotFound)
+			checkLoc: func(loc *models.Location) {
+				s.Assert().Equal("Simple Location", loc.Name)
+				s.Assert().Nil(loc.Address)
+				s.Assert().False(loc.IsVerified)
+				s.Assert().True(loc.IsActive)
 			},
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			location, err := locationService.CreateLocation(tt.orgID, tt.input)
-
-			if tt.expectError {
-				require.Error(t, err)
-				if tt.errorCheck != nil {
-					tt.errorCheck(t, err)
-				}
-			} else {
-				require.NoError(t, err)
-				require.NotNil(t, location)
-				if tt.checkLoc != nil {
-					tt.checkLoc(t, location)
-				}
+	for _, tc := range testCases {
+		s.Run(tc.name, func() {
+			location, err := s.service.CreateLocation(s.testOrg.ID, tc.input)
+			s.Require().NoError(err)
+			s.Require().NotNil(location)
+			if tc.checkLoc != nil {
+				tc.checkLoc(location)
 			}
 		})
 	}
 }
 
+// TestCreateLocation_OrganizationNotFound тестирует создание для несуществующей организации
+func (s *LocationServiceTestSuite) TestCreateLocation_OrganizationNotFound() {
+	input := dto.CreateLocationRequest{
+		Name:   "Orphan Location",
+		Source: "manual",
+	}
+
+	location, err := s.service.CreateLocation(99999, input)
+	s.Assert().Error(err)
+	s.Assert().Nil(location)
+	s.Assert().ErrorIs(err, apperrors.ErrOrganizationNotFound)
+}
+
 // TestGetLocation тестирует получение локации по ID
-func TestGetLocation(t *testing.T) {
-	db := setupLocationTestDB(t)
-	orgRepo := repository.NewOrganizationRepository(db)
-	locationRepo := repository.NewLocationRepository(db)
-
-	locationService := NewLocationService(locationRepo, orgRepo)
-
-	founder := createLocationTestUser(t, db, "founder@example.com")
-	org := createLocationTestOrg(t, db, founder.ID, "Test Org")
-
-	// Создаем локацию
+func (s *LocationServiceTestSuite) TestGetLocation() {
+	// Создаём локацию
 	location := &models.Location{
-		OrganizationID: org.ID,
+		OrganizationID: s.testOrg.ID,
 		Name:           "Test Location",
 		Address:        stringPtr("123 Test St"),
 		Source:         "manual",
 		IsVerified:     false,
 		IsActive:       true,
 	}
-	err := db.Create(location).Error
-	require.NoError(t, err)
+	s.Require().NoError(s.db.Create(location).Error)
 
-	tests := []struct {
-		name        string
-		locationID  int64
-		expectError bool
-		errorCheck  func(*testing.T, error)
-		checkLoc    func(*testing.T, *models.Location)
+	testCases := []struct {
+		name       string
+		locationID int64
+		expectErr  bool
+		checkLoc   func(*models.Location)
 	}{
 		{
-			name:        "Success - Get location by ID",
-			locationID:  location.ID,
-			expectError: false,
-			checkLoc: func(t *testing.T, loc *models.Location) {
-				assert.Equal(t, location.ID, loc.ID)
-				assert.Equal(t, "Test Location", loc.Name)
-				assert.Equal(t, org.ID, loc.OrganizationID)
+			name:       "existing location",
+			locationID: location.ID,
+			expectErr:  false,
+			checkLoc: func(loc *models.Location) {
+				s.Assert().Equal(location.ID, loc.ID)
+				s.Assert().Equal("Test Location", loc.Name)
+				s.Assert().Equal(s.testOrg.ID, loc.OrganizationID)
 			},
 		},
 		{
-			name:        "Error - Location not found",
-			locationID:  99999,
-			expectError: true,
-			errorCheck: func(t *testing.T, err error) {
-				assert.ErrorIs(t, err, apperrors.ErrLocationNotFound)
-			},
+			name:       "non-existent location",
+			locationID: 99999,
+			expectErr:  true,
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			loc, err := locationService.GetLocation(tt.locationID)
+	for _, tc := range testCases {
+		s.Run(tc.name, func() {
+			loc, err := s.service.GetLocation(tc.locationID)
 
-			if tt.expectError {
-				require.Error(t, err)
-				if tt.errorCheck != nil {
-					tt.errorCheck(t, err)
-				}
+			if tc.expectErr {
+				s.Assert().Error(err)
+				s.Assert().Nil(loc)
+				s.Assert().ErrorIs(err, apperrors.ErrLocationNotFound)
 			} else {
-				require.NoError(t, err)
-				require.NotNil(t, loc)
-				if tt.checkLoc != nil {
-					tt.checkLoc(t, loc)
+				s.Assert().NoError(err)
+				s.Assert().NotNil(loc)
+				if tc.checkLoc != nil {
+					tc.checkLoc(loc)
 				}
 			}
 		})
@@ -238,124 +233,92 @@ func TestGetLocation(t *testing.T) {
 }
 
 // TestGetOrganizationLocations тестирует получение всех локаций организации
-func TestGetOrganizationLocations(t *testing.T) {
-	db := setupLocationTestDB(t)
-	orgRepo := repository.NewOrganizationRepository(db)
-	locationRepo := repository.NewLocationRepository(db)
-
-	locationService := NewLocationService(locationRepo, orgRepo)
-
-	founder := createLocationTestUser(t, db, "founder@example.com")
-	org := createLocationTestOrg(t, db, founder.ID, "Test Org")
-
-	// Создаем несколько локаций
+func (s *LocationServiceTestSuite) TestGetOrganizationLocations() {
+	// Создаём несколько локаций
 	locations := []models.Location{
 		{
-			OrganizationID: org.ID,
+			OrganizationID: s.testOrg.ID,
 			Name:           "Location 1",
 			Source:         "manual",
 			IsActive:       true,
 		},
 		{
-			OrganizationID: org.ID,
+			OrganizationID: s.testOrg.ID,
 			Name:           "Location 2",
 			Source:         "registry",
 			IsActive:       true,
 		},
 		{
-			OrganizationID: org.ID,
+			OrganizationID: s.testOrg.ID,
 			Name:           "Location 3",
 			Source:         "manual",
 			IsActive:       false,
 		},
 	}
 	for i := range locations {
-		err := db.Create(&locations[i]).Error
-		require.NoError(t, err)
+		s.Require().NoError(s.db.Create(&locations[i]).Error)
 	}
 
-	tests := []struct {
-		name        string
-		orgID       int64
-		expectError bool
-		errorCheck  func(*testing.T, error)
-		checkLocs   func(*testing.T, []models.Location)
+	testCases := []struct {
+		name      string
+		orgID     int64
+		checkLocs func([]models.Location)
 	}{
 		{
-			name:        "Success - Get all locations",
-			orgID:       org.ID,
-			expectError: false,
-			checkLocs: func(t *testing.T, locs []models.Location) {
-				assert.Len(t, locs, 3)
-				names := []string{locs[0].Name, locs[1].Name, locs[2].Name}
-				assert.Contains(t, names, "Location 1")
-				assert.Contains(t, names, "Location 2")
-				assert.Contains(t, names, "Location 3")
+			name:  "all locations for organization",
+			orgID: s.testOrg.ID,
+			checkLocs: func(locs []models.Location) {
+				s.Assert().Len(locs, 3)
+				names := make(map[string]bool)
+				for _, loc := range locs {
+					names[loc.Name] = true
+				}
+				s.Assert().True(names["Location 1"])
+				s.Assert().True(names["Location 2"])
+				s.Assert().True(names["Location 3"])
 			},
 		},
 		{
-			name:        "Success - Empty list for org without locations",
-			orgID:       99999, // Несуществующая организация вернёт пустой список
-			expectError: false,
-			checkLocs: func(t *testing.T, locs []models.Location) {
-				assert.Len(t, locs, 0)
+			name:  "empty list for organization without locations",
+			orgID: 99999,
+			checkLocs: func(locs []models.Location) {
+				s.Assert().Len(locs, 0)
 			},
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			locs, err := locationService.GetOrganizationLocations(tt.orgID)
-
-			if tt.expectError {
-				require.Error(t, err)
-				if tt.errorCheck != nil {
-					tt.errorCheck(t, err)
-				}
-			} else {
-				require.NoError(t, err)
-				require.NotNil(t, locs)
-				if tt.checkLocs != nil {
-					tt.checkLocs(t, locs)
-				}
-			}
+	for _, tc := range testCases {
+		s.Run(tc.name, func() {
+			locs, err := s.service.GetOrganizationLocations(tc.orgID)
+			s.Assert().NoError(err)
+			s.Assert().NotNil(locs)
+			tc.checkLocs(locs)
 		})
 	}
 }
 
 // TestUpdateLocation тестирует обновление локации
-func TestUpdateLocation(t *testing.T) {
-	db := setupLocationTestDB(t)
-	orgRepo := repository.NewOrganizationRepository(db)
-	locationRepo := repository.NewLocationRepository(db)
-
-	locationService := NewLocationService(locationRepo, orgRepo)
-
-	founder := createLocationTestUser(t, db, "founder@example.com")
-	org := createLocationTestOrg(t, db, founder.ID, "Test Org")
-
-	// Создаем локацию
+func (s *LocationServiceTestSuite) TestUpdateLocation() {
+	// Создаём локацию для обновления
 	location := &models.Location{
-		OrganizationID: org.ID,
+		OrganizationID: s.testOrg.ID,
 		Name:           "Old Name",
 		Address:        stringPtr("Old Address"),
 		Source:         "manual",
 		IsVerified:     false,
 		IsActive:       true,
 	}
-	err := db.Create(location).Error
-	require.NoError(t, err)
+	s.Require().NoError(s.db.Create(location).Error)
 
-	tests := []struct {
-		name        string
-		locationID  int64
-		input       dto.UpdateLocationRequest
-		expectError bool
-		errorCheck  func(*testing.T, error)
-		checkLoc    func(*testing.T, *models.Location)
+	testCases := []struct {
+		name       string
+		locationID int64
+		input      dto.UpdateLocationRequest
+		expectErr  bool
+		checkLoc   func(*models.Location)
 	}{
 		{
-			name:       "Success - Update all fields",
+			name:       "update all fields",
 			locationID: location.ID,
 			input: dto.UpdateLocationRequest{
 				Name:       "New Name",
@@ -364,53 +327,60 @@ func TestUpdateLocation(t *testing.T) {
 				IsVerified: boolPtr(true),
 				IsActive:   boolPtr(false),
 			},
-			expectError: false,
-			checkLoc: func(t *testing.T, loc *models.Location) {
-				assert.Equal(t, "New Name", loc.Name)
-				assert.Equal(t, "New Address", *loc.Address)
-				assert.Equal(t, "registry", loc.Source)
-				assert.True(t, loc.IsVerified)
-				assert.False(t, loc.IsActive)
+			expectErr: false,
+			checkLoc: func(loc *models.Location) {
+				s.Assert().Equal("New Name", loc.Name)
+				s.Assert().Equal("New Address", *loc.Address)
+				s.Assert().Equal("registry", loc.Source)
+				s.Assert().True(loc.IsVerified)
+				s.Assert().False(loc.IsActive)
 			},
 		},
 		{
-			name:       "Success - Partial update (only name)",
+			name:       "partial update (only name)",
 			locationID: location.ID,
 			input: dto.UpdateLocationRequest{
 				Name: "Partially Updated",
 			},
-			expectError: false,
-			checkLoc: func(t *testing.T, loc *models.Location) {
-				assert.Equal(t, "Partially Updated", loc.Name)
+			expectErr: false,
+			checkLoc: func(loc *models.Location) {
+				s.Assert().Equal("Partially Updated", loc.Name)
 			},
 		},
 		{
-			name:       "Error - Location not found",
+			name:       "update verification status",
+			locationID: location.ID,
+			input: dto.UpdateLocationRequest{
+				IsVerified: boolPtr(true),
+			},
+			expectErr: false,
+			checkLoc: func(loc *models.Location) {
+				s.Assert().True(loc.IsVerified)
+			},
+		},
+		{
+			name:       "location not found",
 			locationID: 99999,
 			input: dto.UpdateLocationRequest{
 				Name: "Nonexistent",
 			},
-			expectError: true,
-			errorCheck: func(t *testing.T, err error) {
-				assert.ErrorIs(t, err, apperrors.ErrLocationNotFound)
-			},
+			expectErr: true,
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			loc, err := locationService.UpdateLocation(tt.locationID, tt.input)
+	for _, tc := range testCases {
+		s.Run(tc.name, func() {
+			loc, err := s.service.UpdateLocation(tc.locationID, tc.input)
 
-			if tt.expectError {
-				require.Error(t, err)
-				if tt.errorCheck != nil {
-					tt.errorCheck(t, err)
-				}
+			if tc.expectErr {
+				s.Assert().Error(err)
+				s.Assert().Nil(loc)
+				s.Assert().ErrorIs(err, apperrors.ErrLocationNotFound)
 			} else {
-				require.NoError(t, err)
-				require.NotNil(t, loc)
-				if tt.checkLoc != nil {
-					tt.checkLoc(t, loc)
+				s.Assert().NoError(err)
+				s.Assert().NotNil(loc)
+				if tc.checkLoc != nil {
+					tc.checkLoc(loc)
 				}
 			}
 		})
@@ -418,87 +388,101 @@ func TestUpdateLocation(t *testing.T) {
 }
 
 // TestDeleteLocation тестирует удаление локации
-func TestDeleteLocation(t *testing.T) {
-	db := setupLocationTestDB(t)
-	orgRepo := repository.NewOrganizationRepository(db)
-	locationRepo := repository.NewLocationRepository(db)
-
-	locationService := NewLocationService(locationRepo, orgRepo)
-
-	founder := createLocationTestUser(t, db, "founder@example.com")
-	org := createLocationTestOrg(t, db, founder.ID, "Test Org")
-
-	tests := []struct {
-		name        string
-		setupLoc    func() *models.Location
-		expectError bool
-		errorCheck  func(*testing.T, error)
+func (s *LocationServiceTestSuite) TestDeleteLocation() {
+	testCases := []struct {
+		name      string
+		setupLoc  func() int64
+		expectErr bool
 	}{
 		{
-			name: "Success - Delete location",
-			setupLoc: func() *models.Location {
+			name: "delete existing location",
+			setupLoc: func() int64 {
 				loc := &models.Location{
-					OrganizationID: org.ID,
+					OrganizationID: s.testOrg.ID,
 					Name:           "To Delete",
 					Source:         "manual",
 					IsActive:       true,
 				}
-				err := db.Create(loc).Error
-				require.NoError(t, err)
-				return loc
+				s.Require().NoError(s.db.Create(loc).Error)
+				return loc.ID
 			},
-			expectError: false,
+			expectErr: false,
 		},
 		{
-			name: "Error - Location not found",
-			setupLoc: func() *models.Location {
-				return &models.Location{} // ID = 0, will use 99999
+			name: "delete non-existent location",
+			setupLoc: func() int64 {
+				return 99999
 			},
-			expectError: true,
-			errorCheck: func(t *testing.T, err error) {
-				assert.ErrorIs(t, err, apperrors.ErrLocationNotFound)
-			},
+			expectErr: true,
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			loc := tt.setupLoc()
-			locID := loc.ID
-			if locID == 0 {
-				locID = 99999
-			}
-			err := locationService.DeleteLocation(locID)
+	for _, tc := range testCases {
+		s.Run(tc.name, func() {
+			locID := tc.setupLoc()
+			err := s.service.DeleteLocation(locID)
 
-			if tt.expectError {
-				require.Error(t, err)
-				if tt.errorCheck != nil {
-					tt.errorCheck(t, err)
-				}
+			if tc.expectErr {
+				s.Assert().Error(err)
+				s.Assert().ErrorIs(err, apperrors.ErrLocationNotFound)
 			} else {
-				require.NoError(t, err)
+				s.Assert().NoError(err)
 
-				// Проверяем, что локация действительно удалена
+				// Проверяем что локация действительно удалена
 				var deletedLoc models.Location
-				err := db.First(&deletedLoc, loc.ID).Error
-				assert.Error(t, err)
-				assert.ErrorIs(t, err, gorm.ErrRecordNotFound)
+				err := s.db.First(&deletedLoc, locID).Error
+				s.Assert().Error(err)
+				s.Assert().ErrorIs(err, gorm.ErrRecordNotFound)
 			}
 		})
 	}
 }
 
-// boolPtr возвращает указатель на bool
-func boolPtr(b bool) *bool {
-	return &b
+// TestLocationLifecycle тестирует полный жизненный цикл локации
+func (s *LocationServiceTestSuite) TestLocationLifecycle() {
+	// 1. Создание
+	created, err := s.service.CreateLocation(s.testOrg.ID, dto.CreateLocationRequest{
+		Name:       "Lifecycle Location",
+		Address:    stringPtr("123 Start St"),
+		Source:     "manual",
+		IsVerified: false,
+	})
+	s.Require().NoError(err)
+	s.Assert().False(created.IsVerified)
+	s.Assert().True(created.IsActive)
+
+	// 2. Получение
+	retrieved, err := s.service.GetLocation(created.ID)
+	s.Require().NoError(err)
+	s.Assert().Equal(created.ID, retrieved.ID)
+
+	// 3. Обновление
+	updated, err := s.service.UpdateLocation(created.ID, dto.UpdateLocationRequest{
+		Name:       "Updated Lifecycle Location",
+		Address:    stringPtr("456 New St"),
+		IsVerified: boolPtr(true),
+	})
+	s.Require().NoError(err)
+	s.Assert().Equal("Updated Lifecycle Location", updated.Name)
+	s.Assert().True(updated.IsVerified)
+
+	// 4. Деактивация
+	deactivated, err := s.service.UpdateLocation(created.ID, dto.UpdateLocationRequest{
+		IsActive: boolPtr(false),
+	})
+	s.Require().NoError(err)
+	s.Assert().False(deactivated.IsActive)
+
+	// 5. Удаление
+	err = s.service.DeleteLocation(created.ID)
+	s.Require().NoError(err)
+
+	// 6. Проверка что удалена
+	_, err = s.service.GetLocation(created.ID)
+	s.Assert().Error(err)
 }
 
-// stringPtr возвращает указатель на string
-func stringPtr(s string) *string {
-	return &s
-}
-
-// float64Ptr возвращает указатель на float64
-func float64Ptr(f float64) *float64 {
-	return &f
+// Запуск тестового набора
+func TestLocationServiceTestSuite(t *testing.T) {
+	suite.Run(t, new(LocationServiceTestSuite))
 }

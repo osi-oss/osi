@@ -2,316 +2,451 @@ package services
 
 import (
 	"testing"
-
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
-	"gorm.io/gorm"
+	"time"
 
 	"github.com/osi-oss/osi/internal/models"
+	"github.com/osi-oss/osi/internal/repository"
+	"github.com/stretchr/testify/suite"
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
 )
 
-/*
-===========================
- MOCKS
-===========================
-*/
-
-type MockPermissionRepo struct {
-	mock.Mock
+// PermissionServiceTestSuite - тестовый набор для PermissionService
+type PermissionServiceTestSuite struct {
+	suite.Suite
+	db          *gorm.DB
+	service     *PermissionService
+	testOrg     *models.Organization
+	testUser    *models.User
+	testEmp     *models.Employee
+	testPos     *models.Position
+	permissions map[string]*models.Permission
 }
 
-func (m *MockPermissionRepo) GetByCode(code string) (*models.Permission, error) {
-	args := m.Called(code)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
+func (s *PermissionServiceTestSuite) SetupTest() {
+	var err error
+	s.db, err = gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	s.Require().NoError(err)
+
+	err = s.db.AutoMigrate(
+		&models.User{},
+		&models.Organization{},
+		&models.OrganizationFounder{},
+		&models.Location{},
+		&models.Department{},
+		&models.Position{},
+		&models.Employee{},
+		&models.Permission{},
+		&models.PositionPermissionGrant{},
+		&models.EmployeePermissionGrant{},
+	)
+	s.Require().NoError(err)
+
+	// Инициализация репозиториев
+	permRepo := repository.NewPermissionRepository(s.db)
+	grantRepo := repository.NewPermissionGrantRepository(s.db)
+	orgRepo := repository.NewOrganizationRepository(s.db)
+	empRepo := repository.NewEmployeeRepository(s.db)
+
+	s.service = NewPermissionService(permRepo, grantRepo, orgRepo, empRepo)
+
+	// Создаём тестовые данные
+	s.setupTestData()
+}
+
+func (s *PermissionServiceTestSuite) TearDownTest() {
+	if s.db != nil {
+		sqlDB, _ := s.db.DB()
+		if sqlDB != nil {
+			sqlDB.Close()
+		}
 	}
-	return args.Get(0).(*models.Permission), args.Error(1)
 }
 
-func (m *MockPermissionRepo) GetAll() ([]models.Permission, error) {
-	args := m.Called()
-	return args.Get(0).([]models.Permission), args.Error(1)
-}
-
-// ------------------------
-
-type MockPermissionGrantRepo struct {
-	mock.Mock
-}
-
-func (m *MockPermissionGrantRepo) CheckPositionHasScopedPermissionWithHierarchy(
-	positionIDs []int64,
-	permissionCode string,
-	scopeType models.ScopeType,
-	context *models.PermissionContext,
-) (bool, error) {
-	args := m.Called(positionIDs, permissionCode, scopeType, context)
-	return args.Bool(0), args.Error(1)
-}
-
-func (m *MockPermissionGrantRepo) CheckEmployeeHasScopedPermissionWithHierarchy(
-	employeeIDs []int64,
-	permissionCode string,
-	scopeType models.ScopeType,
-	context *models.PermissionContext,
-) (bool, error) {
-	args := m.Called(employeeIDs, permissionCode, scopeType, context)
-	return args.Bool(0), args.Error(1)
-}
-
-func (m *MockPermissionGrantRepo) GrantToPosition(grant *models.PositionPermissionGrant) error {
-	args := m.Called(grant)
-	return args.Error(0)
-}
-
-func (m *MockPermissionGrantRepo) GrantToEmployee(grant *models.EmployeePermissionGrant) error {
-	args := m.Called(grant)
-	return args.Error(0)
-}
-
-func (m *MockPermissionGrantRepo) RevokeFromEmployee(
-	employeeID int64,
-	permissionID int64,
-	scopeType models.ScopeType,
-	scopeID *int64,
-) error {
-	args := m.Called(employeeID, permissionID, scopeType, scopeID)
-	return args.Error(0)
-}
-
-func (m *MockPermissionGrantRepo) GetEmployeeGrants(employeeID int64) ([]models.EmployeePermissionGrant, error) {
-	args := m.Called(employeeID)
-	return args.Get(0).([]models.EmployeePermissionGrant), args.Error(1)
-}
-
-// ------------------------
-
-type MockOrgRepo struct {
-	mock.Mock
-}
-
-func (m *MockOrgRepo) GetFounderByUserAndOrgID(userID, orgID int64) (*models.OrganizationFounder, error) {
-	args := m.Called(userID, orgID)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
+// setupTestData создаёт базовые тестовые данные
+func (s *PermissionServiceTestSuite) setupTestData() {
+	// Создаём пользователя
+	firstName := "Test"
+	lastName := "User"
+	s.testUser = &models.User{
+		Email:     "test@example.com",
+		FirstName: &firstName,
+		LastName:  &lastName,
+		Status:    models.UserStatusActive,
 	}
-	return args.Get(0).(*models.OrganizationFounder), args.Error(1)
-}
+	s.Require().NoError(s.db.Create(s.testUser).Error)
 
-func (m *MockOrgRepo) GetEmployeeByUserAndOrgID(userID, orgID int64) (*models.Employee, error) {
-	args := m.Called(userID, orgID)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
+	// Создаём организацию
+	s.testOrg = &models.Organization{
+		Name:   "Test Org",
+		Status: models.OrgDraft,
 	}
-	return args.Get(0).(*models.Employee), args.Error(1)
+	s.Require().NoError(s.db.Create(s.testOrg).Error)
+
+	// Создаём локацию
+	location := &models.Location{
+		OrganizationID: s.testOrg.ID,
+		Name:           "Main Office",
+		Source:         "manual",
+		IsActive:       true,
+	}
+	s.Require().NoError(s.db.Create(location).Error)
+
+	// Создаём отдел
+	department := &models.Department{
+		LocationID: location.ID,
+		Name:       "Engineering",
+	}
+	s.Require().NoError(s.db.Create(department).Error)
+
+	// Создаём позицию
+	s.testPos = &models.Position{
+		OrganizationID: s.testOrg.ID,
+		DepartmentID:   &department.ID,
+		Name:           "Software Engineer",
+		IsAdmin:        false,
+	}
+	s.Require().NoError(s.db.Create(s.testPos).Error)
+
+	// Создаём сотрудника
+	s.testEmp = &models.Employee{
+		OrganizationID: s.testOrg.ID,
+		UserID:         s.testUser.ID,
+		PositionID:     s.testPos.ID,
+		Status:         models.MemberActive,
+	}
+	s.Require().NoError(s.db.Create(s.testEmp).Error)
+
+	// Создаём разрешения
+	s.permissions = s.createTestPermissions()
 }
 
-func (m *MockOrgRepo) GetEmployeesByUserAndOrgID(userID, orgID int64) ([]models.Employee, error) {
-	args := m.Called(userID, orgID)
-	return args.Get(0).([]models.Employee), args.Error(1)
-}
-
-// ------------------------
-
-type MockEmployeeRepo struct {
-	mock.Mock
-}
-
-/*
-===========================
- TESTS
-===========================
-*/
-
-func TestUserHasAccessToOrganization_Founder(t *testing.T) {
-	orgRepo := new(MockOrgRepo)
-
-	orgRepo.On(
-		"GetFounderByUserAndOrgID",
-		int64(1),
-		int64(10),
-	).Return(&models.OrganizationFounder{ID: 5}, nil)
-
-	service := NewPermissionService(
-		nil,
-		nil,
-		orgRepo,
-		nil,
-	)
-
-	ok, err := service.UserHasAccessToOrganization(1, 10)
-
-	assert.NoError(t, err)
-	assert.True(t, ok)
-}
-
-func TestUserHasAccessToOrganization_ActiveEmployee(t *testing.T) {
-	orgRepo := new(MockOrgRepo)
-
-	orgRepo.On(
-		"GetFounderByUserAndOrgID",
-		mock.Anything,
-		mock.Anything,
-	).Return(nil, gorm.ErrRecordNotFound)
-
-	orgRepo.On(
-		"GetEmployeeByUserAndOrgID",
-		int64(1),
-		int64(10),
-	).Return(&models.Employee{
-		ID:     3,
-		Status: models.MemberActive,
-	}, nil)
-
-	service := NewPermissionService(
-		nil,
-		nil,
-		orgRepo,
-		nil,
-	)
-
-	ok, err := service.UserHasAccessToOrganization(1, 10)
-
-	assert.NoError(t, err)
-	assert.True(t, ok)
-}
-
-func TestUserHasAccessToOrganization_NoAccess(t *testing.T) {
-	orgRepo := new(MockOrgRepo)
-
-	orgRepo.On(
-		"GetFounderByUserAndOrgID",
-		mock.Anything,
-		mock.Anything,
-	).Return(nil, gorm.ErrRecordNotFound)
-
-	orgRepo.On(
-		"GetEmployeeByUserAndOrgID",
-		mock.Anything,
-		mock.Anything,
-	).Return(nil, gorm.ErrRecordNotFound)
-
-	service := NewPermissionService(
-		nil,
-		nil,
-		orgRepo,
-		nil,
-	)
-
-	ok, err := service.UserHasAccessToOrganization(1, 10)
-
-	assert.NoError(t, err)
-	assert.False(t, ok)
-}
-
-func TestUserHasScopedPermissionWithHierarchy_FounderAlwaysAllowed(t *testing.T) {
-	orgRepo := new(MockOrgRepo)
-
-	orgRepo.On(
-		"GetFounderByUserAndOrgID",
-		int64(1),
-		int64(10),
-	).Return(&models.OrganizationFounder{ID: 1}, nil)
-
-	service := NewPermissionService(
-		nil,
-		nil,
-		orgRepo,
-		nil,
-	)
-
-	ok, err := service.UserHasScopedPermissionWithHierarchy(
-		1,
-		10,
-		"users.read",
-		models.ScopeOrganization,
-		nil,
-	)
-
-	assert.NoError(t, err)
-	assert.True(t, ok)
-}
-
-func TestUserHasScopedPermissionWithHierarchy_ByPosition(t *testing.T) {
-	orgRepo := new(MockOrgRepo)
-	grantRepo := new(MockPermissionGrantRepo)
-
-	orgRepo.On(
-		"GetFounderByUserAndOrgID",
-		mock.Anything,
-		mock.Anything,
-	).Return(nil, gorm.ErrRecordNotFound)
-
-	orgRepo.On(
-		"GetEmployeesByUserAndOrgID",
-		int64(1),
-		int64(10),
-	).Return([]models.Employee{
-		{
-			ID:         1,
-			PositionID: 100,
-			Status:     models.MemberActive,
+// createTestPermissions создаёт набор тестовых разрешений
+func (s *PermissionServiceTestSuite) createTestPermissions() map[string]*models.Permission {
+	perms := map[string]*models.Permission{
+		"users.read": {
+			Code:        "users.read",
+			Description: "Can view users",
 		},
-	}, nil)
+		"users.write": {
+			Code:        "users.write",
+			Description: "Can create/update users",
+		},
+		"org.manage": {
+			Code:        "org.manage",
+			Description: "Can manage organization settings",
+		},
+	}
 
-	grantRepo.On(
-		"CheckPositionHasScopedPermissionWithHierarchy",
-		[]int64{100},
-		"users.read",
-		models.ScopeOrganization,
-		mock.Anything,
-	).Return(true, nil)
+	for _, perm := range perms {
+		s.Require().NoError(s.db.Create(perm).Error)
+	}
 
-	service := NewPermissionService(
-		nil,
-		grantRepo,
-		orgRepo,
-		nil,
-	)
-
-	ok, err := service.UserHasScopedPermissionWithHierarchy(
-		1,
-		10,
-		"users.read",
-		models.ScopeOrganization,
-		nil,
-	)
-
-	assert.NoError(t, err)
-	assert.True(t, ok)
+	return perms
 }
 
-func TestUserHasScopedPermissionWithHierarchy_NoPermission(t *testing.T) {
-	orgRepo := new(MockOrgRepo)
-	grantRepo := new(MockPermissionGrantRepo)
+// TestUserHasAccessToOrganization_Founder тестирует доступ основателя
+func (s *PermissionServiceTestSuite) TestUserHasAccessToOrganization_Founder() {
+	// Создаём основателя
+	founder := &models.OrganizationFounder{
+		OrganizationID: s.testOrg.ID,
+		UserID:         s.testUser.ID,
+		IsMain:         true,
+	}
+	s.Require().NoError(s.db.Create(founder).Error)
 
-	orgRepo.On(
-		"GetFounderByUserAndOrgID",
-		mock.Anything,
-		mock.Anything,
-	).Return(nil, gorm.ErrRecordNotFound)
+	// Проверяем доступ
+	hasAccess, err := s.service.UserHasAccessToOrganization(s.testUser.ID, s.testOrg.ID)
+	s.Assert().NoError(err)
+	s.Assert().True(hasAccess)
+}
 
-	orgRepo.On(
-		"GetEmployeesByUserAndOrgID",
-		mock.Anything,
-		mock.Anything,
-	).Return([]models.Employee{}, nil)
+// TestUserHasAccessToOrganization_ActiveEmployee тестирует доступ активного сотрудника
+func (s *PermissionServiceTestSuite) TestUserHasAccessToOrganization_ActiveEmployee() {
+	// У нас уже есть активный сотрудник из setupTestData
+	hasAccess, err := s.service.UserHasAccessToOrganization(s.testUser.ID, s.testOrg.ID)
+	s.Assert().NoError(err)
+	s.Assert().True(hasAccess)
+}
 
-	service := NewPermissionService(
-		nil,
-		grantRepo,
-		orgRepo,
-		nil,
-	)
+// TestUserHasAccessToOrganization_InactiveEmployee тестирует доступ неактивного сотрудника
+func (s *PermissionServiceTestSuite) TestUserHasAccessToOrganization_InactiveEmployee() {
+	// Деактивируем сотрудника (устанавливаем EndDate)
+	endDate := time.Now()
+	s.testEmp.EndDate = &endDate
+	s.Require().NoError(s.db.Save(s.testEmp).Error)
 
-	ok, err := service.UserHasScopedPermissionWithHierarchy(
-		1,
-		10,
+	hasAccess, err := s.service.UserHasAccessToOrganization(s.testUser.ID, s.testOrg.ID)
+	s.Assert().NoError(err)
+	s.Assert().False(hasAccess)
+}
+
+// TestUserHasAccessToOrganization_NoAccess тестирует отсутствие доступа
+func (s *PermissionServiceTestSuite) TestUserHasAccessToOrganization_NoAccess() {
+	// Создаём другого пользователя
+	stranger := &models.User{
+		Email:  "stranger@example.com",
+		Status: models.UserStatusActive,
+	}
+	s.Require().NoError(s.db.Create(stranger).Error)
+
+	hasAccess, err := s.service.UserHasAccessToOrganization(stranger.ID, s.testOrg.ID)
+	s.Assert().NoError(err)
+	s.Assert().False(hasAccess)
+}
+
+// TestFounderHasAllPermissions тестирует что основатель имеет все права
+func (s *PermissionServiceTestSuite) TestFounderHasAllPermissions() {
+	// Создаём основателя
+	founder := &models.OrganizationFounder{
+		OrganizationID: s.testOrg.ID,
+		UserID:         s.testUser.ID,
+		IsMain:         true,
+	}
+	s.Require().NoError(s.db.Create(founder).Error)
+
+	// Проверяем различные права
+	testCases := []struct {
+		permission string
+		scopeType  models.ScopeType
+	}{
+		{"users.read", models.ScopeOrganization},
+		{"users.write", models.ScopeOrganization},
+		{"org.manage", models.ScopeOrganization},
+		{"users.read", models.ScopeLocation},
+		{"users.read", models.ScopeDepartment},
+	}
+
+	for _, tc := range testCases {
+		s.Run(tc.permission+"_"+string(tc.scopeType), func() {
+			hasPermission, err := s.service.UserHasScopedPermissionWithHierarchy(
+				s.testUser.ID,
+				s.testOrg.ID,
+				tc.permission,
+				tc.scopeType,
+				nil,
+			)
+			s.Assert().NoError(err)
+			s.Assert().True(hasPermission, "founder should have all permissions")
+		})
+	}
+}
+
+// TestPermissionGrantToPosition тестирует выдачу прав позиции
+func (s *PermissionServiceTestSuite) TestPermissionGrantToPosition() {
+	// Выдаём право позиции
+	err := s.service.GrantPermissionToPosition(
+		s.testPos.ID,
 		"users.read",
 		models.ScopeOrganization,
 		nil,
 	)
+	s.Assert().NoError(err)
 
-	assert.NoError(t, err)
-	assert.False(t, ok)
+	// Проверяем что право есть
+	hasPermission, err := s.service.UserHasScopedPermissionWithHierarchy(
+		s.testUser.ID,
+		s.testOrg.ID,
+		"users.read",
+		models.ScopeOrganization,
+		nil,
+	)
+	s.Assert().NoError(err)
+	s.Assert().True(hasPermission)
+
+	// Проверяем что другого права нет
+	hasPermission, err = s.service.UserHasScopedPermissionWithHierarchy(
+		s.testUser.ID,
+		s.testOrg.ID,
+		"users.write",
+		models.ScopeOrganization,
+		nil,
+	)
+	s.Assert().NoError(err)
+	s.Assert().False(hasPermission)
+}
+
+// TestPermissionGrantToEmployee тестирует выдачу прав сотруднику
+func (s *PermissionServiceTestSuite) TestPermissionGrantToEmployee() {
+	// Выдаём право сотруднику
+	err := s.service.GrantPermissionToEmployee(
+		s.testEmp.ID,
+		"org.manage",
+		models.ScopeOrganization,
+		nil,
+	)
+	s.Assert().NoError(err)
+
+	// Проверяем что право есть
+	hasPermission, err := s.service.UserHasScopedPermissionWithHierarchy(
+		s.testUser.ID,
+		s.testOrg.ID,
+		"org.manage",
+		models.ScopeOrganization,
+		nil,
+	)
+	s.Assert().NoError(err)
+	s.Assert().True(hasPermission)
+}
+
+// TestRevokePermissionFromEmployee тестирует отзыв прав у сотрудника
+func (s *PermissionServiceTestSuite) TestRevokePermissionFromEmployee() {
+	// Сначала выдаём право
+	err := s.service.GrantPermissionToEmployee(
+		s.testEmp.ID,
+		"users.read",
+		models.ScopeOrganization,
+		nil,
+	)
+	s.Require().NoError(err)
+
+	// Проверяем что право есть
+	hasPermission, err := s.service.UserHasScopedPermissionWithHierarchy(
+		s.testUser.ID,
+		s.testOrg.ID,
+		"users.read",
+		models.ScopeOrganization,
+		nil,
+	)
+	s.Assert().NoError(err)
+	s.Assert().True(hasPermission)
+
+	// Отзываем право
+	err = s.service.RevokePermissionFromEmployee(
+		s.testEmp.ID,
+		"users.read",
+		models.ScopeOrganization,
+		nil,
+	)
+	s.Assert().NoError(err)
+
+	// Проверяем что права больше нет
+	hasPermission, err = s.service.UserHasScopedPermissionWithHierarchy(
+		s.testUser.ID,
+		s.testOrg.ID,
+		"users.read",
+		models.ScopeOrganization,
+		nil,
+	)
+	s.Assert().NoError(err)
+	s.Assert().False(hasPermission)
+}
+
+// TestGetEmployeePermissionGrants тестирует получение прав сотрудника
+func (s *PermissionServiceTestSuite) TestGetEmployeePermissionGrants() {
+	// Выдаём несколько прав
+	permissions := []string{"users.read", "users.write"}
+	for _, perm := range permissions {
+		err := s.service.GrantPermissionToEmployee(
+			s.testEmp.ID,
+			perm,
+			models.ScopeOrganization,
+			nil,
+		)
+		s.Require().NoError(err)
+	}
+
+	// Получаем список прав
+	grants, err := s.service.GetEmployeePermissionGrants(s.testEmp.ID)
+	s.Assert().NoError(err)
+	s.Assert().Len(grants, 2)
+}
+
+// TestGetAllPermissions тестирует получение всех доступных прав
+func (s *PermissionServiceTestSuite) TestGetAllPermissions() {
+	perms, err := s.service.GetAllPermissions()
+	s.Assert().NoError(err)
+	s.Assert().GreaterOrEqual(len(perms), 3, "should have at least the test permissions")
+}
+
+// TestGetPermissionByCode тестирует получение права по коду
+func (s *PermissionServiceTestSuite) TestGetPermissionByCode() {
+	// Существующее право
+	perm, err := s.service.GetPermissionByCode("users.read")
+	s.Assert().NoError(err)
+	s.Assert().NotNil(perm)
+	s.Assert().Equal("users.read", perm.Code)
+
+	// Несуществующее право
+	_, err = s.service.GetPermissionByCode("nonexistent.permission")
+	s.Assert().Error(err)
+}
+
+// TestScopedPermissions тестирует иерархию scope
+func (s *PermissionServiceTestSuite) TestScopedPermissions() {
+	location := &models.Location{
+		OrganizationID: s.testOrg.ID,
+		Name:           "Office 2",
+		Source:         "manual",
+		IsActive:       true,
+	}
+	s.Require().NoError(s.db.Create(location).Error)
+
+	department := &models.Department{
+		LocationID: location.ID,
+		Name:       "Sales",
+	}
+	s.Require().NoError(s.db.Create(department).Error)
+
+	// Выдаём право на уровне локации
+	err := s.service.GrantPermissionToPosition(
+		s.testPos.ID,
+		"users.read",
+		models.ScopeLocation,
+		&location.ID,
+	)
+	s.Assert().NoError(err)
+
+	// Проверяем с правильным контекстом
+	hasPermission, err := s.service.UserHasScopedPermissionWithHierarchy(
+		s.testUser.ID,
+		s.testOrg.ID,
+		"users.read",
+		models.ScopeLocation,
+		&models.PermissionContext{
+			LocationID: &location.ID,
+		},
+	)
+	s.Assert().NoError(err)
+	s.Assert().True(hasPermission)
+
+	// Проверяем с другой локацией - не должно работать
+	otherLocationID := int64(9999)
+	hasPermission, err = s.service.UserHasScopedPermissionWithHierarchy(
+		s.testUser.ID,
+		s.testOrg.ID,
+		"users.read",
+		models.ScopeLocation,
+		&models.PermissionContext{
+			LocationID: &otherLocationID,
+		},
+	)
+	s.Assert().NoError(err)
+	s.Assert().False(hasPermission)
+}
+
+// TestNoAccessWithoutEmployment тестирует отсутствие прав без трудоустройства
+func (s *PermissionServiceTestSuite) TestNoAccessWithoutEmployment() {
+	// Создаём нового пользователя без сотрудника
+	newUser := &models.User{
+		Email:  "newuser@example.com",
+		Status: models.UserStatusActive,
+	}
+	s.Require().NoError(s.db.Create(newUser).Error)
+
+	// Проверяем что у него нет прав
+	hasPermission, err := s.service.UserHasScopedPermissionWithHierarchy(
+		newUser.ID,
+		s.testOrg.ID,
+		"users.read",
+		models.ScopeOrganization,
+		nil,
+	)
+	s.Assert().NoError(err)
+	s.Assert().False(hasPermission)
+}
+
+// Запуск тестового набора
+func TestPermissionServiceTestSuite(t *testing.T) {
+	suite.Run(t, new(PermissionServiceTestSuite))
 }
