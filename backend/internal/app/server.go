@@ -299,8 +299,8 @@ func Start(cfg *config.Config) {
 			protected.POST("/organizations/:orgId/invites",
 				permMiddleware.RequireScopedPermissionHierarchy(
 					"invites.create",
-					models.ScopeOrganization,
-					extractOrganizationContext,
+					models.ScopePosition,
+					extractInviteContext,
 				),
 				inviteController.CreateInvite)
 
@@ -361,5 +361,26 @@ func extractDepartmentCreationContext(c *gin.Context) *models.PermissionContext 
 	}
 
 	permCtx.DepartmentID = req.ParentID
+	return permCtx
+}
+
+// extractDepartmentContext extracts department-level context (includes location)
+func extractPositionContext(c *gin.Context) *models.PermissionContext {
+	permCtx := extractDepartmentContext(c)
+	posID, _ := strconv.ParseInt(c.Param("posId"), 10, 64)
+	permCtx.DepartmentID = &posID
+	return permCtx
+}
+
+func extractInviteContext(c *gin.Context) *models.PermissionContext {
+	permCtx := extractPositionContext(c)
+
+	var req dto.CreateInviteRequest
+	if err := c.ShouldBindBodyWithJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return permCtx
+	}
+
+	permCtx.PositionID = &req.PositionID
 	return permCtx
 }

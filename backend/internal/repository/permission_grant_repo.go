@@ -118,21 +118,58 @@ func (r *PermissionGrantRepository) CheckPositionHasScopedPermissionWithHierarch
 		return false, nil
 	}
 
-	type scopeMap = map[string][]int64
+	if context == nil {
+		query := r.db.Model(&models.PositionPermissionGrant{}).
+			Joins("JOIN permissions ON permissions.id = position_permission_grants.permission_id").
+			Where("position_permission_grants.position_id IN ?", positionIDs).
+			Where("permissions.code = ?", permissionCode).
+			Where("position_permission_grants.scope_type = ?", models.ScopeOrganization)
 
+		var count int64
+		err := query.Count(&count).Error
+		return count > 0, err
+	}
+
+	type scopeMap = map[string][]int64
 	scopes := make(scopeMap)
-	scopes["organizations"] = []int64{*context.OrgID}
+	scopes[string(models.ScopeOrganization)] = []int64{*context.OrgID}
 
 	if context.HasLocationAccess() {
 		scopes["location"] = []int64{*context.LocationID}
 	}
 
-	if context.HasDepartmentAccess() && context.DepartmentID != nil {
+	if context.HasDepartmentAccess() {
 		parentDeptIDs, err := r.getAllParentDepartments(*context.DepartmentID)
 		if err != nil {
 			return false, err
 		}
 		scopes["department"] = parentDeptIDs
+	}
+
+	if context.HasPositionAccess() {
+		scopes["position"] = []int64{*context.PositionID}
+
+		var position models.Position
+		if err := r.db.
+			Select("department_id").
+			First(&position, "id = ?", *context.PositionID).Error; err != nil {
+			return false, err
+		}
+
+		parentDeptIDs, err := r.getAllParentDepartments(*position.DepartmentID)
+		if err != nil {
+			return false, err
+		}
+		scopes[string(models.ScopeDepartment)] = append(scopes[string(models.ScopeDepartment)], parentDeptIDs...)
+
+		var locationIDs []int64
+		if err := r.db.
+			Model(&models.Department{}).
+			Distinct("location_id").
+			Where("id IN ?", parentDeptIDs).
+			Pluck("location_id", &locationIDs).Error; err != nil {
+			return false, err
+		}
 	}
 
 	query := r.db.Model(&models.PositionPermissionGrant{}).
@@ -172,6 +209,18 @@ func (r *PermissionGrantRepository) CheckEmployeeHasScopedPermissionWithHierarch
 		return false, nil
 	}
 
+	if context == nil {
+		query := r.db.Model(&models.EmployeePermissionGrant{}).
+			Joins("JOIN permissions ON permissions.id = employee_permission_grants.permission_id").
+			Where("employee_permission_grants.employee_id IN ?", employeeIDs).
+			Where("permissions.code = ?", permissionCode).
+			Where("employee_permission_grants.scope_type = ?", models.ScopeOrganization)
+
+		var count int64
+		err := query.Count(&count).Error
+		return count > 0, err
+	}
+
 	type scopeMap = map[string][]int64
 
 	scopes := make(scopeMap)
@@ -187,6 +236,32 @@ func (r *PermissionGrantRepository) CheckEmployeeHasScopedPermissionWithHierarch
 			return false, err
 		}
 		scopes["department"] = parentDeptIDs
+	}
+
+	if context.HasPositionAccess() {
+		scopes["position"] = []int64{*context.PositionID}
+
+		var position models.Position
+		if err := r.db.
+			Select("department_id").
+			First(&position, "id = ?", *context.PositionID).Error; err != nil {
+			return false, err
+		}
+
+		parentDeptIDs, err := r.getAllParentDepartments(*position.DepartmentID)
+		if err != nil {
+			return false, err
+		}
+		scopes[string(models.ScopeDepartment)] = append(scopes[string(models.ScopeDepartment)], parentDeptIDs...)
+
+		var locationIDs []int64
+		if err := r.db.
+			Model(&models.Department{}).
+			Distinct("location_id").
+			Where("id IN ?", parentDeptIDs).
+			Pluck("location_id", &locationIDs).Error; err != nil {
+			return false, err
+		}
 	}
 
 	query := r.db.Model(&models.EmployeePermissionGrant{}).

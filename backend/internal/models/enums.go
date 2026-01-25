@@ -48,6 +48,7 @@ const (
 	ScopeOrganization ScopeType = "organization"
 	ScopeLocation     ScopeType = "location"
 	ScopeDepartment   ScopeType = "department"
+	ScopePosition     ScopeType = "position"
 )
 
 // ===== Invite Status =====

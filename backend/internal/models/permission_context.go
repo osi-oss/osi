@@ -32,6 +32,10 @@ func (pc *PermissionContext) HasDepartmentAccess() bool {
 	return pc.DepartmentID != nil
 }
 
+func (pc *PermissionContext) HasPositionAccess() bool {
+	return pc.PositionID != nil
+}
+
 // MatchesScopeLocation checks if permission scope matches location context
 func (pc *PermissionContext) MatchesScopeLocation(scopeID *int64) bool {
 	if !pc.HasLocationAccess() {
