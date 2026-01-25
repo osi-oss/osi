@@ -792,6 +792,78 @@ const docTemplate = `{
                 }
             }
         },
+        "/organizations/{orgId}/employees/{empId}/permissions": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Возвращает список всех индивидуальных прав сотрудника.\nТребует право \"permissions.view\".",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Права"
+                ],
+                "summary": "Получить права сотрудника",
+                "parameters": [
+                    {
+                        "minimum": 1,
+                        "type": "integer",
+                        "example": 1,
+                        "description": "ID организации",
+                        "name": "orgId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "minimum": 1,
+                        "type": "integer",
+                        "example": 1,
+                        "description": "ID сотрудника",
+                        "name": "empId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Список прав сотрудника",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.PermissionGrantsListResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Неверный формат ID",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Требуется авторизация",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Нет права на просмотр прав",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/organizations/{orgId}/invites": {
             "get": {
                 "security": [
@@ -1792,6 +1864,219 @@ const docTemplate = `{
                 }
             }
         },
+        "/organizations/{orgId}/permissions": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Возвращает список всех прав в системе.\nТребует доступ к организации.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Права"
+                ],
+                "summary": "Получить все доступные права",
+                "parameters": [
+                    {
+                        "minimum": 1,
+                        "type": "integer",
+                        "example": 1,
+                        "description": "ID организации",
+                        "name": "orgId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Список всех прав",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.PermissionGrantsListResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Неверный формат ID",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Требуется авторизация",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/organizations/{orgId}/permissions/grant": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Выдаёт право должности или сотруднику.\nТребует право \"permissions.grant\" в соответствующем scope.\nМожно выдать только те права, которые есть у самого выдающего.\nОснователи могут выдавать любые права.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Права"
+                ],
+                "summary": "Выдача права",
+                "parameters": [
+                    {
+                        "minimum": 1,
+                        "type": "integer",
+                        "example": 1,
+                        "description": "ID организации",
+                        "name": "orgId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Данные для выдачи права",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.GrantPermissionRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Право успешно выдано",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.MessageResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Ошибка валидации",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Требуется авторизация",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Нет права на выдачу прав или попытка выдать право, которого нет у самого пользователя",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Разрешение не найдено",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/organizations/{orgId}/permissions/revoke": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Отзывает право у должности или сотрудника.\nТребует право \"permissions.revoke\" в соответствующем scope.\nОснователи могут отзывать любые права.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Права"
+                ],
+                "summary": "Отзыв права",
+                "parameters": [
+                    {
+                        "minimum": 1,
+                        "type": "integer",
+                        "example": 1,
+                        "description": "ID организации",
+                        "name": "orgId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Данные для отзыва права",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.RevokePermissionRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Право успешно отозвано",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.MessageResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Ошибка валидации",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Требуется авторизация",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Нет права на отзыв прав",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Разрешение не найдено",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/organizations/{orgId}/positions": {
             "get": {
                 "security": [
@@ -2145,6 +2430,78 @@ const docTemplate = `{
                     },
                     "404": {
                         "description": "Должность не найдена",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/organizations/{orgId}/positions/{posId}/permissions": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Возвращает список всех прав, выданных должности.\nТребует право \"permissions.view\".",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Права"
+                ],
+                "summary": "Получить права должности",
+                "parameters": [
+                    {
+                        "minimum": 1,
+                        "type": "integer",
+                        "example": 1,
+                        "description": "ID организации",
+                        "name": "orgId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "minimum": 1,
+                        "type": "integer",
+                        "example": 1,
+                        "description": "ID должности",
+                        "name": "posId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Список прав должности",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.PermissionGrantsListResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Неверный формат ID",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Требуется авторизация",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Нет права на просмотр прав",
                         "schema": {
                             "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
                         }
@@ -2692,6 +3049,45 @@ const docTemplate = `{
                 }
             }
         },
+        "github_com_osi-oss_osi_internal_dto.GrantPermissionRequest": {
+            "description": "Данные для выдачи права должности или сотруднику",
+            "type": "object",
+            "required": [
+                "permission_code",
+                "scope_type"
+            ],
+            "properties": {
+                "employee_id": {
+                    "description": "ID сотрудника (если выдаём право сотруднику)\nExample: 15",
+                    "type": "integer",
+                    "example": 15
+                },
+                "permission_code": {
+                    "description": "Код разрешения (например: \"members.view\")\nExample: members.view",
+                    "type": "string",
+                    "example": "members.view"
+                },
+                "position_id": {
+                    "description": "ID должности (если выдаём право должности)\nExample: 10",
+                    "type": "integer",
+                    "example": 10
+                },
+                "scope_id": {
+                    "description": "ID области действия (null = вся организация)\nExample: 5",
+                    "type": "integer",
+                    "example": 5
+                },
+                "scope_type": {
+                    "description": "Тип области действия: organization, location, department, position\nExample: department",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_models.ScopeType"
+                        }
+                    ],
+                    "example": "department"
+                }
+            }
+        },
         "github_com_osi-oss_osi_internal_dto.InviteResponse": {
             "description": "Полная информация о приглашении в организацию",
             "type": "object",
@@ -2951,6 +3347,60 @@ const docTemplate = `{
                 }
             }
         },
+        "github_com_osi-oss_osi_internal_dto.PermissionGrantResponse": {
+            "description": "Данные о выданном праве",
+            "type": "object",
+            "properties": {
+                "employee_id": {
+                    "description": "ID сотрудника (если право выдано сотруднику)\nExample: 15",
+                    "type": "integer",
+                    "example": 15
+                },
+                "id": {
+                    "description": "ID записи о праве\nExample: 1",
+                    "type": "integer",
+                    "example": 1
+                },
+                "permission_code": {
+                    "description": "Код разрешения\nExample: members.view",
+                    "type": "string",
+                    "example": "members.view"
+                },
+                "permission_description": {
+                    "description": "Описание разрешения\nExample: Просмотр списка сотрудников",
+                    "type": "string",
+                    "example": "Просмотр списка сотрудников"
+                },
+                "position_id": {
+                    "description": "ID должности (если право выдано должности)\nExample: 10",
+                    "type": "integer",
+                    "example": 10
+                },
+                "scope_id": {
+                    "description": "ID области действия\nExample: 5",
+                    "type": "integer",
+                    "example": 5
+                },
+                "scope_type": {
+                    "description": "Тип области действия\nExample: department",
+                    "type": "string",
+                    "example": "department"
+                }
+            }
+        },
+        "github_com_osi-oss_osi_internal_dto.PermissionGrantsListResponse": {
+            "description": "Список всех прав должности или сотрудника",
+            "type": "object",
+            "properties": {
+                "grants": {
+                    "description": "Массив прав",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.PermissionGrantResponse"
+                    }
+                }
+            }
+        },
         "github_com_osi-oss_osi_internal_dto.PositionResponse": {
             "description": "Полная информация о должности",
             "type": "object",
@@ -3075,6 +3525,45 @@ const docTemplate = `{
                     "description": "Сообщение о результате\nExample: Verification code sent to your email",
                     "type": "string",
                     "example": "Verification code sent to your email"
+                }
+            }
+        },
+        "github_com_osi-oss_osi_internal_dto.RevokePermissionRequest": {
+            "description": "Данные для отзыва права",
+            "type": "object",
+            "required": [
+                "permission_code",
+                "scope_type"
+            ],
+            "properties": {
+                "employee_id": {
+                    "description": "ID сотрудника (если отзываем у сотрудника)\nExample: 15",
+                    "type": "integer",
+                    "example": 15
+                },
+                "permission_code": {
+                    "description": "Код разрешения\nExample: members.view",
+                    "type": "string",
+                    "example": "members.view"
+                },
+                "position_id": {
+                    "description": "ID должности (если отзываем у должности)\nExample: 10",
+                    "type": "integer",
+                    "example": 10
+                },
+                "scope_id": {
+                    "description": "ID области действия\nExample: 5",
+                    "type": "integer",
+                    "example": 5
+                },
+                "scope_type": {
+                    "description": "Тип области действия\nExample: department",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_models.ScopeType"
+                        }
+                    ],
+                    "example": "department"
                 }
             }
         },
@@ -3286,6 +3775,21 @@ const docTemplate = `{
                     "example": "user@example.com"
                 }
             }
+        },
+        "github_com_osi-oss_osi_internal_models.ScopeType": {
+            "type": "string",
+            "enum": [
+                "organization",
+                "location",
+                "department",
+                "position"
+            ],
+            "x-enum-varnames": [
+                "ScopeOrganization",
+                "ScopeLocation",
+                "ScopeDepartment",
+                "ScopePosition"
+            ]
         }
     },
     "securityDefinitions": {

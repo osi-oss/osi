@@ -311,6 +311,44 @@ definitions:
         example: invalid email or code
         type: string
     type: object
+  github_com_osi-oss_osi_internal_dto.GrantPermissionRequest:
+    description: Данные для выдачи права должности или сотруднику
+    properties:
+      employee_id:
+        description: |-
+          ID сотрудника (если выдаём право сотруднику)
+          Example: 15
+        example: 15
+        type: integer
+      permission_code:
+        description: |-
+          Код разрешения (например: "members.view")
+          Example: members.view
+        example: members.view
+        type: string
+      position_id:
+        description: |-
+          ID должности (если выдаём право должности)
+          Example: 10
+        example: 10
+        type: integer
+      scope_id:
+        description: |-
+          ID области действия (null = вся организация)
+          Example: 5
+        example: 5
+        type: integer
+      scope_type:
+        allOf:
+        - $ref: '#/definitions/github_com_osi-oss_osi_internal_models.ScopeType'
+        description: |-
+          Тип области действия: organization, location, department, position
+          Example: department
+        example: department
+    required:
+    - permission_code
+    - scope_type
+    type: object
   github_com_osi-oss_osi_internal_dto.InviteResponse:
     description: Полная информация о приглашении в организацию
     properties:
@@ -566,6 +604,61 @@ definitions:
     - email
     - password
     type: object
+  github_com_osi-oss_osi_internal_dto.PermissionGrantResponse:
+    description: Данные о выданном праве
+    properties:
+      employee_id:
+        description: |-
+          ID сотрудника (если право выдано сотруднику)
+          Example: 15
+        example: 15
+        type: integer
+      id:
+        description: |-
+          ID записи о праве
+          Example: 1
+        example: 1
+        type: integer
+      permission_code:
+        description: |-
+          Код разрешения
+          Example: members.view
+        example: members.view
+        type: string
+      permission_description:
+        description: |-
+          Описание разрешения
+          Example: Просмотр списка сотрудников
+        example: Просмотр списка сотрудников
+        type: string
+      position_id:
+        description: |-
+          ID должности (если право выдано должности)
+          Example: 10
+        example: 10
+        type: integer
+      scope_id:
+        description: |-
+          ID области действия
+          Example: 5
+        example: 5
+        type: integer
+      scope_type:
+        description: |-
+          Тип области действия
+          Example: department
+        example: department
+        type: string
+    type: object
+  github_com_osi-oss_osi_internal_dto.PermissionGrantsListResponse:
+    description: Список всех прав должности или сотрудника
+    properties:
+      grants:
+        description: Массив прав
+        items:
+          $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.PermissionGrantResponse'
+        type: array
+    type: object
   github_com_osi-oss_osi_internal_dto.PositionResponse:
     description: Полная информация о должности
     properties:
@@ -686,6 +779,44 @@ definitions:
           Example: Verification code sent to your email
         example: Verification code sent to your email
         type: string
+    type: object
+  github_com_osi-oss_osi_internal_dto.RevokePermissionRequest:
+    description: Данные для отзыва права
+    properties:
+      employee_id:
+        description: |-
+          ID сотрудника (если отзываем у сотрудника)
+          Example: 15
+        example: 15
+        type: integer
+      permission_code:
+        description: |-
+          Код разрешения
+          Example: members.view
+        example: members.view
+        type: string
+      position_id:
+        description: |-
+          ID должности (если отзываем у должности)
+          Example: 10
+        example: 10
+        type: integer
+      scope_id:
+        description: |-
+          ID области действия
+          Example: 5
+        example: 5
+        type: integer
+      scope_type:
+        allOf:
+        - $ref: '#/definitions/github_com_osi-oss_osi_internal_models.ScopeType'
+        description: |-
+          Тип области действия
+          Example: department
+        example: department
+    required:
+    - permission_code
+    - scope_type
     type: object
   github_com_osi-oss_osi_internal_dto.SetPasswordRequest:
     description: Установка пароля для быстрого входа (опционально)
@@ -908,6 +1039,18 @@ definitions:
     - code
     - email
     type: object
+  github_com_osi-oss_osi_internal_models.ScopeType:
+    enum:
+    - organization
+    - location
+    - department
+    - position
+    type: string
+    x-enum-varnames:
+    - ScopeOrganization
+    - ScopeLocation
+    - ScopeDepartment
+    - ScopePosition
 host: localhost:8080
 info:
   contact:
@@ -1450,6 +1593,56 @@ paths:
       summary: Обновление данных организации
       tags:
       - Организации
+  /organizations/{orgId}/employees/{empId}/permissions:
+    get:
+      consumes:
+      - application/json
+      description: |-
+        Возвращает список всех индивидуальных прав сотрудника.
+        Требует право "permissions.view".
+      parameters:
+      - description: ID организации
+        example: 1
+        in: path
+        minimum: 1
+        name: orgId
+        required: true
+        type: integer
+      - description: ID сотрудника
+        example: 1
+        in: path
+        minimum: 1
+        name: empId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Список прав сотрудника
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.PermissionGrantsListResponse'
+        "400":
+          description: Неверный формат ID
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "401":
+          description: Требуется авторизация
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "403":
+          description: Нет права на просмотр прав
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Получить права сотрудника
+      tags:
+      - Права
   /organizations/{orgId}/invites:
     get:
       consumes:
@@ -2153,6 +2346,155 @@ paths:
       summary: Список должностей отдела
       tags:
       - Должности
+  /organizations/{orgId}/permissions:
+    get:
+      consumes:
+      - application/json
+      description: |-
+        Возвращает список всех прав в системе.
+        Требует доступ к организации.
+      parameters:
+      - description: ID организации
+        example: 1
+        in: path
+        minimum: 1
+        name: orgId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Список всех прав
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.PermissionGrantsListResponse'
+        "400":
+          description: Неверный формат ID
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "401":
+          description: Требуется авторизация
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Получить все доступные права
+      tags:
+      - Права
+  /organizations/{orgId}/permissions/grant:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Выдаёт право должности или сотруднику.
+        Требует право "permissions.grant" в соответствующем scope.
+        Можно выдать только те права, которые есть у самого выдающего.
+        Основатели могут выдавать любые права.
+      parameters:
+      - description: ID организации
+        example: 1
+        in: path
+        minimum: 1
+        name: orgId
+        required: true
+        type: integer
+      - description: Данные для выдачи права
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.GrantPermissionRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Право успешно выдано
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.MessageResponse'
+        "400":
+          description: Ошибка валидации
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "401":
+          description: Требуется авторизация
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "403":
+          description: Нет права на выдачу прав или попытка выдать право, которого
+            нет у самого пользователя
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "404":
+          description: Разрешение не найдено
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Выдача права
+      tags:
+      - Права
+  /organizations/{orgId}/permissions/revoke:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Отзывает право у должности или сотрудника.
+        Требует право "permissions.revoke" в соответствующем scope.
+        Основатели могут отзывать любые права.
+      parameters:
+      - description: ID организации
+        example: 1
+        in: path
+        minimum: 1
+        name: orgId
+        required: true
+        type: integer
+      - description: Данные для отзыва права
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.RevokePermissionRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Право успешно отозвано
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.MessageResponse'
+        "400":
+          description: Ошибка валидации
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "401":
+          description: Требуется авторизация
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "403":
+          description: Нет права на отзыв прав
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "404":
+          description: Разрешение не найдено
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Отзыв права
+      tags:
+      - Права
   /organizations/{orgId}/positions:
     get:
       consumes:
@@ -2411,6 +2753,56 @@ paths:
       summary: Обновление должности
       tags:
       - Должности
+  /organizations/{orgId}/positions/{posId}/permissions:
+    get:
+      consumes:
+      - application/json
+      description: |-
+        Возвращает список всех прав, выданных должности.
+        Требует право "permissions.view".
+      parameters:
+      - description: ID организации
+        example: 1
+        in: path
+        minimum: 1
+        name: orgId
+        required: true
+        type: integer
+      - description: ID должности
+        example: 1
+        in: path
+        minimum: 1
+        name: posId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Список прав должности
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.PermissionGrantsListResponse'
+        "400":
+          description: Неверный формат ID
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "401":
+          description: Требуется авторизация
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "403":
+          description: Нет права на просмотр прав
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Получить права должности
+      tags:
+      - Права
   /profile:
     get:
       consumes:

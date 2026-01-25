@@ -230,7 +230,7 @@ func (ctrl *PermissionController) GetEmployeePermissions(c *gin.Context) {
 // @Produce      json
 // @Security     BearerAuth
 // @Param        orgId path int true "ID организации" minimum(1) example(1)
-// @Success      200 {object} object{permissions=[]models.Permission} "Список всех прав"
+// @Success 200 {object} dto.PermissionGrantsListResponse "Список всех прав"
 // @Failure      400 {object} dto.ErrorResponse "Неверный формат ID"
 // @Failure      401 {object} dto.ErrorResponse "Требуется авторизация"
 // @Failure      500 {object} dto.ErrorResponse "Внутренняя ошибка сервера"
