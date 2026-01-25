@@ -198,3 +198,183 @@ func (s *PermissionService) GetPermissionByCode(code string) (*models.Permission
 	}
 	return permission, nil
 }
+
+// CanGrantPermission проверяет, может ли пользователь выдать указанное право
+// Пользователь может выдать право только если:
+// 1. Он основатель организации (имеет все права)
+// 2. У него есть право permissions.grant в нужном scope
+// 3. Он сам имеет право, которое пытается выдать (нельзя выдать то, чего у тебя нет)
+func (s *PermissionService) CanGrantPermission(
+	userID int64,
+	orgID int64,
+	permissionCode string,
+	scopeType models.ScopeType,
+	scopeID *int64,
+) (bool, error) {
+	// 1. Проверяем, является ли пользователь основателем
+	founder, err := s.orgRepo.GetFounderByUserAndOrgID(userID, orgID)
+	if err == nil && founder != nil && founder.ID > 0 {
+		return true, nil // Основатель может выдавать любые права
+	}
+
+	// 2. Формируем контекст для проверки
+	context := &models.PermissionContext{
+		OrgID: &orgID,
+	}
+
+	if scopeType == models.ScopeLocation && scopeID != nil {
+		context.LocationID = scopeID
+	} else if scopeType == models.ScopeDepartment && scopeID != nil {
+		context.DepartmentID = scopeID
+	} else if scopeType == models.ScopePosition && scopeID != nil {
+		context.PositionID = scopeID
+	}
+
+	// 3. Проверяем право на выдачу прав (permissions.grant)
+	hasGrantRight, err := s.UserHasScopedPermissionWithHierarchy(
+		userID,
+		orgID,
+		"permissions.grant",
+		scopeType,
+		context,
+	)
+	if err != nil {
+		return false, err
+	}
+
+	if !hasGrantRight {
+		return false, nil
+	}
+
+	// 4. Проверяем, что пользователь сам имеет право, которое пытается выдать
+	// (нельзя выдать то, чего у себя нет)
+	hasPermission, err := s.UserHasScopedPermissionWithHierarchy(
+		userID,
+		orgID,
+		permissionCode,
+		scopeType,
+		context,
+	)
+	if err != nil {
+		return false, err
+	}
+
+	return hasPermission, nil
+}
+
+// CanRevokePermission проверяет, может ли пользователь отозвать указанное право
+// Логика аналогична CanGrantPermission
+func (s *PermissionService) CanRevokePermission(
+	userID int64,
+	orgID int64,
+	permissionCode string,
+	scopeType models.ScopeType,
+	scopeID *int64,
+) (bool, error) {
+	// 1. Проверяем, является ли пользователь основателем
+	founder, err := s.orgRepo.GetFounderByUserAndOrgID(userID, orgID)
+	if err == nil && founder != nil && founder.ID > 0 {
+		return true, nil
+	}
+
+	// 2. Формируем контекст
+	context := &models.PermissionContext{
+		OrgID: &orgID,
+	}
+
+	if scopeType == models.ScopeLocation && scopeID != nil {
+		context.LocationID = scopeID
+	} else if scopeType == models.ScopeDepartment && scopeID != nil {
+		context.DepartmentID = scopeID
+	} else if scopeType == models.ScopePosition && scopeID != nil {
+		context.PositionID = scopeID
+	}
+
+	// 3. Проверяем право на отзыв прав (permissions.revoke)
+	hasRevokeRight, err := s.UserHasScopedPermissionWithHierarchy(
+		userID,
+		orgID,
+		"permissions.revoke",
+		scopeType,
+		context,
+	)
+	if err != nil {
+		return false, err
+	}
+
+	return hasRevokeRight, nil
+}
+
+// GrantPermissionWithCheck выдаёт право с проверкой возможности выдачи
+func (s *PermissionService) GrantPermissionWithCheck(
+	granterUserID int64,
+	orgID int64,
+	positionID *int64,
+	employeeID *int64,
+	permissionCode string,
+	scopeType models.ScopeType,
+	scopeID *int64,
+) error {
+	// Проверяем, может ли пользователь выдать это право
+	canGrant, err := s.CanGrantPermission(granterUserID, orgID, permissionCode, scopeType, scopeID)
+	if err != nil {
+		return err
+	}
+
+	if !canGrant {
+		return apperrors.New(403, "you don't have permission to grant this right")
+	}
+
+	// Выдаём право
+	if positionID != nil {
+		return s.GrantPermissionToPosition(*positionID, permissionCode, scopeType, scopeID)
+	}
+
+	if employeeID != nil {
+		return s.GrantPermissionToEmployee(*employeeID, permissionCode, scopeType, scopeID)
+	}
+
+	return apperrors.BadRequest("either position_id or employee_id must be provided")
+}
+
+// RevokePermissionWithCheck отзывает право с проверкой возможности отзыва
+func (s *PermissionService) RevokePermissionWithCheck(
+	revokerUserID int64,
+	orgID int64,
+	positionID *int64,
+	employeeID *int64,
+	permissionCode string,
+	scopeType models.ScopeType,
+	scopeID *int64,
+) error {
+	// Проверяем, может ли пользователь отозвать это право
+	canRevoke, err := s.CanRevokePermission(revokerUserID, orgID, permissionCode, scopeType, scopeID)
+	if err != nil {
+		return err
+	}
+
+	if !canRevoke {
+		return apperrors.New(403, "you don't have permission to revoke this right")
+	}
+
+	// Отзываем право
+	if employeeID != nil {
+		return s.RevokePermissionFromEmployee(*employeeID, permissionCode, scopeType, scopeID)
+	}
+
+	if positionID != nil {
+		// Для позиций нужно добавить метод в репозиторий
+		permission, err := s.permissionRepo.GetByCode(permissionCode)
+		if err != nil {
+			return apperrors.ErrPermissionNotFound
+		}
+		return s.permissionGrantRepo.RevokeFromPosition(*positionID, permission.ID, scopeType, scopeID)
+	}
+
+	return apperrors.BadRequest("either position_id or employee_id must be provided")
+}
+
+// GetPositionPermissions возвращает все права должности
+func (s *PermissionService) GetPositionPermissions(positionID int64) ([]models.PositionPermissionGrant, error) {
+	return s.permissionGrantRepo.GetPositionGrants(positionID)
+}

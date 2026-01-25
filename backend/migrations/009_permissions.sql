@@ -44,9 +44,19 @@ VALUES (
         'Schedule'
     ),
     (
-        'permissions.manage',
-        'Управление правами',
-        'Admin'
+        'permissions.grant',
+        'Выдача прав другим пользователям',
+        'Permissions'
+    ),
+    (
+        'permissions.revoke',
+        'Отзыв прав у пользователей',
+        'Permissions'
+    ),
+    (
+        'permissions.view',
+        'Просмотр прав пользователей',
+        'Permissions'
     );
 
 -- +goose Down

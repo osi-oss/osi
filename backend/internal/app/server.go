@@ -111,6 +111,7 @@ func Start(cfg *config.Config) {
 	departmentController := controllers.NewDepartmentController(departmentService)
 	positionController := controllers.NewPositionController(positionService)
 	inviteController := controllers.NewInviteController(inviteService)
+	permissionController := controllers.NewPermissionController(permissionService)
 
 	logger.Info("✅ Services initialized", slog.String("port", cfg.AppPort))
 
@@ -315,6 +316,39 @@ func Start(cfg *config.Config) {
 			protected.GET("/organizations/:orgId/invites",
 				permMiddleware.RequireOrgAccess,
 				inviteController.GetOrganizationInvites)
+
+			// Управление правами
+			protected.GET("/organizations/:orgId/permissions",
+				permMiddleware.RequireOrgAccess,
+				permissionController.GetAllPermissions)
+
+			// Выдача прав (требует permissions.grant)
+			protected.POST("/organizations/:orgId/permissions/grant",
+				permMiddleware.RequireOrgAccess,
+				permissionController.GrantPermission)
+
+			// Отзыв прав (требует permissions.revoke)
+			protected.POST("/organizations/:orgId/permissions/revoke",
+				permMiddleware.RequireOrgAccess,
+				permissionController.RevokePermission)
+
+			// Просмотр прав должности (требует permissions.view)
+			protected.GET("/organizations/:orgId/positions/:posId/permissions",
+				permMiddleware.RequireScopedPermissionHierarchy(
+					"permissions.view",
+					models.ScopeOrganization,
+					extractOrganizationContext,
+				),
+				permissionController.GetPositionPermissions)
+
+			// Просмотр прав сотрудника (требует permissions.view)
+			protected.GET("/organizations/:orgId/employees/:empId/permissions",
+				permMiddleware.RequireScopedPermissionHierarchy(
+					"permissions.view",
+					models.ScopeOrganization,
+					extractOrganizationContext,
+				),
+				permissionController.GetEmployeePermissions)
 		}
 	}
 

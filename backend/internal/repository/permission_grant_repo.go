@@ -312,3 +312,14 @@ func (r *PermissionGrantRepository) getAllParentDepartments(deptId int64) ([]int
 	result = append(result, deptId)
 	return result, nil
 }
+
+// RevokeFromPosition removes a scoped permission from a position
+func (r *PermissionGrantRepository) RevokeFromPosition(positionID, permissionID int64, scopeType models.ScopeType, scopeID *int64) error {
+	query := r.db.Where("position_id = ? AND permission_id = ? AND scope_type = ?", positionID, permissionID, scopeType)
+	if scopeID == nil {
+		query = query.Where("scope_id IS NULL")
+	} else {
+		query = query.Where("scope_id = ?", *scopeID)
+	}
+	return query.Delete(&models.PositionPermissionGrant{}).Error
+}

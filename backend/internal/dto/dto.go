@@ -1,6 +1,10 @@
 package dto
 
-import "time"
+import (
+	"time"
+
+	"github.com/osi-oss/osi/internal/models"
+)
 
 // ===== Auth DTOs =====
 
@@ -518,4 +522,133 @@ type DeclineInviteResponse struct {
 	// Сообщение об успехе
 	// Example: Invite declined successfully
 	Message string `json:"message" example:"Invite declined successfully"`
+}
+
+// GrantPermissionRequest запрос на выдачу права
+// @Description Данные для выдачи права должности или сотруднику
+type GrantPermissionRequest struct {
+	// Код разрешения (например: "members.view")
+	// Example: members.view
+	PermissionCode string `json:"permission_code" binding:"required" example:"members.view"`
+
+	// Тип области действия: organization, location, department, position
+	// Example: department
+	ScopeType models.ScopeType `json:"scope_type" binding:"required" example:"department"`
+
+	// ID области действия (null = вся организация)
+	// Example: 5
+	ScopeID *int64 `json:"scope_id" example:"5"`
+
+	// ID должности (если выдаём право должности)
+	// Example: 10
+	PositionID *int64 `json:"position_id" example:"10"`
+
+	// ID сотрудника (если выдаём право сотруднику)
+	// Example: 15
+	EmployeeID *int64 `json:"employee_id" example:"15"`
+}
+
+// RevokePermissionRequest запрос на отзыв права
+// @Description Данные для отзыва права
+type RevokePermissionRequest struct {
+	// Код разрешения
+	// Example: members.view
+	PermissionCode string `json:"permission_code" binding:"required" example:"members.view"`
+
+	// Тип области действия
+	// Example: department
+	ScopeType models.ScopeType `json:"scope_type" binding:"required" example:"department"`
+
+	// ID области действия
+	// Example: 5
+	ScopeID *int64 `json:"scope_id" example:"5"`
+
+	// ID должности (если отзываем у должности)
+	// Example: 10
+	PositionID *int64 `json:"position_id" example:"10"`
+
+	// ID сотрудника (если отзываем у сотрудника)
+	// Example: 15
+	EmployeeID *int64 `json:"employee_id" example:"15"`
+}
+
+// PermissionGrantResponse информация о выданном праве
+// @Description Данные о выданном праве
+type PermissionGrantResponse struct {
+	// ID записи о праве
+	// Example: 1
+	ID int64 `json:"id" example:"1"`
+
+	// Код разрешения
+	// Example: members.view
+	PermissionCode string `json:"permission_code" example:"members.view"`
+
+	// Описание разрешения
+	// Example: Просмотр списка сотрудников
+	PermissionDescription string `json:"permission_description" example:"Просмотр списка сотрудников"`
+
+	// Тип области действия
+	// Example: department
+	ScopeType string `json:"scope_type" example:"department"`
+
+	// ID области действия
+	// Example: 5
+	ScopeID *int64 `json:"scope_id" example:"5"`
+
+	// ID должности (если право выдано должности)
+	// Example: 10
+	PositionID *int64 `json:"position_id,omitempty" example:"10"`
+
+	// ID сотрудника (если право выдано сотруднику)
+	// Example: 15
+	EmployeeID *int64 `json:"employee_id,omitempty" example:"15"`
+}
+
+// PermissionGrantsListResponse список прав
+// @Description Список всех прав должности или сотрудника
+type PermissionGrantsListResponse struct {
+	// Массив прав
+	Grants []PermissionGrantResponse `json:"grants"`
+}
+
+// ToPermissionGrantResponse преобразует PositionPermissionGrant в PermissionGrantResponse
+func ToPositionPermissionGrantResponse(g *models.PositionPermissionGrant) PermissionGrantResponse {
+	return PermissionGrantResponse{
+		ID:                    g.ID,
+		PermissionCode:        g.Permission.Code,
+		PermissionDescription: g.Permission.Description,
+		ScopeType:             string(g.ScopeType),
+		ScopeID:               g.ScopeID,
+		PositionID:            &g.PositionID,
+	}
+}
+
+// ToEmployeePermissionGrantResponse преобразует EmployeePermissionGrant в PermissionGrantResponse
+func ToEmployeePermissionGrantResponse(g *models.EmployeePermissionGrant) PermissionGrantResponse {
+	return PermissionGrantResponse{
+		ID:                    g.ID,
+		PermissionCode:        g.Permission.Code,
+		PermissionDescription: g.Permission.Description,
+		ScopeType:             string(g.ScopeType),
+		ScopeID:               g.ScopeID,
+		EmployeeID:            &g.EmployeeID,
+	}
+}
+
+// ToPositionPermissionGrantResponses преобразует массив
+func ToPositionPermissionGrantResponses(grants []models.PositionPermissionGrant) []PermissionGrantResponse {
+	result := make([]PermissionGrantResponse, len(grants))
+	for i, g := range grants {
+		result[i] = ToPositionPermissionGrantResponse(&g)
+	}
+	return result
+}
+
+// ToEmployeePermissionGrantResponses преобразует массив
+func ToEmployeePermissionGrantResponses(grants []models.EmployeePermissionGrant) []PermissionGrantResponse {
+	result := make([]PermissionGrantResponse, len(grants))
+	for i, g := range grants {
+		result[i] = ToEmployeePermissionGrantResponse(&g)
+	}
+	return result
 }
