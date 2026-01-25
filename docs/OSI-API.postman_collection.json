@@ -2,7 +2,7 @@
     "info": {
         "_postman_id": "osi-api-collection-v2",
         "name": "OSI API v2",
-        "description": "Коллекция запросов для тестирования OSI API - системы управления организациями.\n\n## Новая система аутентификации\nВход и регистрация осуществляются через email с кодом подтверждения.\n\n## Порядок тестирования\n1. **Auth** → Request Code (получить код на email)\n2. **Auth** → Verify Code (ввести код, получить токен)\n3. **Profile** → Complete Profile (заполнить профиль - для новых пользователей)\n4. **Organizations** → Create (создать организацию)\n5. **Locations** → Create (создать локацию)\n6. **Departments** → Create (создать отдел)\n7. **Positions** → Create (создать должность)\n8. **Invites** → Create Invite (пригласить сотрудника)\n\n## Настройка\n- Переменная `base_url` по умолчанию: http://localhost:8080\n- Токен автоматически сохраняется после Verify Code\n- Используются переменные окружения для ID ресурсов",
+        "description": "Коллекция запросов для тестирования OSI API - системы управления организациями.\n\n## Новая система аутентификации\nВход и регистрация осуществляются через email с кодом подтверждения.\n\n## Порядок тестирования\n1. Auth → Request Code (получить код на email)\n2. Auth → Verify Code (ввести код, получить токен)\n3. Auth → Complete Profile (заполнить профиль - для новых пользователей)\n4. Organizations → Create (создать организацию)\n5. Locations → Create (создать локацию)\n6. Departments → Create (создать отдел)\n7. Positions → Create (создать должность)\n\n## Настройка\n- Переменная `base_url` по умолчанию: http://localhost:8080\n- Токен автоматически сохраняется после Verify Code",
         "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
     },
     "variable": [
@@ -40,11 +40,6 @@
             "key": "pos_id",
             "value": "1",
             "type": "string"
-        },
-        {
-            "key": "invite_id",
-            "value": "1",
-            "type": "string"
         }
     ],
     "item": [
@@ -62,7 +57,7 @@
                                 "{{base_url}}"
                             ],
                             "path": [
-                                "/ping"
+                                "ping"
                             ]
                         },
                         "description": "Проверка работоспособности сервера. Возвращает {\"message\": \"pong\"}"
@@ -84,9 +79,8 @@
                                 "exec": [
                                     "if (pm.response.code === 200) {",
                                     "    var jsonData = pm.response.json();",
-                                    "    pm.environment.set(\"is_new_user\", jsonData.is_new_user);",
-                                    "    pm.environment.set(\"expires_in\", jsonData.expires_in);",
-                                    "    console.log('Code request sent. Is new user:', jsonData.is_new_user);",
+                                    "    console.log('Code sent! Check email. Is new user:', jsonData.is_new_user);",
+                                    "    console.log('Code expires in:', jsonData.expires_in, 'seconds');",
                                     "}"
                                 ],
                                 "type": "text/javascript"
@@ -111,7 +105,7 @@
                                 "{{base_url}}"
                             ],
                             "path": [
-                                "/api",
+                                "api",
                                 "auth",
                                 "request-code"
                             ]
@@ -129,10 +123,13 @@
                                 "exec": [
                                     "if (pm.response.code === 200) {",
                                     "    var jsonData = pm.response.json();",
-                                    "    pm.environment.set(\"token\", jsonData.token);",
-                                    "    pm.environment.set(\"next_step\", jsonData.next_step || \"\");",
-                                    "    console.log('Token set:', jsonData.token.substring(0, 20) + '...');",
-                                    "    console.log('Next step:', jsonData.next_step);",
+                                    "    if (jsonData.token) {",
+                                    "        pm.collectionVariables.set('token', jsonData.token);",
+                                    "        console.log('Token saved!');",
+                                    "        if (jsonData.next_step) {",
+                                    "            console.log('Next step required:', jsonData.next_step);",
+                                    "        }",
+                                    "    }",
                                     "}"
                                 ],
                                 "type": "text/javascript"
@@ -157,7 +154,7 @@
                                 "{{base_url}}"
                             ],
                             "path": [
-                                "/api",
+                                "api",
                                 "auth",
                                 "verify-code"
                             ]
@@ -167,14 +164,19 @@
                     "response": []
                 },
                 {
-                    "name": "3. Complete Profile - Заполнение профиля",
+                    "name": "4. Complete Profile - Заполнение профиля",
                     "event": [
                         {
                             "listen": "test",
                             "script": {
                                 "exec": [
                                     "if (pm.response.code === 200) {",
-                                    "    console.log('Profile completed successfully');",
+                                    "    var jsonData = pm.response.json();",
+                                    "    if (jsonData.token) {",
+                                    "        pm.collectionVariables.set('token', jsonData.token);",
+                                    "        console.log('Token saved!');",
+                                    "    }",
+                                    "    console.log('Profile completed! Full access granted.');",
                                     "}"
                                 ],
                                 "type": "text/javascript"
@@ -203,7 +205,7 @@
                                 "{{base_url}}"
                             ],
                             "path": [
-                                "/api",
+                                "api",
                                 "auth",
                                 "complete-profile"
                             ]
@@ -212,6 +214,83 @@
                     },
                     "response": []
                 },
+                {
+                    "name": "Login with Password - Вход по паролю",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "if (pm.response.code === 200) {",
+                                    "    var jsonData = pm.response.json();",
+                                    "    if (jsonData.token) {",
+                                    "        pm.collectionVariables.set('token', jsonData.token);",
+                                    "        console.log('Token saved!');",
+                                    "    }",
+                                    "}"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"email\": \"{{test_email}}\",\n    \"password\": \"SecurePass123\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/auth/login-password",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "auth",
+                                "login-password"
+                            ]
+                        },
+                        "description": "Вход по паролю (если пароль установлен).\n\n**Примечание:** Пароль опционален. Если не установлен, используйте Request Code."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Logout - Выход",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/auth/logout",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "auth",
+                                "logout"
+                            ]
+                        },
+                        "description": "Выход из системы. Удаляет cookie с токеном."
+                    },
+                    "response": []
+                }
+            ],
+            "description": "Аутентификация через email с кодом подтверждения"
+        },
+        {
+            "name": "Profile",
+            "item": [
                 {
                     "name": "Get Profile - Получить профиль",
                     "request": {
@@ -228,7 +307,7 @@
                                 "{{base_url}}"
                             ],
                             "path": [
-                                "/api",
+                                "api",
                                 "profile"
                             ]
                         },
@@ -260,7 +339,7 @@
                                 "{{base_url}}"
                             ],
                             "path": [
-                                "/api",
+                                "api",
                                 "profile",
                                 "set-password"
                             ]
@@ -270,61 +349,73 @@
                     "response": []
                 },
                 {
-                    "name": "Login with Password - Вход по паролю",
+                    "name": "Change Password - Изменить пароль",
                     "request": {
                         "method": "POST",
                         "header": [
                             {
                                 "key": "Content-Type",
                                 "value": "application/json"
-                            }
-                        ],
-                        "body": {
-                            "mode": "raw",
-                            "raw": "{\n    \"email\": \"{{test_email}}\",\n    \"password\": \"SecurePass123\"\n}"
-                        },
-                        "url": {
-                            "raw": "{{base_url}}/api/auth/login-password",
-                            "host": [
-                                "{{base_url}}"
-                            ],
-                            "path": [
-                                "/api",
-                                "auth",
-                                "login-password"
-                            ]
-                        },
-                        "description": "Вход по паролю (если пароль установлен).\n\n**Примечание:** Пароль опционален. Если не установлен, используйте Request Code."
-                    },
-                    "response": []
-                },
-                {
-                    "name": "Logout - Выход",
-                    "request": {
-                        "method": "POST",
-                        "header": [
+                            },
                             {
                                 "key": "Authorization",
                                 "value": "Bearer {{token}}"
                             }
                         ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"old_password\": \"SecurePass123\",\n    \"new_password\": \"NewSecurePass456\"\n}"
+                        },
                         "url": {
-                            "raw": "{{base_url}}/api/auth/logout",
+                            "raw": "{{base_url}}/api/profile/change-password",
                             "host": [
                                 "{{base_url}}"
                             ],
                             "path": [
-                                "/api",
-                                "auth",
-                                "logout"
+                                "api",
+                                "profile",
+                                "change-password"
                             ]
                         },
-                        "description": "Выход из системы. Удаляет cookie с токеном."
+                        "description": "Изменение существующего пароля."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Remove Password - Удалить пароль",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"password\": \"SecurePass123\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/profile/remove-password",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "profile",
+                                "remove-password"
+                            ]
+                        },
+                        "description": "Удаление пароля. После этого вход возможен только через код на email."
                     },
                     "response": []
                 }
             ],
-            "description": "Аутентификация через email с кодом подтверждения"
+            "description": "Управление профилем пользователя"
         },
         {
             "name": "Organizations",
@@ -338,8 +429,10 @@
                                 "exec": [
                                     "if (pm.response.code === 201) {",
                                     "    var jsonData = pm.response.json();",
-                                    "    pm.environment.set(\"org_id\", jsonData.id);",
-                                    "    console.log('Organization created with ID:', jsonData.id);",
+                                    "    if (jsonData.organization && jsonData.organization.id) {",
+                                    "        pm.collectionVariables.set('org_id', jsonData.organization.id);",
+                                    "        console.log('Organization ID saved:', jsonData.organization.id);",
+                                    "    }",
                                     "}"
                                 ],
                                 "type": "text/javascript"
@@ -368,7 +461,7 @@
                                 "{{base_url}}"
                             ],
                             "path": [
-                                "/api",
+                                "api",
                                 "organizations"
                             ]
                         },
@@ -392,7 +485,7 @@
                                 "{{base_url}}"
                             ],
                             "path": [
-                                "/api",
+                                "api",
                                 "organizations"
                             ]
                         },
@@ -416,7 +509,7 @@
                                 "{{base_url}}"
                             ],
                             "path": [
-                                "/api",
+                                "api",
                                 "organizations",
                                 "{{org_id}}"
                             ]
@@ -449,7 +542,7 @@
                                 "{{base_url}}"
                             ],
                             "path": [
-                                "/api",
+                                "api",
                                 "organizations",
                                 "{{org_id}}"
                             ]
@@ -474,7 +567,7 @@
                                 "{{base_url}}"
                             ],
                             "path": [
-                                "/api",
+                                "api",
                                 "organizations",
                                 "{{org_id}}"
                             ]
@@ -498,8 +591,10 @@
                                 "exec": [
                                     "if (pm.response.code === 201) {",
                                     "    var jsonData = pm.response.json();",
-                                    "    pm.environment.set(\"loc_id\", jsonData.id);",
-                                    "    console.log('Location created with ID:', jsonData.id);",
+                                    "    if (jsonData.location && jsonData.location.id) {",
+                                    "        pm.collectionVariables.set('loc_id', jsonData.location.id);",
+                                    "        console.log('Location ID saved:', jsonData.location.id);",
+                                    "    }",
                                     "}"
                                 ],
                                 "type": "text/javascript"
@@ -528,7 +623,7 @@
                                 "{{base_url}}"
                             ],
                             "path": [
-                                "/api",
+                                "api",
                                 "organizations",
                                 "{{org_id}}",
                                 "locations"
@@ -554,7 +649,7 @@
                                 "{{base_url}}"
                             ],
                             "path": [
-                                "/api",
+                                "api",
                                 "organizations",
                                 "{{org_id}}",
                                 "locations"
@@ -580,7 +675,7 @@
                                 "{{base_url}}"
                             ],
                             "path": [
-                                "/api",
+                                "api",
                                 "organizations",
                                 "{{org_id}}",
                                 "locations",
@@ -615,7 +710,7 @@
                                 "{{base_url}}"
                             ],
                             "path": [
-                                "/api",
+                                "api",
                                 "organizations",
                                 "{{org_id}}",
                                 "locations",
@@ -642,7 +737,7 @@
                                 "{{base_url}}"
                             ],
                             "path": [
-                                "/api",
+                                "api",
                                 "organizations",
                                 "{{org_id}}",
                                 "locations",
@@ -668,8 +763,10 @@
                                 "exec": [
                                     "if (pm.response.code === 201) {",
                                     "    var jsonData = pm.response.json();",
-                                    "    pm.environment.set(\"dept_id\", jsonData.id);",
-                                    "    console.log('Department created with ID:', jsonData.id);",
+                                    "    if (jsonData.department && jsonData.department.id) {",
+                                    "        pm.collectionVariables.set('dept_id', jsonData.department.id);",
+                                    "        console.log('Department ID saved:', jsonData.department.id);",
+                                    "    }",
                                     "}"
                                 ],
                                 "type": "text/javascript"
@@ -698,7 +795,7 @@
                                 "{{base_url}}"
                             ],
                             "path": [
-                                "/api",
+                                "api",
                                 "organizations",
                                 "{{org_id}}",
                                 "locations",
@@ -726,7 +823,7 @@
                                 "{{base_url}}"
                             ],
                             "path": [
-                                "/api",
+                                "api",
                                 "organizations",
                                 "{{org_id}}",
                                 "locations",
@@ -754,7 +851,7 @@
                                 "{{base_url}}"
                             ],
                             "path": [
-                                "/api",
+                                "api",
                                 "organizations",
                                 "{{org_id}}",
                                 "locations",
@@ -791,7 +888,7 @@
                                 "{{base_url}}"
                             ],
                             "path": [
-                                "/api",
+                                "api",
                                 "organizations",
                                 "{{org_id}}",
                                 "locations",
@@ -820,7 +917,7 @@
                                 "{{base_url}}"
                             ],
                             "path": [
-                                "/api",
+                                "api",
                                 "organizations",
                                 "{{org_id}}",
                                 "locations",
@@ -848,8 +945,10 @@
                                 "exec": [
                                     "if (pm.response.code === 201) {",
                                     "    var jsonData = pm.response.json();",
-                                    "    pm.environment.set(\"pos_id\", jsonData.id);",
-                                    "    console.log('Position created with ID:', jsonData.id);",
+                                    "    if (jsonData.position && jsonData.position.id) {",
+                                    "        pm.collectionVariables.set('pos_id', jsonData.position.id);",
+                                    "        console.log('Position ID saved:', jsonData.position.id);",
+                                    "    }",
                                     "}"
                                 ],
                                 "type": "text/javascript"
@@ -878,7 +977,7 @@
                                 "{{base_url}}"
                             ],
                             "path": [
-                                "/api",
+                                "api",
                                 "organizations",
                                 "{{org_id}}",
                                 "positions"
@@ -904,13 +1003,43 @@
                                 "{{base_url}}"
                             ],
                             "path": [
-                                "/api",
+                                "api",
                                 "organizations",
                                 "{{org_id}}",
                                 "positions"
                             ]
                         },
                         "description": "Получение списка должностей организации."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Department Positions",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/organizations/{{org_id}}/locations/{{loc_id}}/departments/{{dept_id}}/positions",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "organizations",
+                                "{{org_id}}",
+                                "locations",
+                                "{{loc_id}}",
+                                "departments",
+                                "{{dept_id}}",
+                                "positions"
+                            ]
+                        },
+                        "description": "Получение должностей отдела."
                     },
                     "response": []
                 },
@@ -930,7 +1059,7 @@
                                 "{{base_url}}"
                             ],
                             "path": [
-                                "/api",
+                                "api",
                                 "organizations",
                                 "{{org_id}}",
                                 "positions",
@@ -965,7 +1094,7 @@
                                 "{{base_url}}"
                             ],
                             "path": [
-                                "/api",
+                                "api",
                                 "organizations",
                                 "{{org_id}}",
                                 "positions",
@@ -992,7 +1121,7 @@
                                 "{{base_url}}"
                             ],
                             "path": [
-                                "/api",
+                                "api",
                                 "organizations",
                                 "{{org_id}}",
                                 "positions",
@@ -1005,164 +1134,6 @@
                 }
             ],
             "description": "Управление должностями"
-        },
-        {
-            "name": "Invites",
-            "item": [
-                {
-                    "name": "Create Invite",
-                    "event": [
-                        {
-                            "listen": "test",
-                            "script": {
-                                "exec": [
-                                    "if (pm.response.code === 201) {",
-                                    "    var jsonData = pm.response.json();",
-                                    "    pm.environment.set(\"invite_id\", jsonData.id);",
-                                    "    console.log('Invite created with ID:', jsonData.id);",
-                                    "}"
-                                ],
-                                "type": "text/javascript"
-                            }
-                        }
-                    ],
-                    "request": {
-                        "method": "POST",
-                        "header": [
-                            {
-                                "key": "Content-Type",
-                                "value": "application/json"
-                            },
-                            {
-                                "key": "Authorization",
-                                "value": "Bearer {{token}}"
-                            }
-                        ],
-                        "body": {
-                            "mode": "raw",
-                            "raw": "{\n    \"position_id\": {{pos_id}},\n    \"email\": \"new.employee@example.com\"\n}"
-                        },
-                        "url": {
-                            "raw": "{{base_url}}/api/organizations/{{org_id}}/invites",
-                            "host": [
-                                "{{base_url}}"
-                            ],
-                            "path": [
-                                "/api",
-                                "organizations",
-                                "{{org_id}}",
-                                "invites"
-                            ]
-                        },
-                        "description": "Приглашение пользователя на должность в организацию по email."
-                    },
-                    "response": []
-                },
-                {
-                    "name": "Get My Invites",
-                    "request": {
-                        "method": "GET",
-                        "header": [
-                            {
-                                "key": "Authorization",
-                                "value": "Bearer {{token}}"
-                            }
-                        ],
-                        "url": {
-                            "raw": "{{base_url}}/api/invites/my",
-                            "host": [
-                                "{{base_url}}"
-                            ],
-                            "path": [
-                                "/api",
-                                "invites",
-                                "my"
-                            ]
-                        },
-                        "description": "Получение всех pending приглашений для текущего пользователя."
-                    },
-                    "response": []
-                },
-                {
-                    "name": "Get Organization Invites",
-                    "request": {
-                        "method": "GET",
-                        "header": [
-                            {
-                                "key": "Authorization",
-                                "value": "Bearer {{token}}"
-                            }
-                        ],
-                        "url": {
-                            "raw": "{{base_url}}/api/organizations/{{org_id}}/invites",
-                            "host": [
-                                "{{base_url}}"
-                            ],
-                            "path": [
-                                "/api",
-                                "organizations",
-                                "{{org_id}}",
-                                "invites"
-                            ]
-                        },
-                        "description": "Получение списка приглашений организации."
-                    },
-                    "response": []
-                },
-                {
-                    "name": "Accept Invite",
-                    "request": {
-                        "method": "POST",
-                        "header": [
-                            {
-                                "key": "Authorization",
-                                "value": "Bearer {{token}}"
-                            }
-                        ],
-                        "url": {
-                            "raw": "{{base_url}}/api/invites/{{invite_id}}/accept",
-                            "host": [
-                                "{{base_url}}"
-                            ],
-                            "path": [
-                                "/api",
-                                "invites",
-                                "{{invite_id}}",
-                                "accept"
-                            ]
-                        },
-                        "description": "Принятие приглашения в организацию."
-                    },
-                    "response": []
-                },
-                {
-                    "name": "Decline Invite",
-                    "request": {
-                        "method": "POST",
-                        "header": [
-                            {
-                                "key": "Authorization",
-                                "value": "Bearer {{token}}"
-                            }
-                        ],
-                        "url": {
-                            "raw": "{{base_url}}/api/invites/{{invite_id}}/decline",
-                            "host": [
-                                "{{base_url}}"
-                            ],
-                            "path": [
-                                "/api",
-                                "invites",
-                                "{{invite_id}}",
-                                "decline"
-                            ]
-                        },
-                        "description": "Отклонение приглашения в организацию."
-                    },
-                    "response": []
-                }
-            ],
-            "description": "Управление приглашениями в организацию"
         }
     ]
 }

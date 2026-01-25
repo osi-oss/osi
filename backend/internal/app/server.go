@@ -355,7 +355,7 @@ func extractDepartmentCreationContext(c *gin.Context) *models.PermissionContext 
 	permCtx := extractLocationContext(c)
 
 	var req dto.CreateDepartmentRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	if err := c.ShouldBindBodyWithJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return permCtx
 	}
