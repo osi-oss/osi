@@ -404,6 +404,7 @@ func (s *PermissionServiceTestSuite) TestScopedPermissions() {
 		"users.read",
 		models.ScopeLocation,
 		&models.PermissionContext{
+			OrgID:      &s.testOrg.ID,
 			LocationID: &location.ID,
 		},
 	)
@@ -418,6 +419,7 @@ func (s *PermissionServiceTestSuite) TestScopedPermissions() {
 		"users.read",
 		models.ScopeLocation,
 		&models.PermissionContext{
+			OrgID: &s.testOrg.ID,
 			LocationID: &otherLocationID,
 		},
 	)

@@ -191,7 +191,7 @@ func (r *PermissionGrantRepository) CheckEmployeeHasScopedPermissionWithHierarch
 
 	query := r.db.Model(&models.EmployeePermissionGrant{}).
 		Joins("JOIN permissions ON permissions.id = employee_permission_grants.permission_id").
-		Where("employee_permission_grants.position_id IN ?", employeeIDs).
+		Where("employee_permission_grants.employee_id IN ?", employeeIDs).
 		Where("permissions.code = ?", permissionCode)
 
 	var conditions []string

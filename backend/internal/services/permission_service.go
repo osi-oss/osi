@@ -2,6 +2,7 @@ package services
 
 import (
 	"errors"
+	"time"
 
 	"github.com/osi-oss/osi/internal/apperrors"
 	"github.com/osi-oss/osi/internal/models"
@@ -41,10 +42,12 @@ func (s *PermissionService) UserHasAccessToOrganization(userID int64, orgID int6
 	// Check if user is an active member (has at least one active employee record)
 	employee, err := s.orgRepo.GetEmployeeByUserAndOrgID(userID, orgID)
 	if err == nil && employee != nil && employee.ID > 0 && employee.Status == models.MemberActive {
-		return true, nil
+		if employee.EndDate == nil || !employee.EndDate.Before(time.Now()) {
+			return true, nil
+		}
 	}
-
 	return false, nil
+
 }
 
 // UserHasScopedPermissionWithHierarchy checks permission with full hierarchy support

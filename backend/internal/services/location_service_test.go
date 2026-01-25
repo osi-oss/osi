@@ -26,8 +26,13 @@ type LocationServiceTestSuite struct {
 // SetupTest выполняется перед каждым тестом
 func (s *LocationServiceTestSuite) SetupTest() {
 	var err error
-	s.db, err = gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	s.db, err = gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
 	s.Require().NoError(err)
+
+	sqlDB, err := s.db.DB()
+	s.Require().NoError(err)
+	sqlDB.SetMaxOpenConns(1)
+	sqlDB.SetMaxIdleConns(1)
 
 	err = s.db.AutoMigrate(
 		&models.User{},
@@ -35,6 +40,7 @@ func (s *LocationServiceTestSuite) SetupTest() {
 		&models.OrganizationFounder{},
 		&models.Location{},
 		&models.Department{},
+		&models.Employee{},
 	)
 	s.Require().NoError(err)
 
