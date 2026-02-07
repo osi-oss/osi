@@ -111,26 +111,10 @@ func ToPositionResponses(positions []models.Position) []PositionResponse {
 	return result
 }
 
-// ToMemberResponse преобразует OrganizationMember в MemberResponse
-func ToMemberResponse(m *models.OrganizationMember) MemberResponse {
-	resp := MemberResponse{
-		ID:             m.ID,
-		OrganizationID: m.OrganizationID,
-		UserID:         m.UserID,
-		Status:         string(m.Status),
-		JoinedAt:       m.JoinedAt,
-	}
-	if m.User.ID != 0 {
-		resp.User = ToUserResponse(&m.User)
-	}
-	return resp
-}
-
 // ToEmployeeResponse преобразует Employee в EmployeeResponse
 func ToEmployeeResponse(e *models.Employee) EmployeeResponse {
 	resp := EmployeeResponse{
 		ID:         e.ID,
-		MemberID:   e.MemberID,
 		PositionID: e.PositionID,
 		IsIntern:   e.IsIntern,
 		StartDate:  e.StartDate,
@@ -140,4 +124,46 @@ func ToEmployeeResponse(e *models.Employee) EmployeeResponse {
 		resp.Position = ToPositionResponse(&e.Position)
 	}
 	return resp
+}
+
+// ToInviteResponse преобразует Invite в InviteResponse
+func ToInviteResponse(i *models.Invite) InviteResponse {
+	resp := InviteResponse{
+		ID:              i.ID,
+		OrganizationID:  i.OrganizationID,
+		PositionID:      i.PositionID,
+		InvitedEmail:    i.InvitedEmail,
+		Status:          string(i.Status),
+		InvitedUserID:   i.InvitedUserID,
+		InvitedByUserID: i.InvitedByUserID,
+		CreatedAt:       i.CreatedAt,
+		AcceptedAt:      i.AcceptedAt,
+		DeclinedAt:      i.DeclinedAt,
+	}
+
+	if i.Organization.ID != 0 {
+		orgResp := ToOrganizationResponse(&i.Organization)
+		resp.Organization = &orgResp
+	}
+
+	if i.Position.ID != 0 {
+		posResp := ToPositionResponse(&i.Position)
+		resp.Position = &posResp
+	}
+
+	if i.InvitedByUser.ID != 0 {
+		userResp := ToUserResponse(&i.InvitedByUser)
+		resp.InvitedByUser = &userResp
+	}
+
+	return resp
+}
+
+// ToInviteResponses преобразует slice Invite в slice InviteResponse
+func ToInviteResponses(invites []models.Invite) []InviteResponse {
+	result := make([]InviteResponse, len(invites))
+	for i, inv := range invites {
+		result[i] = ToInviteResponse(&inv)
+	}
+	return result
 }

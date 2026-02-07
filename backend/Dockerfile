@@ -1,5 +1,5 @@
 # Многоэтапная сборка для оптимизации размера образа
-FROM golang:1.23-alpine AS builder
+FROM golang:1.24-alpine AS builder
 
 # Установка ca-certificates
 RUN apk update && apk add --no-cache ca-certificates

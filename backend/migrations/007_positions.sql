@@ -12,4 +12,4 @@ CREATE TABLE positions (
 );
 
 -- +goose Down
-DROP TABLE positions;
+DROP TABLE IF EXISTS positions CASCADE;

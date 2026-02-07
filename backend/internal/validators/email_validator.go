@@ -3,6 +3,7 @@ package validators
 import (
 	"fmt"
 	"regexp"
+	"strings"
 )
 
 // EmailValidator валидатор email адресов
@@ -36,4 +37,19 @@ func (v *EmailValidator) Validate(email string) error {
 	}
 
 	return nil
+}
+
+// CleanAndValidateEmail очищает email от пробелов и проверяет его валидность
+// Возвращает: (очищенный email, nil) если валиден, ("", error) если невалиден
+func (v *EmailValidator) CleanAndValidate(email string) (string, error) {
+	// Убираем пробелы (начальные, конечные и внутренние)
+	cleanedEmail := strings.TrimSpace(email)
+	cleanedEmail = strings.ReplaceAll(cleanedEmail, " ", "")
+
+	// Проверяем валидность
+	if err := v.Validate(cleanedEmail); err != nil {
+		return "", err
+	}
+
+	return cleanedEmail, nil
 }

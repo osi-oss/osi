@@ -1,6 +1,8 @@
 package repository
 
 import (
+	"strings"
+
 	"github.com/osi-oss/osi/internal/models"
 	"gorm.io/gorm"
 )
@@ -18,17 +20,6 @@ func NewPermissionGrantRepository(db *gorm.DB) *PermissionGrantRepository {
 // GrantToPosition adds a scoped permission to a position
 func (r *PermissionGrantRepository) GrantToPosition(grant *models.PositionPermissionGrant) error {
 	return r.db.Create(grant).Error
-}
-
-// RevokeFromPosition removes a scoped permission from a position
-func (r *PermissionGrantRepository) RevokeFromPosition(positionID, permissionID int64, scopeType models.ScopeType, scopeID *int64) error {
-	query := r.db.Where("position_id = ? AND permission_id = ? AND scope_type = ?", positionID, permissionID, scopeType)
-	if scopeID == nil {
-		query = query.Where("scope_id IS NULL")
-	} else {
-		query = query.Where("scope_id = ?", *scopeID)
-	}
-	return query.Delete(&models.PositionPermissionGrant{}).Error
 }
 
 // GetPositionGrants returns all scoped permissions for a position
@@ -115,24 +106,220 @@ func (r *PermissionGrantRepository) CheckPositionHasScopedPermission(
 	return count > 0, err
 }
 
-// CheckEmployeeHasScopedPermission checks if any of the employees has the permission for the given scope
-func (r *PermissionGrantRepository) CheckEmployeeHasScopedPermission(
+// CheckPositionHasScopedPermissionWithHierarchy checks if position has permission
+// with full scope hierarchy support (organization → location → department)
+func (r *PermissionGrantRepository) CheckPositionHasScopedPermissionWithHierarchy(
+	positionIDs []int64,
+	permissionCode string,
+	requestedScope models.ScopeType,
+	context *models.PermissionContext,
+) (bool, error) {
+	if len(positionIDs) == 0 {
+		return false, nil
+	}
+
+	if context == nil {
+		query := r.db.Model(&models.PositionPermissionGrant{}).
+			Joins("JOIN permissions ON permissions.id = position_permission_grants.permission_id").
+			Where("position_permission_grants.position_id IN ?", positionIDs).
+			Where("permissions.code = ?", permissionCode).
+			Where("position_permission_grants.scope_type = ?", models.ScopeOrganization)
+
+		var count int64
+		err := query.Count(&count).Error
+		return count > 0, err
+	}
+
+	type scopeMap = map[string][]int64
+	scopes := make(scopeMap)
+	scopes[string(models.ScopeOrganization)] = []int64{*context.OrgID}
+
+	if context.HasLocationAccess() {
+		scopes["location"] = []int64{*context.LocationID}
+	}
+
+	if context.HasDepartmentAccess() {
+		parentDeptIDs, err := r.getAllParentDepartments(*context.DepartmentID)
+		if err != nil {
+			return false, err
+		}
+		scopes["department"] = parentDeptIDs
+	}
+
+	if context.HasPositionAccess() {
+		scopes["position"] = []int64{*context.PositionID}
+
+		var position models.Position
+		if err := r.db.
+			Select("department_id").
+			First(&position, "id = ?", *context.PositionID).Error; err != nil {
+			return false, err
+		}
+
+		parentDeptIDs, err := r.getAllParentDepartments(*position.DepartmentID)
+		if err != nil {
+			return false, err
+		}
+		scopes[string(models.ScopeDepartment)] = append(scopes[string(models.ScopeDepartment)], parentDeptIDs...)
+
+		var locationIDs []int64
+		if err := r.db.
+			Model(&models.Department{}).
+			Distinct("location_id").
+			Where("id IN ?", parentDeptIDs).
+			Pluck("location_id", &locationIDs).Error; err != nil {
+			return false, err
+		}
+	}
+
+	query := r.db.Model(&models.PositionPermissionGrant{}).
+		Joins("JOIN permissions ON permissions.id = position_permission_grants.permission_id").
+		Where("position_permission_grants.position_id IN ?", positionIDs).
+		Where("permissions.code = ?", permissionCode)
+
+	var conditions []string
+	var args []interface{}
+
+	for scopeType, ids := range scopes {
+		if scopeType == "organization" {
+			conditions = append(conditions, "(position_permission_grants.scope_type = ? AND (position_permission_grants.scope_id IS NULL OR position_permission_grants.scope_id = ?))")
+			args = append(args, scopeType, ids[0])
+		} else {
+			conditions = append(conditions, "(position_permission_grants.scope_type = ? AND position_permission_grants.scope_id IN ?)")
+			args = append(args, scopeType, ids)
+		}
+	}
+
+	query = query.Where(strings.Join(conditions, " OR "), args...)
+
+	var count int64
+	err := query.Count(&count).Error
+	return count > 0, err
+}
+
+// CheckEmployeeHasScopedPermissionWithHierarchy checks if employee has permission
+// with full scope hierarchy support (organization → location → department)
+func (r *PermissionGrantRepository) CheckEmployeeHasScopedPermissionWithHierarchy(
 	employeeIDs []int64,
 	permissionCode string,
-	scopeType models.ScopeType,
-	scopeID *int64,
+	requestedScope models.ScopeType,
+	context *models.PermissionContext,
 ) (bool, error) {
 	if len(employeeIDs) == 0 {
 		return false, nil
 	}
 
-	var count int64
+	if context == nil {
+		query := r.db.Model(&models.EmployeePermissionGrant{}).
+			Joins("JOIN permissions ON permissions.id = employee_permission_grants.permission_id").
+			Where("employee_permission_grants.employee_id IN ?", employeeIDs).
+			Where("permissions.code = ?", permissionCode).
+			Where("employee_permission_grants.scope_type = ?", models.ScopeOrganization)
+
+		var count int64
+		err := query.Count(&count).Error
+		return count > 0, err
+	}
+
+	type scopeMap = map[string][]int64
+
+	scopes := make(scopeMap)
+	scopes["organizations"] = []int64{*context.OrgID}
+
+	if context.HasLocationAccess() {
+		scopes["location"] = []int64{*context.LocationID}
+	}
+
+	if context.HasDepartmentAccess() && context.DepartmentID != nil {
+		parentDeptIDs, err := r.getAllParentDepartments(*context.DepartmentID)
+		if err != nil {
+			return false, err
+		}
+		scopes["department"] = parentDeptIDs
+	}
+
+	if context.HasPositionAccess() {
+		scopes["position"] = []int64{*context.PositionID}
+
+		var position models.Position
+		if err := r.db.
+			Select("department_id").
+			First(&position, "id = ?", *context.PositionID).Error; err != nil {
+			return false, err
+		}
+
+		parentDeptIDs, err := r.getAllParentDepartments(*position.DepartmentID)
+		if err != nil {
+			return false, err
+		}
+		scopes[string(models.ScopeDepartment)] = append(scopes[string(models.ScopeDepartment)], parentDeptIDs...)
+
+		var locationIDs []int64
+		if err := r.db.
+			Model(&models.Department{}).
+			Distinct("location_id").
+			Where("id IN ?", parentDeptIDs).
+			Pluck("location_id", &locationIDs).Error; err != nil {
+			return false, err
+		}
+	}
+
 	query := r.db.Model(&models.EmployeePermissionGrant{}).
 		Joins("JOIN permissions ON permissions.id = employee_permission_grants.permission_id").
 		Where("employee_permission_grants.employee_id IN ?", employeeIDs).
-		Where("permissions.code = ?", permissionCode).
-		Where("(employee_permission_grants.scope_type = 'organization' OR (employee_permission_grants.scope_type = ? AND (employee_permission_grants.scope_id IS NULL OR employee_permission_grants.scope_id = ?)))", scopeType, scopeID)
+		Where("permissions.code = ?", permissionCode)
 
+	var conditions []string
+	var args []interface{}
+
+	for scopeType, ids := range scopes {
+		if scopeType == "organization" {
+			conditions = append(conditions, "(employee_permission_grants.scope_type = ? AND (employee_permission_grants.scope_id IS NULL OR employee_permission_grants.scope_id = ?))")
+			args = append(args, scopeType, ids[0])
+		} else {
+			conditions = append(conditions, "(employee_permission_grants.scope_type = ? AND employee_permission_grants.scope_id IN ?)")
+			args = append(args, scopeType, ids)
+		}
+	}
+
+	query = query.Where(strings.Join(conditions, " OR "), args...)
+
+	var count int64
 	err := query.Count(&count).Error
 	return count > 0, err
+}
+
+func (r *PermissionGrantRepository) getAllParentDepartments(deptId int64) ([]int64, error) {
+	var result []int64
+	var parentId *int64
+
+	currentId := deptId
+
+	for {
+		err := r.db.Model(&models.Department{}).Select("parent_id").Where("id = ?", currentId).Scan(&parentId).Error
+		if err != nil {
+			return nil, err
+		}
+
+		if parentId == nil {
+			break
+		}
+
+		result = append(result, *parentId)
+		currentId = *parentId
+	}
+
+	result = append(result, deptId)
+	return result, nil
+}
+
+// RevokeFromPosition removes a scoped permission from a position
+func (r *PermissionGrantRepository) RevokeFromPosition(positionID, permissionID int64, scopeType models.ScopeType, scopeID *int64) error {
+	query := r.db.Where("position_id = ? AND permission_id = ? AND scope_type = ?", positionID, permissionID, scopeType)
+	if scopeID == nil {
+		query = query.Where("scope_id IS NULL")
+	} else {
+		query = query.Where("scope_id = ?", *scopeID)
+	}
+	return query.Delete(&models.PositionPermissionGrant{}).Error
 }

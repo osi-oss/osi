@@ -1,0 +1,601 @@
+{
+    "name": "Permissions Management",
+    "item": [
+        {
+            "name": "1. Get All Permissions",
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "exec": [
+                            "pm.test('Status code is 200', function () {",
+                            "    pm.response.to.have.status(200);",
+                            "});",
+                            "",
+                            "pm.test('Response has permissions array', function () {",
+                            "    var jsonData = pm.response.json();",
+                            "    pm.expect(jsonData).to.have.property('permissions');",
+                            "    pm.expect(jsonData.permissions).to.be.an('array');",
+                            "    pm.expect(jsonData.permissions.length).to.be.above(0);",
+                            "});",
+                            "",
+                            "pm.test('Permissions have required fields', function () {",
+                            "    var jsonData = pm.response.json();",
+                            "    var firstPerm = jsonData.permissions[0];",
+                            "    pm.expect(firstPerm).to.have.property('code');",
+                            "    pm.expect(firstPerm).to.have.property('description');",
+                            "    pm.expect(firstPerm).to.have.property('group_name');",
+                            "});",
+                            "",
+                            "// Save permission codes for later use",
+                            "if (pm.response.code === 200) {",
+                            "    var jsonData = pm.response.json();",
+                            "    var perms = jsonData.permissions;",
+                            "    ",
+                            "    // Find and save specific permission codes",
+                            "    var membersView = perms.find(p => p.code === 'members.view');",
+                            "    var permissionsGrant = perms.find(p => p.code === 'permissions.grant');",
+                            "    var permissionsRevoke = perms.find(p => p.code === 'permissions.revoke');",
+                            "    ",
+                            "    if (membersView) {",
+                            "        console.log('✓ Found members.view permission');",
+                            "    }",
+                            "    if (permissionsGrant) {",
+                            "        console.log('✓ Found permissions.grant permission');",
+                            "    }",
+                            "    if (permissionsRevoke) {",
+                            "        console.log('✓ Found permissions.revoke permission');",
+                            "    }",
+                            "    ",
+                            "    console.log('Total permissions:', perms.length);",
+                            "}"
+                        ],
+                        "type": "text/javascript"
+                    }
+                }
+            ],
+            "request": {
+                "method": "GET",
+                "header": [
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{token}}"
+                    }
+                ],
+                "url": {
+                    "raw": "{{base_url}}/api/organizations/{{org_id}}/permissions",
+                    "host": [
+                        "{{base_url}}"
+                    ],
+                    "path": [
+                        "api",
+                        "organizations",
+                        "{{org_id}}",
+                        "permissions"
+                    ]
+                },
+                "description": "Получение списка всех доступных прав в системе.\n\n**Требуется:** Доступ к организации"
+            }
+        },
+        {
+            "name": "2. Grant Permission to Position",
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "exec": [
+                            "pm.test('Status code is 200', function () {",
+                            "    pm.response.to.have.status(200);",
+                            "});",
+                            "",
+                            "pm.test('Response contains success message', function () {",
+                            "    var jsonData = pm.response.json();",
+                            "    pm.expect(jsonData).to.have.property('message');",
+                            "    pm.expect(jsonData.message).to.include('granted');",
+                            "});",
+                            "",
+                            "if (pm.response.code === 200) {",
+                            "    console.log('✓ Permission granted to position successfully');",
+                            "}"
+                        ],
+                        "type": "text/javascript"
+                    }
+                }
+            ],
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{token}}"
+                    }
+                ],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n    \"permission_code\": \"members.view\",\n    \"scope_type\": \"organization\",\n    \"scope_id\": null,\n    \"position_id\": {{pos_id}}\n}"
+                },
+                "url": {
+                    "raw": "{{base_url}}/api/organizations/{{org_id}}/permissions/grant",
+                    "host": [
+                        "{{base_url}}"
+                    ],
+                    "path": [
+                        "api",
+                        "organizations",
+                        "{{org_id}}",
+                        "permissions",
+                        "grant"
+                    ]
+                },
+                "description": "Выдача права должности.\n\n**Пример:** Выдаём право просмотра сотрудников (members.view) на уровне всей организации должности Менеджер.\n\n**Требует:** permissions.grant + наличие выдаваемого права у выдающего"
+            }
+        },
+        {
+            "name": "3. Grant Permission to Employee",
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "exec": [
+                            "pm.test('Status code is 200', function () {",
+                            "    pm.response.to.have.status(200);",
+                            "});",
+                            "",
+                            "pm.test('Response contains success message', function () {",
+                            "    var jsonData = pm.response.json();",
+                            "    pm.expect(jsonData).to.have.property('message');",
+                            "    pm.expect(jsonData.message).to.include('granted');",
+                            "});",
+                            "",
+                            "if (pm.response.code === 200) {",
+                            "    console.log('✓ Permission granted to employee successfully');",
+                            "}"
+                        ],
+                        "type": "text/javascript"
+                    }
+                }
+            ],
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{token}}"
+                    }
+                ],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n    \"permission_code\": \"schedule.edit\",\n    \"scope_type\": \"department\",\n    \"scope_id\": {{dept_id}},\n    \"employee_id\": 1\n}"
+                },
+                "url": {
+                    "raw": "{{base_url}}/api/organizations/{{org_id}}/permissions/grant",
+                    "host": [
+                        "{{base_url}}"
+                    ],
+                    "path": [
+                        "api",
+                        "organizations",
+                        "{{org_id}}",
+                        "permissions",
+                        "grant"
+                    ]
+                },
+                "description": "Выдача индивидуального права сотруднику.\n\n**Пример:** Выдаём право редактирования расписания (schedule.edit) только в отделе продаж конкретному сотруднику.\n\n**Требует:** permissions.grant"
+            }
+        },
+        {
+            "name": "4. Get Position Permissions",
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "exec": [
+                            "pm.test('Status code is 200', function () {",
+                            "    pm.response.to.have.status(200);",
+                            "});",
+                            "",
+                            "pm.test('Response has grants array', function () {",
+                            "    var jsonData = pm.response.json();",
+                            "    pm.expect(jsonData).to.have.property('grants');",
+                            "    pm.expect(jsonData.grants).to.be.an('array');",
+                            "});",
+                            "",
+                            "pm.test('Grants have correct structure', function () {",
+                            "    var jsonData = pm.response.json();",
+                            "    if (jsonData.grants.length > 0) {",
+                            "        var grant = jsonData.grants[0];",
+                            "        pm.expect(grant).to.have.property('permission_code');",
+                            "        pm.expect(grant).to.have.property('scope_type');",
+                            "        pm.expect(grant).to.have.property('position_id');",
+                            "    }",
+                            "});",
+                            "",
+                            "if (pm.response.code === 200) {",
+                            "    var jsonData = pm.response.json();",
+                            "    console.log('✓ Position has', jsonData.grants.length, 'permissions');",
+                            "    ",
+                            "    jsonData.grants.forEach(grant => {",
+                            "        console.log('  -', grant.permission_code, '(scope:', grant.scope_type + ')');",
+                            "    });",
+                            "}"
+                        ],
+                        "type": "text/javascript"
+                    }
+                }
+            ],
+            "request": {
+                "method": "GET",
+                "header": [
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{token}}"
+                    }
+                ],
+                "url": {
+                    "raw": "{{base_url}}/api/organizations/{{org_id}}/positions/{{pos_id}}/permissions",
+                    "host": [
+                        "{{base_url}}"
+                    ],
+                    "path": [
+                        "api",
+                        "organizations",
+                        "{{org_id}}",
+                        "positions",
+                        "{{pos_id}}",
+                        "permissions"
+                    ]
+                },
+                "description": "Получение списка всех прав должности.\n\n**Требует:** permissions.view"
+            }
+        },
+        {
+            "name": "5. Get Employee Permissions",
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "exec": [
+                            "pm.test('Status code is 200', function () {",
+                            "    pm.response.to.have.status(200);",
+                            "});",
+                            "",
+                            "pm.test('Response has grants array', function () {",
+                            "    var jsonData = pm.response.json();",
+                            "    pm.expect(jsonData).to.have.property('grants');",
+                            "    pm.expect(jsonData.grants).to.be.an('array');",
+                            "});",
+                            "",
+                            "if (pm.response.code === 200) {",
+                            "    var jsonData = pm.response.json();",
+                            "    console.log('✓ Employee has', jsonData.grants.length, 'individual permissions');",
+                            "    ",
+                            "    jsonData.grants.forEach(grant => {",
+                            "        console.log('  -', grant.permission_code, '(scope:', grant.scope_type + ')');",
+                            "    });",
+                            "}"
+                        ],
+                        "type": "text/javascript"
+                    }
+                }
+            ],
+            "request": {
+                "method": "GET",
+                "header": [
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{token}}"
+                    }
+                ],
+                "url": {
+                    "raw": "{{base_url}}/api/organizations/{{org_id}}/employees/1/permissions",
+                    "host": [
+                        "{{base_url}}"
+                    ],
+                    "path": [
+                        "api",
+                        "organizations",
+                        "{{org_id}}",
+                        "employees",
+                        "1",
+                        "permissions"
+                    ]
+                },
+                "description": "Получение индивидуальных прав сотрудника (не включает права должности).\n\n**Требует:** permissions.view"
+            }
+        },
+        {
+            "name": "6. Revoke Permission from Employee",
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "exec": [
+                            "pm.test('Status code is 200', function () {",
+                            "    pm.response.to.have.status(200);",
+                            "});",
+                            "",
+                            "pm.test('Response contains success message', function () {",
+                            "    var jsonData = pm.response.json();",
+                            "    pm.expect(jsonData).to.have.property('message');",
+                            "    pm.expect(jsonData.message).to.include('revoked');",
+                            "});",
+                            "",
+                            "if (pm.response.code === 200) {",
+                            "    console.log('✓ Permission revoked from employee successfully');",
+                            "}"
+                        ],
+                        "type": "text/javascript"
+                    }
+                }
+            ],
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{token}}"
+                    }
+                ],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n    \"permission_code\": \"schedule.edit\",\n    \"scope_type\": \"department\",\n    \"scope_id\": {{dept_id}},\n    \"employee_id\": 1\n}"
+                },
+                "url": {
+                    "raw": "{{base_url}}/api/organizations/{{org_id}}/permissions/revoke",
+                    "host": [
+                        "{{base_url}}"
+                    ],
+                    "path": [
+                        "api",
+                        "organizations",
+                        "{{org_id}}",
+                        "permissions",
+                        "revoke"
+                    ]
+                },
+                "description": "Отзыв права у сотрудника.\n\n**Требует:** permissions.revoke"
+            }
+        },
+        {
+            "name": "7. Revoke Permission from Position",
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "exec": [
+                            "pm.test('Status code is 200', function () {",
+                            "    pm.response.to.have.status(200);",
+                            "});",
+                            "",
+                            "pm.test('Response contains success message', function () {",
+                            "    var jsonData = pm.response.json();",
+                            "    pm.expect(jsonData).to.have.property('message');",
+                            "    pm.expect(jsonData.message).to.include('revoked');",
+                            "});",
+                            "",
+                            "if (pm.response.code === 200) {",
+                            "    console.log('✓ Permission revoked from position successfully');",
+                            "}"
+                        ],
+                        "type": "text/javascript"
+                    }
+                }
+            ],
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{token}}"
+                    }
+                ],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n    \"permission_code\": \"members.view\",\n    \"scope_type\": \"organization\",\n    \"scope_id\": null,\n    \"position_id\": {{pos_id}}\n}"
+                },
+                "url": {
+                    "raw": "{{base_url}}/api/organizations/{{org_id}}/permissions/revoke",
+                    "host": [
+                        "{{base_url}}"
+                    ],
+                    "path": [
+                        "api",
+                        "organizations",
+                        "{{org_id}}",
+                        "permissions",
+                        "revoke"
+                    ]
+                },
+                "description": "Отзыв права у должности.\n\n**Требует:** permissions.revoke"
+            }
+        },
+        {
+            "name": "8. Grant permissions.grant (Delegation)",
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "exec": [
+                            "pm.test('Status code is 200', function () {",
+                            "    pm.response.to.have.status(200);",
+                            "});",
+                            "",
+                            "pm.test('Successfully delegated grant permission', function () {",
+                            "    var jsonData = pm.response.json();",
+                            "    pm.expect(jsonData.message).to.include('granted');",
+                            "});",
+                            "",
+                            "if (pm.response.code === 200) {",
+                            "    console.log('✓ Successfully delegated permissions.grant');",
+                            "    console.log('⚠️ This user can now grant permissions in HR department');",
+                            "}"
+                        ],
+                        "type": "text/javascript"
+                    }
+                }
+            ],
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{token}}"
+                    }
+                ],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n    \"permission_code\": \"permissions.grant\",\n    \"scope_type\": \"department\",\n    \"scope_id\": {{dept_id}},\n    \"employee_id\": 1\n}"
+                },
+                "url": {
+                    "raw": "{{base_url}}/api/organizations/{{org_id}}/permissions/grant",
+                    "host": [
+                        "{{base_url}}"
+                    ],
+                    "path": [
+                        "api",
+                        "organizations",
+                        "{{org_id}}",
+                        "permissions",
+                        "grant"
+                    ]
+                },
+                "description": "**КРИТИЧЕСКИЙ ЗАПРОС:** Выдача права на выдачу прав!\n\nПосле этого сотрудник сможет выдавать права другим в рамках отдела.\n\n⚠️ **Только для доверенных администраторов!**\n\n**Требует:** permissions.grant (только основатели или те, кому это право уже выдано)"
+            }
+        },
+        {
+            "name": "9. [FAIL] Try to Grant Without Permission",
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "exec": [
+                            "pm.test('Status code is 403 (Forbidden)', function () {",
+                            "    pm.response.to.have.status(403);",
+                            "});",
+                            "",
+                            "pm.test('Error message indicates lack of permission', function () {",
+                            "    var jsonData = pm.response.json();",
+                            "    pm.expect(jsonData).to.have.property('error');",
+                            "    pm.expect(jsonData.error.toLowerCase()).to.include('permission');",
+                            "});",
+                            "",
+                            "if (pm.response.code === 403) {",
+                            "    console.log('✓ Correctly blocked: user cannot grant permissions they don\\'t have');",
+                            "}"
+                        ],
+                        "type": "text/javascript"
+                    }
+                }
+            ],
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{token}}"
+                    }
+                ],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n    \"permission_code\": \"org.manage\",\n    \"scope_type\": \"organization\",\n    \"scope_id\": null,\n    \"position_id\": {{pos_id}}\n}"
+                },
+                "url": {
+                    "raw": "{{base_url}}/api/organizations/{{org_id}}/permissions/grant",
+                    "host": [
+                        "{{base_url}}"
+                    ],
+                    "path": [
+                        "api",
+                        "organizations",
+                        "{{org_id}}",
+                        "permissions",
+                        "grant"
+                    ]
+                },
+                "description": "**ТЕСТ БЕЗОПАСНОСТИ:** Попытка выдать право, которого нет у самого пользователя.\n\n**Ожидаемый результат:** 403 Forbidden\n\nЭто защита от эскалации прав - нельзя выдать то, чего у тебя нет."
+            }
+        },
+        {
+            "name": "10. [FAIL] Try Both position_id and employee_id",
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "exec": [
+                            "pm.test('Status code is 400 (Bad Request)', function () {",
+                            "    pm.response.to.have.status(400);",
+                            "});",
+                            "",
+                            "pm.test('Error message indicates validation error', function () {",
+                            "    var jsonData = pm.response.json();",
+                            "    pm.expect(jsonData).to.have.property('error');",
+                            "    pm.expect(jsonData.error.toLowerCase()).to.include('cannot');",
+                            "});",
+                            "",
+                            "if (pm.response.code === 400) {",
+                            "    console.log('✓ Correctly rejected: cannot specify both position and employee');",
+                            "}"
+                        ],
+                        "type": "text/javascript"
+                    }
+                }
+            ],
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{token}}"
+                    }
+                ],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n    \"permission_code\": \"members.view\",\n    \"scope_type\": \"organization\",\n    \"scope_id\": null,\n    \"position_id\": {{pos_id}},\n    \"employee_id\": 1\n}"
+                },
+                "url": {
+                    "raw": "{{base_url}}/api/organizations/{{org_id}}/permissions/grant",
+                    "host": [
+                        "{{base_url}}"
+                    ],
+                    "path": [
+                        "api",
+                        "organizations",
+                        "{{org_id}}",
+                        "permissions",
+                        "grant"
+                    ]
+                },
+                "description": "**ТЕСТ ВАЛИДАЦИИ:** Попытка указать одновременно position_id и employee_id.\n\n**Ожидаемый результат:** 400 Bad Request"
+            }
+        }
+    ],
+    "description": "Управление правами доступа в системе.\n\n## Концепция системы прав\n\n### Уровни прав:\n1. **Основатели** - полный доступ ко всему\n2. **Должности** - права наследуются всеми сотрудниками\n3. **Сотрудники** - индивидуальные права\n\n### Scope (область действия):\n- `organization` - на всю организацию\n- `location` - на локацию\n- `department` - на отдел\n- `position` - на должность\n\n### Основные права:\n- `permissions.grant` - выдача прав\n- `permissions.revoke` - отзыв прав\n- `permissions.view` - просмотр прав\n- `members.view` - просмотр сотрудников\n- `schedule.edit` - редактирование расписания\n\n## Правила безопасности:\n1. Можно выдать только те права, которые есть у самого\n2. Можно выдать права только в своём scope или ниже\n3. Основатели могут всё\n\n## Порядок тестирования:\n1. Получить список всех прав\n2. Выдать право должности\n3. Выдать право сотруднику\n4. Проверить права должности/сотрудника\n5. Отозвать права\n6. Делегировать право на выдачу прав\n7. Попытаться выдать право без полномочий (должно упасть)"
+}

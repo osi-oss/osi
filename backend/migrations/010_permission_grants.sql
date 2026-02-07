@@ -5,7 +5,7 @@
 -- +goose Up
 
 -- Create scope type enum
-CREATE TYPE scope_type AS ENUM ('organization', 'location', 'department');
+CREATE TYPE scope_type AS ENUM ('organization', 'location', 'department', 'position');
 
 -- Position permission grants (права должности с scope)
 -- Все сотрудники на этой должности получают эти права

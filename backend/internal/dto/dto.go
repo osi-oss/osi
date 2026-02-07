@@ -1,6 +1,10 @@
 package dto
 
-import "time"
+import (
+	"time"
+
+	"github.com/osi-oss/osi/internal/models"
+)
 
 // ===== Auth DTOs =====
 
@@ -417,58 +421,7 @@ type PositionResponse struct {
 }
 
 // ===== Member DTOs =====
-
-// InviteMemberRequest запрос на приглашение участника
-// @Description Данные для приглашения нового участника в организацию
-type InviteMemberRequest struct {
-	// ID организации для приглашения
-	// Example: 1
-	OrganizationID int64 `json:"organization_id" binding:"required" example:"1"`
-	// Email приглашаемого пользователя
-	// Example: newmember@example.com
-	Email string `json:"email" binding:"required,email" example:"newmember@example.com"`
-}
-
-// MemberResponse данные участника организации
-// @Description Информация об участнике организации
-type MemberResponse struct {
-	// Уникальный идентификатор участника
-	// Example: 1
-	ID int64 `json:"id" example:"1"`
-	// ID организации
-	// Example: 1
-	OrganizationID int64 `json:"organization_id" example:"1"`
-	// ID пользователя
-	// Example: 5
-	UserID int64 `json:"user_id" example:"5"`
-	// Статус участника: invited, active, blocked
-	// Example: active
-	Status string `json:"status" example:"active" enums:"invited,active,blocked"`
-	// Дата вступления в организацию
-	// Example: 2024-01-15T10:30:00Z
-	JoinedAt *time.Time `json:"joined_at" example:"2024-01-15T10:30:00Z"`
-	// Данные пользователя (опционально)
-	User UserResponse `json:"user,omitempty"`
-}
-
 // ===== Employee DTOs =====
-
-// AssignPositionRequest запрос на назначение на должность
-// @Description Данные для назначения участника на должность
-type AssignPositionRequest struct {
-	// ID участника организации
-	// Example: 1
-	MemberID int64 `json:"member_id" binding:"required" example:"1"`
-	// ID должности
-	// Example: 3
-	PositionID int64 `json:"position_id" binding:"required" example:"3"`
-	// Дата начала работы (по умолчанию - текущая дата)
-	// Example: 2024-02-01T00:00:00Z
-	StartDate *time.Time `json:"start_date" example:"2024-02-01T00:00:00Z"`
-	// Является ли стажёром
-	// Example: false
-	IsIntern bool `json:"is_intern" example:"false"`
-}
 
 // UpdateEmployeeRequest запрос на обновление данных сотрудника
 // @Description Данные для обновления информации о сотруднике
@@ -487,9 +440,6 @@ type EmployeeResponse struct {
 	// Уникальный идентификатор записи о сотруднике
 	// Example: 1
 	ID int64 `json:"id" example:"1"`
-	// ID участника организации
-	// Example: 1
-	MemberID int64 `json:"member_id" example:"1"`
 	// ID должности
 	// Example: 3
 	PositionID int64 `json:"position_id" example:"3"`
@@ -503,4 +453,322 @@ type EmployeeResponse struct {
 	EndDate *time.Time `json:"end_date"`
 	// Информация о должности (опционально)
 	Position PositionResponse `json:"position,omitempty"`
+}
+
+// ===== Invite DTOs =====
+
+// CreateInviteRequest запрос на создание приглашения
+// @Description Приглашение пользователя на должность в организацию
+type CreateInviteRequest struct {
+	// Email приглашаемого пользователя
+	// Example: john@example.com
+	Email string `json:"email" binding:"required,email" example:"john@example.com"`
+	// ID должности
+	// Example: 42
+	PositionID int64 `json:"position_id" binding:"required" example:"42"`
+}
+
+// InviteResponse информация о приглашении
+// @Description Полная информация о приглашении в организацию
+type InviteResponse struct {
+	// Уникальный идентификатор приглашения
+	// Example: 1
+	ID int64 `json:"id" example:"1"`
+	// ID организации
+	// Example: 5
+	OrganizationID int64 `json:"organization_id" example:"5"`
+	// ID должности
+	// Example: 42
+	PositionID int64 `json:"position_id" example:"42"`
+	// Email приглашённого пользователя
+	// Example: john@example.com
+	InvitedEmail string `json:"invited_email" example:"john@example.com"`
+	// Статус приглашения: pending, accepted, declined
+	// Example: pending
+	Status string `json:"status" example:"pending" enums:"pending,accepted,declined"`
+	// ID приглашённого пользователя (может быть null для неregistered пользователей)
+	// Example: 10
+	InvitedUserID *int64 `json:"invited_user_id" example:"10"`
+	// ID пользователя, создавшего приглашение
+	// Example: 1
+	InvitedByUserID int64 `json:"invited_by_user_id" example:"1"`
+	// Дата отправки приглашения
+	// Example: 2024-01-24T10:30:00Z
+	CreatedAt time.Time `json:"created_at" example:"2024-01-24T10:30:00Z"`
+	// Дата принятия приглашения
+	// Example: 2024-01-24T11:00:00Z
+	AcceptedAt *time.Time `json:"accepted_at,omitempty" example:"2024-01-24T11:00:00Z"`
+	// Дата отклонения приглашения
+	DeclinedAt *time.Time `json:"declined_at,omitempty"`
+	// Информация об организации (опционально)
+	Organization *OrganizationResponse `json:"organization,omitempty"`
+	// Информация о должности (опционально)
+	Position *PositionResponse `json:"position,omitempty"`
+	// Информация о том кто пригласил (опционально)
+	InvitedByUser *UserResponse `json:"invited_by_user,omitempty"`
+}
+
+// AcceptInviteResponse ответ на принятие приглашения
+// @Description Результат принятия приглашения
+type AcceptInviteResponse struct {
+	// Сообщение об успехе
+	// Example: Invite accepted successfully
+	Message string `json:"message" example:"Invite accepted successfully"`
+}
+
+// DeclineInviteResponse ответ на отклонение приглашения
+// @Description Результат отклонения приглашения
+type DeclineInviteResponse struct {
+	// Сообщение об успехе
+	// Example: Invite declined successfully
+	Message string `json:"message" example:"Invite declined successfully"`
+}
+
+// GrantPermissionRequest запрос на выдачу права
+// @Description Данные для выдачи права должности или сотруднику
+type GrantPermissionRequest struct {
+	// Код разрешения (например: "members.view")
+	// Example: members.view
+	PermissionCode string `json:"permission_code" binding:"required" example:"members.view"`
+
+	// Тип области действия: organization, location, department, position
+	// Example: department
+	ScopeType models.ScopeType `json:"scope_type" binding:"required" example:"department"`
+
+	// ID области действия (null = вся организация)
+	// Example: 5
+	ScopeID *int64 `json:"scope_id" example:"5"`
+
+	// ID должности (если выдаём право должности)
+	// Example: 10
+	PositionID *int64 `json:"position_id" example:"10"`
+
+	// ID сотрудника (если выдаём право сотруднику)
+	// Example: 15
+	EmployeeID *int64 `json:"employee_id" example:"15"`
+}
+
+// RevokePermissionRequest запрос на отзыв права
+// @Description Данные для отзыва права
+type RevokePermissionRequest struct {
+	// Код разрешения
+	// Example: members.view
+	PermissionCode string `json:"permission_code" binding:"required" example:"members.view"`
+
+	// Тип области действия
+	// Example: department
+	ScopeType models.ScopeType `json:"scope_type" binding:"required" example:"department"`
+
+	// ID области действия
+	// Example: 5
+	ScopeID *int64 `json:"scope_id" example:"5"`
+
+	// ID должности (если отзываем у должности)
+	// Example: 10
+	PositionID *int64 `json:"position_id" example:"10"`
+
+	// ID сотрудника (если отзываем у сотрудника)
+	// Example: 15
+	EmployeeID *int64 `json:"employee_id" example:"15"`
+}
+
+// PermissionGrantResponse информация о выданном праве
+// @Description Данные о выданном праве
+type PermissionGrantResponse struct {
+	// ID записи о праве
+	// Example: 1
+	ID int64 `json:"id" example:"1"`
+
+	// Код разрешения
+	// Example: members.view
+	PermissionCode string `json:"permission_code" example:"members.view"`
+
+	// Описание разрешения
+	// Example: Просмотр списка сотрудников
+	PermissionDescription string `json:"permission_description" example:"Просмотр списка сотрудников"`
+
+	// Тип области действия
+	// Example: department
+	ScopeType string `json:"scope_type" example:"department"`
+
+	// ID области действия
+	// Example: 5
+	ScopeID *int64 `json:"scope_id" example:"5"`
+
+	// ID должности (если право выдано должности)
+	// Example: 10
+	PositionID *int64 `json:"position_id,omitempty" example:"10"`
+
+	// ID сотрудника (если право выдано сотруднику)
+	// Example: 15
+	EmployeeID *int64 `json:"employee_id,omitempty" example:"15"`
+}
+
+// PermissionGrantsListResponse список прав
+// @Description Список всех прав должности или сотрудника
+type PermissionGrantsListResponse struct {
+	// Массив прав
+	Grants []PermissionGrantResponse `json:"grants"`
+}
+
+// ToPermissionGrantResponse преобразует PositionPermissionGrant в PermissionGrantResponse
+func ToPositionPermissionGrantResponse(g *models.PositionPermissionGrant) PermissionGrantResponse {
+	return PermissionGrantResponse{
+		ID:                    g.ID,
+		PermissionCode:        g.Permission.Code,
+		PermissionDescription: g.Permission.Description,
+		ScopeType:             string(g.ScopeType),
+		ScopeID:               g.ScopeID,
+		PositionID:            &g.PositionID,
+	}
+}
+
+// ToEmployeePermissionGrantResponse преобразует EmployeePermissionGrant в PermissionGrantResponse
+func ToEmployeePermissionGrantResponse(g *models.EmployeePermissionGrant) PermissionGrantResponse {
+	return PermissionGrantResponse{
+		ID:                    g.ID,
+		PermissionCode:        g.Permission.Code,
+		PermissionDescription: g.Permission.Description,
+		ScopeType:             string(g.ScopeType),
+		ScopeID:               g.ScopeID,
+		EmployeeID:            &g.EmployeeID,
+	}
+}
+
+// ToPositionPermissionGrantResponses преобразует массив
+func ToPositionPermissionGrantResponses(grants []models.PositionPermissionGrant) []PermissionGrantResponse {
+	result := make([]PermissionGrantResponse, len(grants))
+	for i, g := range grants {
+		result[i] = ToPositionPermissionGrantResponse(&g)
+	}
+	return result
+}
+
+// ToEmployeePermissionGrantResponses преобразует массив
+func ToEmployeePermissionGrantResponses(grants []models.EmployeePermissionGrant) []PermissionGrantResponse {
+	result := make([]PermissionGrantResponse, len(grants))
+	for i, g := range grants {
+		result[i] = ToEmployeePermissionGrantResponse(&g)
+	}
+	return result
+}
+
+// MyOrganizationInfo информация об организации в контексте текущего пользователя
+// @Description Организация где пользователь работает
+type MyOrganizationInfo struct {
+	// ID организации
+	ID int64 `json:"id" example:"1"`
+	// Название организации
+	Name string `json:"name" example:"Acme Corporation"`
+	// Статус организации
+	Status string `json:"status" example:"draft"`
+	// Мой статус в организации (active, invited, inactive)
+	MyStatus string `json:"my_status" example:"active"`
+	// Мой ID сотрудника в организации
+	EmployeeID int64 `json:"employee_id" example:"42"`
+	// Дата начала работы
+	StartDate *time.Time `json:"start_date" example:"2024-01-15T10:00:00Z"`
+	// Дата окончания работы (если уже уволен)
+	EndDate *time.Time `json:"end_date"`
+	// Основатель ли я
+	IsFounder bool `json:"is_founder" example:"false"`
+}
+
+// EmployeeDetailResponse полная информация о сотруднике
+// @Description Подробная информация о сотруднике в организации
+type EmployeeDetailResponse struct {
+	// ID сотрудника
+	ID int64 `json:"id" example:"1"`
+	// Информация о пользователе
+	User UserResponse `json:"user"`
+	// ID позиции
+	PositionID int64 `json:"position_id" example:"5"`
+	// Название позиции
+	PositionName string `json:"position_name" example:"Software Engineer"`
+	// Статус сотрудника
+	Status string `json:"status" example:"active"`
+	// Является ли стажёром
+	IsIntern bool `json:"is_intern" example:"false"`
+	// Дата начала работы
+	StartDate *time.Time `json:"start_date" example:"2024-01-15T10:00:00Z"`
+	// Дата окончания работы
+	EndDate *time.Time `json:"end_date"`
+	// Дата присоединения к организации
+	JoinedAt *time.Time `json:"joined_at" example:"2024-01-15T10:00:00Z"`
+}
+
+// HierarchyNode ноль иерархии организации
+// @Description Узел в иерархии (локация, отдел, позиция, сотрудник)
+type HierarchyNode struct {
+	// Тип узла: location, department, position, employee
+	Type string `json:"type" example:"department"`
+	// ID узла
+	ID int64 `json:"id" example:"1"`
+	// Название
+	Name string `json:"name" example:"Engineering Department"`
+	// Дополнительные данные в зависимости от типа
+	Data map[string]interface{} `json:"data,omitempty"`
+	// Дочерние узлы
+	Children []HierarchyNode `json:"children,omitempty"`
+}
+
+// OrganizationHierarchyResponse полная иерархия организации
+// @Description Вся структура организации: локации, отделы, должности, сотрудники
+type OrganizationHierarchyResponse struct {
+	// ID организации
+	OrganizationID int64 `json:"organization_id" example:"1"`
+	// Название организации
+	OrganizationName string `json:"organization_name" example:"Acme Corp"`
+	// Корневые элементы (локации)
+	Locations []HierarchyNode `json:"locations"`
+	// Общая статистика
+	Stats struct {
+		TotalEmployees   int `json:"total_employees" example:"42"`
+		TotalLocations   int `json:"total_locations" example:"3"`
+		TotalDepartments int `json:"total_departments" example:"12"`
+		TotalPositions   int `json:"total_positions" example:"87"`
+		ActiveEmployees  int `json:"active_employees" example:"40"`
+	} `json:"stats"`
+}
+
+// OrganizationEmployeesListResponse список сотрудников организации
+// @Description Список всех сотрудников с фильтрацией
+type OrganizationEmployeesListResponse struct {
+	// Общее количество
+	Total int64 `json:"total" example:"42"`
+	// Количество активных
+	Active int64 `json:"active" example:"40"`
+	// Количество неактивных
+	Inactive int64 `json:"inactive" example:"2"`
+	// Сотрудники
+	Employees []EmployeeDetailResponse `json:"employees"`
+}
+
+// ToMyOrganizationInfo преобразует Organization + Employee в MyOrganizationInfo
+func ToMyOrganizationInfo(org *models.Organization, emp *models.Employee, isFounder bool) *MyOrganizationInfo {
+	return &MyOrganizationInfo{
+		ID:         org.ID,
+		Name:       org.Name,
+		Status:     string(org.Status),
+		MyStatus:   string(emp.Status),
+		EmployeeID: emp.ID,
+		StartDate:  emp.StartDate,
+		EndDate:    emp.EndDate,
+		IsFounder:  isFounder,
+	}
+}
+
+// ToEmployeeDetailResponse преобразует Employee в EmployeeDetailResponse
+func ToEmployeeDetailResponse(emp *models.Employee) *EmployeeDetailResponse {
+	return &EmployeeDetailResponse{
+		ID:           emp.ID,
+		User:         ToUserResponse(&emp.User),
+		PositionID:   emp.PositionID,
+		PositionName: emp.Position.Name,
+		Status:       string(emp.Status),
+		IsIntern:     emp.IsIntern,
+		StartDate:    emp.StartDate,
+		EndDate:      emp.EndDate,
+		JoinedAt:     emp.JoinedAt,
+	}
 }

@@ -1,6 +1,8 @@
 package services
 
 import (
+	"time"
+
 	"github.com/osi-oss/osi/internal/apperrors"
 	"github.com/osi-oss/osi/internal/dto"
 	"github.com/osi-oss/osi/internal/models"
@@ -66,9 +68,9 @@ func (s *OrganizationService) GetOrganization(orgID int64, userID int64) (*model
 	}
 
 	if !hasAccess {
-		// Check members
-		for _, member := range org.Members {
-			if member.UserID == userID && member.Status == models.MemberActive {
+		// Check employees (members)
+		for _, employee := range org.Employees {
+			if employee.UserID == userID && employee.Status == models.MemberActive {
 				hasAccess = true
 				break
 			}
@@ -93,8 +95,8 @@ func (s *OrganizationService) UserHasAccessToOrganization(userID int64, orgID in
 		return true, nil
 	}
 
-	member, err := s.orgRepo.GetMemberByUserAndOrgID(userID, orgID)
-	if err == nil && member != nil && member.ID > 0 && member.Status == models.MemberActive {
+	employee, err := s.orgRepo.GetEmployeeByUserAndOrgID(userID, orgID)
+	if err == nil && employee != nil && employee.ID > 0 && employee.Status == models.MemberActive {
 		return true, nil
 	}
 
@@ -144,26 +146,150 @@ func (s *OrganizationService) DeleteOrganization(orgID int64, userID int64) erro
 	return s.orgRepo.Delete(org.ID)
 }
 
-func (s *OrganizationService) GetMembers(orgID int64, userID int64) ([]models.OrganizationMember, error) {
-	_, err := s.GetOrganization(orgID, userID)
-	if err != nil {
-		return nil, err
+// GetUserOrganizationsWithDetails возвращает организации пользователя с деталями
+func (s *OrganizationService) GetUserOrganizationsWithDetails(userID int64) ([]dto.MyOrganizationInfo, error) {
+	// Получаем организации где пользователь - основатель
+	founderOrgs, err := s.orgRepo.GetFounderOrganizations(userID)
+	if err != nil && err.Error() != "record not found" {
+		return nil, apperrors.Wrap(err, 500, "failed to get founder organizations")
 	}
-	return s.orgRepo.GetMembersByOrganizationID(orgID)
+
+	// Получаем организации где пользователь - сотрудник
+	employeeOrgs, err := s.orgRepo.GetOrganizationsByUserID(userID)
+	if err != nil && err.Error() != "record not found" {
+		return nil, apperrors.Wrap(err, 500, "failed to get employee organizations")
+	}
+
+	result := make([]dto.MyOrganizationInfo, 0)
+
+	// Обрабатываем founder organizations
+	founderOrgMap := make(map[int64]bool)
+	for _, org := range founderOrgs {
+		// Попробуем найти employee record
+		emp, _ := s.orgRepo.GetEmployeeByUserAndOrgID(userID, org.ID)
+		status := "active"
+		if emp != nil && emp.ID > 0 {
+			status = string(emp.Status)
+		}
+
+		result = append(result, dto.MyOrganizationInfo{
+			ID:       org.ID,
+			Name:     org.Name,
+			Status:   string(org.Status),
+			MyStatus: status,
+			EmployeeID: func() int64 {
+				if emp != nil {
+					return emp.ID
+				}
+				return 0
+			}(),
+			StartDate: func() *time.Time {
+				if emp != nil {
+					return emp.StartDate
+				}
+				return nil
+			}(),
+			EndDate: func() *time.Time {
+				if emp != nil {
+					return emp.EndDate
+				}
+				return nil
+			}(),
+			IsFounder: true,
+		})
+		founderOrgMap[org.ID] = true
+	}
+
+	// Обрабатываем employee organizations (избегаем дубликатов)
+	for _, emp := range employeeOrgs {
+		if !founderOrgMap[emp.OrganizationID] {
+			result = append(result, dto.MyOrganizationInfo{
+				ID:         emp.Organization.ID,
+				Name:       emp.Organization.Name,
+				Status:     string(emp.Organization.Status),
+				MyStatus:   string(emp.Status),
+				EmployeeID: emp.ID,
+				StartDate:  emp.StartDate,
+				EndDate:    emp.EndDate,
+				IsFounder:  false,
+			})
+		}
+	}
+
+	return result, nil
 }
 
-func (s *OrganizationService) UpdateMemberStatus(orgID int64, memberID int64, userID int64, status models.MemberStatus) error {
-	_, err := s.GetOrganization(orgID, userID)
+// GetOrganizationEmployees возвращает всех сотрудников организации
+func (s *OrganizationService) GetOrganizationEmployees(orgID int64) ([]dto.EmployeeDetailResponse, error) {
+	employees, err := s.orgRepo.GetEmployeesByOrganization(orgID)
 	if err != nil {
-		return err
+		return nil, apperrors.Wrap(err, 500, "failed to get employees")
 	}
-	return s.orgRepo.UpdateMemberStatus(memberID, status)
+
+	result := make([]dto.EmployeeDetailResponse, len(employees))
+	for i, emp := range employees {
+		result[i] = *dto.ToEmployeeDetailResponse(&emp)
+	}
+	return result, nil
 }
 
-func (s *OrganizationService) RemoveMember(orgID int64, memberID int64, userID int64) error {
-	_, err := s.GetOrganization(orgID, userID)
+// GetOrganizationHierarchy возвращает всю иерархию организации
+func (s *OrganizationService) GetOrganizationHierarchy(orgID int64) (*dto.OrganizationHierarchyResponse, error) {
+	org, err := s.orgRepo.GetByID(orgID)
 	if err != nil {
-		return err
+		return nil, apperrors.ErrOrganizationNotFound
 	}
-	return s.orgRepo.DeleteMember(memberID)
+
+	// Получаем локации
+	locations, err := s.orgRepo.GetLocationsByOrganization(orgID)
+	if err != nil {
+		return nil, apperrors.Wrap(err, 500, "failed to get locations")
+	}
+
+	// Строим иерархию
+	locationNodes := make([]dto.HierarchyNode, len(locations))
+	for i, loc := range locations {
+		locationNodes[i] = s.buildLocationHierarchy(loc)
+	}
+
+	// Считаем статистику
+	totalEmployees, _ := s.orgRepo.CountEmployeesInOrganization(orgID)
+	totalLocations := int64(len(locations))
+	totalDepts, _ := s.orgRepo.CountDepartmentsInOrganization(orgID)
+	totalPositions, _ := s.orgRepo.CountPositionsInOrganization(orgID)
+	activeEmployees, _ := s.orgRepo.CountActiveEmployeesInOrganization(orgID)
+
+	return &dto.OrganizationHierarchyResponse{
+		OrganizationID:   org.ID,
+		OrganizationName: org.Name,
+		Locations:        locationNodes,
+		Stats: struct {
+			TotalEmployees   int `json:"total_employees" example:"42"`
+			TotalLocations   int `json:"total_locations" example:"3"`
+			TotalDepartments int `json:"total_departments" example:"12"`
+			TotalPositions   int `json:"total_positions" example:"87"`
+			ActiveEmployees  int `json:"active_employees" example:"40"`
+		}{
+			TotalEmployees:   int(totalEmployees),
+			TotalLocations:   int(totalLocations),
+			TotalDepartments: int(totalDepts),
+			TotalPositions:   int(totalPositions),
+			ActiveEmployees:  int(activeEmployees),
+		},
+	}, nil
+}
+
+func (s *OrganizationService) buildLocationHierarchy(loc models.Location) dto.HierarchyNode {
+	// Здесь нужно получить отделы для этой локации
+	// TODO: реализовать получение отделов через сервис
+	return dto.HierarchyNode{
+		Type: "location",
+		ID:   loc.ID,
+		Name: loc.Name,
+		Data: map[string]interface{}{
+			"source":    loc.Source,
+			"is_active": loc.IsActive,
+		},
+		Children: []dto.HierarchyNode{},
+	}
 }

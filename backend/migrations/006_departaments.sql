@@ -11,4 +11,4 @@ CREATE TABLE departments (
 );
 
 -- +goose Down
-DROP TABLE departments;
+DROP TABLE IF EXISTS departments CASCADE;

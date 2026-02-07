@@ -39,6 +39,8 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
+    env_file:
+      - ./backend/.env
     container_name: osi_backend
     ports:
       - "${BACKEND_PORT}:8080"

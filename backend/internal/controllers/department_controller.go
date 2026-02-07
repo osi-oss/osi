@@ -45,7 +45,7 @@ func (ctrl *DepartmentController) CreateDepartment(c *gin.Context) {
 	}
 
 	var req dto.CreateDepartmentRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	if err := c.ShouldBindBodyWithJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}

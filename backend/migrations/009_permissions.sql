@@ -9,6 +9,11 @@ CREATE TABLE permissions (
 INSERT INTO
     permissions (code, description, group_name)
 VALUES (
+        'readHierarchy',
+        'Смотреть иерахию отделов',
+        'Hierarchy'
+    ),
+    (
         'members.invite',
         'Приглашать сотрудников',
         'Members'
@@ -39,10 +44,20 @@ VALUES (
         'Schedule'
     ),
     (
-        'permissions.manage',
-        'Управление правами',
-        'Admin'
+        'permissions.grant',
+        'Выдача прав другим пользователям',
+        'Permissions'
+    ),
+    (
+        'permissions.revoke',
+        'Отзыв прав у пользователей',
+        'Permissions'
+    ),
+    (
+        'permissions.view',
+        'Просмотр прав пользователей',
+        'Permissions'
     );
 
 -- +goose Down
-DROP TABLE permissions;
+DROP TABLE IF EXISTS permissions CASCADE;

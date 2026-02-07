@@ -1,8 +1,8 @@
 {
     "info": {
-        "_postman_id": "osi-api-collection-v2",
-        "name": "OSI API v2",
-        "description": "Коллекция запросов для тестирования OSI API - системы управления организациями.\n\n## Новая система аутентификации\nВход и регистрация осуществляются через email с кодом подтверждения.\n\n## Порядок тестирования\n1. Auth → Request Code (получить код на email)\n2. Auth → Verify Code (ввести код, получить токен)\n3. Auth → Complete Profile (заполнить профиль - для новых пользователей)\n4. Organizations → Create (создать организацию)\n5. Locations → Create (создать локацию)\n6. Departments → Create (создать отдел)\n7. Positions → Create (создать должность)\n\n## Настройка\n- Переменная `base_url` по умолчанию: http://localhost:8080\n- Токен автоматически сохраняется после Verify Code",
+        "_postman_id": "osi-api-collection-v3",
+        "name": "OSI API v3",
+        "description": "Коллекция запросов для тестирования OSI API - системы управления организациями.\n\n## Новая система аутентификации\nВход и регистрация осуществляются через email с кодом подтверждения.\n\n## Основные разделы\n1. **Auth** - Аутентификация и управление профилем\n2. **Organizations** - Управление организациями\n3. **Locations** - Управление локациями (офисы, филиалы)\n4. **Departments** - Управление отделами\n5. **Positions** - Управление должностями\n6. **Invites** - Приглашение сотрудников\n7. **Employees** - Информация о сотрудниках и иерархии\n8. **Permissions** - Управление правами доступа\n\n## Рекомендуемый порядок тестирования\n1. Auth → Request Code (получить код на email)\n2. Auth → Verify Code (ввести код, получить токен)\n3. Auth → Complete Profile (заполнить профиль - для новых пользователей)\n4. Organizations → Create (создать организацию)\n5. Locations → Create (создать локацию)\n6. Departments → Create (создать отдел)\n7. Positions → Create (создать должность)\n8. **Employees → Get Organization Hierarchy** (посмотреть иерархию)\n9. **Invites → Create Invite** (пригласить пользователя на должность)\n10. **Employees → Get My Organizations** (мои организации)\n11. Permissions → Grant/Revoke (управление правами)\n\n## Настройка\n- Переменная `base_url` по умолчанию: http://localhost:8080\n- Токен автоматически сохраняется после Verify Code\n- ID (org_id, pos_id, invite_id) автоматически сохраняются при создании ресурсов\n- Все endpoints требуют JWT токен в заголовке Authorization",
         "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
     },
     "variable": [
@@ -38,6 +38,21 @@
         },
         {
             "key": "pos_id",
+            "value": "1",
+            "type": "string"
+        },
+        {
+            "key": "emp_id",
+            "value": "1",
+            "type": "string"
+        },
+        {
+            "key": "permission_id",
+            "value": "1",
+            "type": "string"
+        },
+        {
+            "key": "invite_id",
             "value": "1",
             "type": "string"
         }
@@ -164,7 +179,7 @@
                     "response": []
                 },
                 {
-                    "name": "4. Complete Profile - Заполнение профиля",
+                    "name": "3. Complete Profile - Заполнение профиля",
                     "event": [
                         {
                             "listen": "test",
@@ -429,9 +444,9 @@
                                 "exec": [
                                     "if (pm.response.code === 201) {",
                                     "    var jsonData = pm.response.json();",
-                                    "    if (jsonData.organization && jsonData.organization.id) {",
-                                    "        pm.collectionVariables.set('org_id', jsonData.organization.id);",
-                                    "        console.log('Organization ID saved:', jsonData.organization.id);",
+                                    "    if (jsonData.id) {",
+                                    "        pm.collectionVariables.set('org_id', jsonData.id);",
+                                    "        console.log('Organization ID saved:', jsonData.id);",
                                     "    }",
                                     "}"
                                 ],
@@ -591,9 +606,9 @@
                                 "exec": [
                                     "if (pm.response.code === 201) {",
                                     "    var jsonData = pm.response.json();",
-                                    "    if (jsonData.location && jsonData.location.id) {",
-                                    "        pm.collectionVariables.set('loc_id', jsonData.location.id);",
-                                    "        console.log('Location ID saved:', jsonData.location.id);",
+                                    "    if (jsonData.id) {",
+                                    "        pm.collectionVariables.set('loc_id', jsonData.id);",
+                                    "        console.log('Location ID saved:', jsonData.id);",
                                     "    }",
                                     "}"
                                 ],
@@ -763,9 +778,9 @@
                                 "exec": [
                                     "if (pm.response.code === 201) {",
                                     "    var jsonData = pm.response.json();",
-                                    "    if (jsonData.department && jsonData.department.id) {",
-                                    "        pm.collectionVariables.set('dept_id', jsonData.department.id);",
-                                    "        console.log('Department ID saved:', jsonData.department.id);",
+                                    "    if (jsonData.id) {",
+                                    "        pm.collectionVariables.set('dept_id', jsonData.id);",
+                                    "        console.log('Department ID saved:', jsonData.id);",
                                     "    }",
                                     "}"
                                 ],
@@ -945,9 +960,9 @@
                                 "exec": [
                                     "if (pm.response.code === 201) {",
                                     "    var jsonData = pm.response.json();",
-                                    "    if (jsonData.position && jsonData.position.id) {",
-                                    "        pm.collectionVariables.set('pos_id', jsonData.position.id);",
-                                    "        console.log('Position ID saved:', jsonData.position.id);",
+                                    "    if (jsonData.id) {",
+                                    "        pm.collectionVariables.set('pos_id', jsonData.id);",
+                                    "        console.log('Position ID saved:', jsonData.id);",
                                     "    }",
                                     "}"
                                 ],
@@ -1134,6 +1149,527 @@
                 }
             ],
             "description": "Управление должностями"
+        },
+        {
+            "name": "Invites",
+            "item": [
+                {
+                    "name": "1. Create Invite - Создать приглашение",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "if (pm.response.code === 201) {",
+                                    "    var jsonData = pm.response.json();",
+                                    "    if (jsonData.id) {",
+                                    "        pm.collectionVariables.set('invite_id', jsonData.id);",
+                                    "        console.log('Invite ID saved:', jsonData.id);",
+                                    "    }",
+                                    "}"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"position_id\": {{pos_id}},\n    \"email\": \"newemp@example.com\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/organizations/{{org_id}}/invites",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "organizations",
+                                "{{org_id}}",
+                                "invites"
+                            ]
+                        },
+                        "description": "Приглашение пользователя на должность в организацию.\n\n**Требуется право:** `invites.create` на уровне организации/отдела/локации\n\n**Параметры:**\n- `position_id` (обязательно) - ID должности, на которую приглашаем\n- `email` (обязательно) - Email пригласившегося пользователя\n\n**Результат:**\n- Если пользователя с таким email нет, он автоматически создается со статусом `pending_email`\n- На email отправляется ссылка с приглашением\n- Приглашение находится в статусе `pending`"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "2. Get My Invites - Получить мои приглашения",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "if (pm.response.code === 200) {",
+                                    "    var jsonData = pm.response.json();",
+                                    "    console.log('Total invites:', jsonData.length);",
+                                    "    if (jsonData.length > 0 && jsonData[0].id) {",
+                                    "        pm.collectionVariables.set('invite_id', jsonData[0].id);",
+                                    "        console.log('First invite ID saved:', jsonData[0].id);",
+                                    "    }",
+                                    "}"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/invites/my",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "invites",
+                                "my"
+                            ]
+                        },
+                        "description": "Получить все приглашения, отправленные на email текущего пользователя.\n\n**Требуется:** Залогиненный пользователь с email, на который выслали приглашение\n\n**Возвращает:**\n- Список pending приглашений\n- Информацию об организации и должности\n- Статус приглашения\n- Информацию о создателе приглашения\n\n**Примечание:** Первый найденный invite_id автоматически сохраняется в переменную invite_id"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "3. Get Organization Invites - Получить приглашения организации",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/organizations/{{org_id}}/invites",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "organizations",
+                                "{{org_id}}",
+                                "invites"
+                            ]
+                        },
+                        "description": "Получить все приглашения организации (только для основателей/администраторов).\n\n**Требуется:** Статус основателя в организации\n\n**Возвращает:**\n- Все приглашения (pending, accepted, declined)\n- Информацию об приглашённом пользователе\n- Информацию о создателе приглашения"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "4. Accept Invite - Принять приглашение",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "if (pm.response.code === 200) {",
+                                    "    var jsonData = pm.response.json();",
+                                    "    console.log('Invite accepted:', jsonData.message);",
+                                    "}"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/invites/{{invite_id}}/accept",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "invites",
+                                "{{invite_id}}",
+                                "accept"
+                            ]
+                        },
+                        "description": "Принять приглашение в организацию.\n\n**Требуется:**\n- Email текущего пользователя должен совпадать с email приглашения\n- Приглашение в статусе `pending`\n- Пользователь не должен быть уже членом этой организации\n\n**Результат:**\n- Приглашение переходит в статус `accepted` с временной меткой `accepted_at`\n- Пользователь добавляется в организацию на указанную должность\n- Создается запись сотрудника со статусом `active`\n- Пользователь может сразу начать работать в организации"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "5. Decline Invite - Отклонить приглашение",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "if (pm.response.code === 200) {",
+                                    "    var jsonData = pm.response.json();",
+                                    "    console.log('Invite declined:', jsonData.message);",
+                                    "}"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/invites/{{invite_id}}/decline",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "invites",
+                                "{{invite_id}}",
+                                "decline"
+                            ]
+                        },
+                        "description": "Отклонить приглашение в организацию.\n\n**Требуется:**\n- Email текущего пользователя должен совпадать с email приглашения\n- Приглашение в статусе `pending`\n\n**Результат:**\n- Приглашение переходит в статус `declined` с временной меткой `declined_at`\n- Пользователь НЕ добавляется в организацию\n- Другие приглашения остаются активными"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "6. Cancel Invite - Отменить приглашение",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "if (pm.response.code === 200) {",
+                                    "    var jsonData = pm.response.json();",
+                                    "    console.log('Invite cancelled:', jsonData.message);",
+                                    "}"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/invites/{{invite_id}}",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "invites",
+                                "{{invite_id}}"
+                            ]
+                        },
+                        "description": "Отменить отправленное приглашение.\n\n**Требуется:** Либо вы создатель приглашения, либо вы основатель организации\n\n**Результат:**\n- Приглашение удаляется из системы\n- Пользователь, если не принимал приглашение, не добавляется в организацию\n- Если приглашение уже было принято, отмена невозможна"
+                    },
+                    "response": []
+                }
+            ],
+            "description": "Управление приглашениями в организацию\n\n## Флоу приглашения\n1. **Create Invite** - Создатель приглашает пользователя по email\n2. **Get My Invites** - Приглашённый видит свои приглашения\n3. **Accept/Decline Invite** - Приглашённый принимает или отклоняет\n4. **Accept Invite** - При принятии пользователь добавляется в организацию\n\n## Статусы приглашения\n- `pending` - Ожидает действия\n- `accepted` - Принято\n- `declined` - Отклонено\n\n## Важные моменты\n- Если пользователя нет, он автоматически создается со статусом `pending_email`\n- OTP код для подтверждения email отправляется при создании нового пользователя\n- После принятия приглашения пользователь становится активным членом организации"
+        },
+        {
+            "name": "Employees",
+            "item": [
+                {
+                    "name": "1. Get My Organizations - Мои организации",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/employees/my-organizations",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "employees",
+                                "my-organizations"
+                            ]
+                        },
+                        "description": "Получить список всех организаций, где текущий пользователь работает или является основателем.\n\n**Возвращает для каждой организации:**\n- ID и название организации\n- Статус пользователя (active, invited, inactive)\n- Дата начала и окончания работы\n- Является ли пользователь основателем\n- ID сотрудника в организации"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "2. Get Organization Employees - Все сотрудники",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/organizations/{{org_id}}/employees",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "organizations",
+                                "{{org_id}}",
+                                "employees"
+                            ]
+                        },
+                        "description": "Получить список всех сотрудников организации с подробной информацией.\n\n**Доступно:** членам организации\n\n**Для каждого сотрудника возвращается:**\n- Полная информация о пользователе (email, имя, фамилия)\n- Должность и ID должности\n- Статус (active, invited, inactive)\n- Дата начала и окончания работы\n- Является ли стажёром"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "3. Get Organization Hierarchy - Иерархия организации",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/organizations/{{org_id}}/hierarchy",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "organizations",
+                                "{{org_id}}",
+                                "hierarchy"
+                            ]
+                        },
+                        "description": "Получить полную иерархию организации: локации → отделы → должности → сотрудники.\n\n**Доступно:** членам организации\n\n**Возвращает:**\n- Все локации с древовидной структурой\n- Отделы в каждой локации\n- Должности в каждом отделе\n- Сотрудников на каждой должности\n- Статистику по организации (количество сотрудников, локаций, отделов, должностей)\n\n**Использование:** для построения org chart, управления структурой, поиска сотрудников"
+                    },
+                    "response": []
+                }
+            ],
+            "description": "Получение информации о сотрудниках и структуре организации\n\n## Основные операции\n- **Get My Organizations** - увидеть, в каких организациях вы работаете\n- **Get Organization Employees** - просмотр списка всех сотрудников\n- **Get Organization Hierarchy** - полная структура организации\n\n## Примечание\nВсе endpoints требуют наличие доступа к организации (быть членом или основателем)"
+        },
+        {
+            "name": "Permissions",
+            "item": [
+                {
+                    "name": "Get All Permissions",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/organizations/{{org_id}}/permissions",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "organizations",
+                                "{{org_id}}",
+                                "permissions"
+                            ]
+                        },
+                        "description": "Получение списка всех доступных прав в организации.\n\n**Требуется:** Доступ к организации"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Grant Permission",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"permission_code\": \"employees.view\",\n    \"position_id\": {{pos_id}},\n    \"scope_type\": \"organization\",\n    \"scope_id\": null\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/organizations/{{org_id}}/permissions/grant",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "organizations",
+                                "{{org_id}}",
+                                "permissions",
+                                "grant"
+                            ]
+                        },
+                        "description": "Выдача права должности.\n\n**Требуется право:** `permissions.grant`\n\n**Обязательные поля:**\n- `permission_code` - код права (например, \"employees.view\")\n- `position_id` - ID должности\n- `scope_type` - область действия: \"organization\", \"location\", \"department\"\n- `scope_id` - ID ресурса (null для organization, location_id для location, dept_id для department)\n\n**Примеры scope:**\n- \"organization\" + null - право на всю организацию\n- \"location\" + location_id - право на локацию\n- \"department\" + department_id - право на отдел"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Grant Permission - Employee",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"permission_code\": \"employees.edit\",\n    \"employee_id\": {{emp_id}},\n    \"scope_type\": \"department\",\n    \"scope_id\": {{dept_id}}\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/organizations/{{org_id}}/permissions/grant",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "organizations",
+                                "{{org_id}}",
+                                "permissions",
+                                "grant"
+                            ]
+                        },
+                        "description": "Выдача права сотруднику (альтернатива выдаче через должность).\n\n**Используйте:** `employee_id` вместо `position_id`"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Revoke Permission",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"permission_name\": \"employees.view\",\n    \"position_id\": {{pos_id}},\n    \"scope\": \"organization\",\n    \"resource_id\": {{org_id}}\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/organizations/{{org_id}}/permissions/revoke",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "organizations",
+                                "{{org_id}}",
+                                "permissions",
+                                "revoke"
+                            ]
+                        },
+                        "description": "Отзыв права у должности.\n\n**Требуется право:** `permissions.revoke`\n\n**Обязательные поля:**\n- `permission_name` - название права\n- `position_id` - ID должности (или `employee_id` для сотрудника)\n- `scope` - область действия\n- `resource_id` - ID ресурса"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Position Permissions",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/organizations/{{org_id}}/positions/{{pos_id}}/permissions",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "organizations",
+                                "{{org_id}}",
+                                "positions",
+                                "{{pos_id}}",
+                                "permissions"
+                            ]
+                        },
+                        "description": "Получение списка прав должности.\n\n**Требуется право:** `permissions.view`\n\n**Ответ содержит:**\n- Список прав с их scope и resource_id\n- Информацию о том, откуда право получено (из должности или напрямую)"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Employee Permissions",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/organizations/{{org_id}}/employees/{{emp_id}}/permissions",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "organizations",
+                                "{{org_id}}",
+                                "employees",
+                                "{{emp_id}}",
+                                "permissions"
+                            ]
+                        },
+                        "description": "Получение списка прав сотрудника.\n\n**Требуется право:** `permissions.view`\n\n**Ответ содержит:**\n- Права, полученные от должности\n- Права, выданные напрямую сотруднику\n- Агрегированный список всех прав с учетом иерархии"
+                    },
+                    "response": []
+                }
+            ],
+            "description": "Управление правами и разрешениями\n\n## Система прав\nПрава в системе состоят из:\n- **Название** (например, \"employees.view\", \"permissions.grant\")\n- **Scope** (область действия: organization, location, department)\n- **Resource ID** (ID ресурса, к которому применяется право)\n\n## Иерархия прав\nПрава наследуются по иерархии:\n- Organization > Location > Department\n- Право на уровне organization дает доступ ко всем location и department\n- Право на уровне location дает доступ ко всем department в этой location\n\n## Основные права\n- `permissions.grant` - выдача прав\n- `permissions.revoke` - отзыв прав\n- `permissions.view` - просмотр прав\n- `employees.view` - просмотр сотрудников\n- `employees.edit` - редактирование сотрудников\n- `employees.delete` - удаление сотрудников"
         }
     ]
 }

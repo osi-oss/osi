@@ -253,6 +253,281 @@ const docTemplate = `{
                 }
             }
         },
+        "/employees/my-organizations": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Возвращает список организаций, где текущий пользователь работает или является основателем.\nДля каждой организации возвращается статус пользователя и дополнительная информация.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Employees"
+                ],
+                "summary": "Получить мои организации",
+                "responses": {
+                    "200": {
+                        "description": "Список организаций",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.MyOrganizationInfo"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Отсутствует или невалидный токен авторизации",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/invites/my": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Возвращает все pending приглашения, отправленные на email текущего пользователя.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Invites"
+                ],
+                "summary": "Получить мои приглашения",
+                "responses": {
+                    "200": {
+                        "description": "Список приглашений",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.InviteResponse"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Отсутствует или невалидный токен авторизации",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/invites/{inviteId}": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Отменить выданное приглашение.\nМожет отменить только создатель приглашения или основатель организации.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Invites"
+                ],
+                "summary": "Отменить приглашение",
+                "parameters": [
+                    {
+                        "minimum": 1,
+                        "type": "integer",
+                        "example": 1,
+                        "description": "ID приглашения",
+                        "name": "inviteId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Приглашение отменено",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.AcceptInviteResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Приглашение не найдено",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Отсутствует или невалидный токен авторизации",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Нет прав на отмену этого приглашения",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/invites/{inviteId}/accept": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Принять приглашение в организацию на должность.\nАвтоматически добавляет пользователя в организацию и создаёт запись сотрудника.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Invites"
+                ],
+                "summary": "Принять приглашение",
+                "parameters": [
+                    {
+                        "minimum": 1,
+                        "type": "integer",
+                        "example": 1,
+                        "description": "ID приглашения",
+                        "name": "inviteId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Приглашение принято",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.AcceptInviteResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Приглашение не найдено или уже обработано",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Отсутствует или невалидный токен авторизации",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Нет прав на принятие этого приглашения",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/invites/{inviteId}/decline": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Отклонить приглашение в организацию.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Invites"
+                ],
+                "summary": "Отклонить приглашение",
+                "parameters": [
+                    {
+                        "minimum": 1,
+                        "type": "integer",
+                        "example": 1,
+                        "description": "ID приглашения",
+                        "name": "inviteId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Приглашение отклонено",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.DeclineInviteResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Приглашение не найдено или уже обработано",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Отсутствует или невалидный токен авторизации",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Нет прав на отклонение этого приглашения",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/organizations": {
             "get": {
                 "security": [
@@ -547,6 +822,361 @@ const docTemplate = `{
                     },
                     "404": {
                         "description": "Организация не найдена",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/organizations/{orgId}/employees": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Возвращает список всех сотрудников организации с подробной информацией.\nДоступно только для членов организации.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Employees"
+                ],
+                "summary": "Получить всех сотрудников организации",
+                "parameters": [
+                    {
+                        "minimum": 1,
+                        "type": "integer",
+                        "example": 1,
+                        "description": "ID организации",
+                        "name": "orgId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Список сотрудников",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.EmployeeDetailResponse"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Неверный формат ID организации",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Отсутствует или невалидный токен авторизации",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Нет доступа к организации",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Организация не найдена",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/organizations/{orgId}/employees/{empId}/permissions": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Возвращает список всех индивидуальных прав сотрудника.\nТребует право \"permissions.view\".",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Права"
+                ],
+                "summary": "Получить права сотрудника",
+                "parameters": [
+                    {
+                        "minimum": 1,
+                        "type": "integer",
+                        "example": 1,
+                        "description": "ID организации",
+                        "name": "orgId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "minimum": 1,
+                        "type": "integer",
+                        "example": 1,
+                        "description": "ID сотрудника",
+                        "name": "empId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Список прав сотрудника",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.PermissionGrantsListResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Неверный формат ID",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Требуется авторизация",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Нет права на просмотр прав",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/organizations/{orgId}/hierarchy": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Возвращает полную иерархию организации: локации, отделы, должности, сотрудники.\nДоступно только для членов организации.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Employees"
+                ],
+                "summary": "Получить иерархию организации",
+                "parameters": [
+                    {
+                        "minimum": 1,
+                        "type": "integer",
+                        "example": 1,
+                        "description": "ID организации",
+                        "name": "orgId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Иерархия организации",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.OrganizationHierarchyResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Неверный формат ID организации",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Отсутствует или невалидный токен авторизации",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Нет доступа к организации",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Организация не найдена",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/organizations/{orgId}/invites": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Возвращает все приглашения организации.\nДоступно только основателям/администраторам организации.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Invites"
+                ],
+                "summary": "Получить приглашения организации",
+                "parameters": [
+                    {
+                        "minimum": 1,
+                        "type": "integer",
+                        "example": 1,
+                        "description": "ID организации",
+                        "name": "orgId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Список приглашений",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.InviteResponse"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Неверный формат ID организации",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Отсутствует или невалидный токен авторизации",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Нет прав на просмотр приглашений",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Пригласить пользователя на должность в организацию по email.\nТребует право \"invites.create\" на уровне организации или отдела, где находится позиция.\nЕсли пользователь с таким email не существует, он будет автоматически создан со статусом pending_email.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Invites"
+                ],
+                "summary": "Создать приглашение в организацию",
+                "parameters": [
+                    {
+                        "minimum": 1,
+                        "type": "integer",
+                        "example": 1,
+                        "description": "ID организации",
+                        "name": "orgId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Данные приглашения",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.CreateInviteRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Приглашение успешно создано",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.InviteResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Ошибка валидации",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Отсутствует или невалидный токен авторизации",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Нет прав на создание приглашения",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Организация или должность не найдена",
                         "schema": {
                             "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
                         }
@@ -1418,6 +2048,219 @@ const docTemplate = `{
                 }
             }
         },
+        "/organizations/{orgId}/permissions": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Возвращает список всех прав в системе.\nТребует доступ к организации.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Права"
+                ],
+                "summary": "Получить все доступные права",
+                "parameters": [
+                    {
+                        "minimum": 1,
+                        "type": "integer",
+                        "example": 1,
+                        "description": "ID организации",
+                        "name": "orgId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Список всех прав",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.PermissionGrantsListResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Неверный формат ID",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Требуется авторизация",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/organizations/{orgId}/permissions/grant": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Выдаёт право должности или сотруднику.\nТребует право \"permissions.grant\" в соответствующем scope.\nМожно выдать только те права, которые есть у самого выдающего.\nОснователи могут выдавать любые права.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Права"
+                ],
+                "summary": "Выдача права",
+                "parameters": [
+                    {
+                        "minimum": 1,
+                        "type": "integer",
+                        "example": 1,
+                        "description": "ID организации",
+                        "name": "orgId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Данные для выдачи права",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.GrantPermissionRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Право успешно выдано",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.MessageResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Ошибка валидации",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Требуется авторизация",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Нет права на выдачу прав или попытка выдать право, которого нет у самого пользователя",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Разрешение не найдено",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/organizations/{orgId}/permissions/revoke": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Отзывает право у должности или сотрудника.\nТребует право \"permissions.revoke\" в соответствующем scope.\nОснователи могут отзывать любые права.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Права"
+                ],
+                "summary": "Отзыв права",
+                "parameters": [
+                    {
+                        "minimum": 1,
+                        "type": "integer",
+                        "example": 1,
+                        "description": "ID организации",
+                        "name": "orgId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Данные для отзыва права",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.RevokePermissionRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Право успешно отозвано",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.MessageResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Ошибка валидации",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Требуется авторизация",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Нет права на отзыв прав",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Разрешение не найдено",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/organizations/{orgId}/positions": {
             "get": {
                 "security": [
@@ -1784,6 +2627,78 @@ const docTemplate = `{
                 }
             }
         },
+        "/organizations/{orgId}/positions/{posId}/permissions": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Возвращает список всех прав, выданных должности.\nТребует право \"permissions.view\".",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Права"
+                ],
+                "summary": "Получить права должности",
+                "parameters": [
+                    {
+                        "minimum": 1,
+                        "type": "integer",
+                        "example": 1,
+                        "description": "ID организации",
+                        "name": "orgId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "minimum": 1,
+                        "type": "integer",
+                        "example": 1,
+                        "description": "ID должности",
+                        "name": "posId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Список прав должности",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.PermissionGrantsListResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Неверный формат ID",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Требуется авторизация",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Нет права на просмотр прав",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/profile": {
             "get": {
                 "security": [
@@ -2003,6 +2918,17 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "github_com_osi-oss_osi_internal_dto.AcceptInviteResponse": {
+            "description": "Результат принятия приглашения",
+            "type": "object",
+            "properties": {
+                "message": {
+                    "description": "Сообщение об успехе\nExample: Invite accepted successfully",
+                    "type": "string",
+                    "example": "Invite accepted successfully"
+                }
+            }
+        },
         "github_com_osi-oss_osi_internal_dto.AuthResponse": {
             "description": "Результат успешной аутентификации",
             "type": "object",
@@ -2101,6 +3027,26 @@ const docTemplate = `{
                     "description": "ID родительского отдела (для создания иерархии)\nExample: 1",
                     "type": "integer",
                     "example": 1
+                }
+            }
+        },
+        "github_com_osi-oss_osi_internal_dto.CreateInviteRequest": {
+            "description": "Приглашение пользователя на должность в организацию",
+            "type": "object",
+            "required": [
+                "email",
+                "position_id"
+            ],
+            "properties": {
+                "email": {
+                    "description": "Email приглашаемого пользователя\nExample: john@example.com",
+                    "type": "string",
+                    "example": "john@example.com"
+                },
+                "position_id": {
+                    "description": "ID должности\nExample: 42",
+                    "type": "integer",
+                    "example": 42
                 }
             }
         },
@@ -2212,6 +3158,17 @@ const docTemplate = `{
                 }
             }
         },
+        "github_com_osi-oss_osi_internal_dto.DeclineInviteResponse": {
+            "description": "Результат отклонения приглашения",
+            "type": "object",
+            "properties": {
+                "message": {
+                    "description": "Сообщение об успехе\nExample: Invite declined successfully",
+                    "type": "string",
+                    "example": "Invite declined successfully"
+                }
+            }
+        },
         "github_com_osi-oss_osi_internal_dto.DepartmentResponse": {
             "description": "Полная информация об отделе",
             "type": "object",
@@ -2265,6 +3222,59 @@ const docTemplate = `{
                 }
             }
         },
+        "github_com_osi-oss_osi_internal_dto.EmployeeDetailResponse": {
+            "description": "Подробная информация о сотруднике в организации",
+            "type": "object",
+            "properties": {
+                "end_date": {
+                    "description": "Дата окончания работы",
+                    "type": "string"
+                },
+                "id": {
+                    "description": "ID сотрудника",
+                    "type": "integer",
+                    "example": 1
+                },
+                "is_intern": {
+                    "description": "Является ли стажёром",
+                    "type": "boolean",
+                    "example": false
+                },
+                "joined_at": {
+                    "description": "Дата присоединения к организации",
+                    "type": "string",
+                    "example": "2024-01-15T10:00:00Z"
+                },
+                "position_id": {
+                    "description": "ID позиции",
+                    "type": "integer",
+                    "example": 5
+                },
+                "position_name": {
+                    "description": "Название позиции",
+                    "type": "string",
+                    "example": "Software Engineer"
+                },
+                "start_date": {
+                    "description": "Дата начала работы",
+                    "type": "string",
+                    "example": "2024-01-15T10:00:00Z"
+                },
+                "status": {
+                    "description": "Статус сотрудника",
+                    "type": "string",
+                    "example": "active"
+                },
+                "user": {
+                    "description": "Информация о пользователе",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.UserResponse"
+                        }
+                    ]
+                }
+            }
+        },
         "github_com_osi-oss_osi_internal_dto.ErrorResponse": {
             "description": "Стандартный формат ответа при ошибке",
             "type": "object",
@@ -2273,6 +3283,162 @@ const docTemplate = `{
                     "description": "Сообщение об ошибке\nExample: invalid email or code",
                     "type": "string",
                     "example": "invalid email or code"
+                }
+            }
+        },
+        "github_com_osi-oss_osi_internal_dto.GrantPermissionRequest": {
+            "description": "Данные для выдачи права должности или сотруднику",
+            "type": "object",
+            "required": [
+                "permission_code",
+                "scope_type"
+            ],
+            "properties": {
+                "employee_id": {
+                    "description": "ID сотрудника (если выдаём право сотруднику)\nExample: 15",
+                    "type": "integer",
+                    "example": 15
+                },
+                "permission_code": {
+                    "description": "Код разрешения (например: \"members.view\")\nExample: members.view",
+                    "type": "string",
+                    "example": "members.view"
+                },
+                "position_id": {
+                    "description": "ID должности (если выдаём право должности)\nExample: 10",
+                    "type": "integer",
+                    "example": 10
+                },
+                "scope_id": {
+                    "description": "ID области действия (null = вся организация)\nExample: 5",
+                    "type": "integer",
+                    "example": 5
+                },
+                "scope_type": {
+                    "description": "Тип области действия: organization, location, department, position\nExample: department",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_models.ScopeType"
+                        }
+                    ],
+                    "example": "department"
+                }
+            }
+        },
+        "github_com_osi-oss_osi_internal_dto.HierarchyNode": {
+            "description": "Узел в иерархии (локация, отдел, позиция, сотрудник)",
+            "type": "object",
+            "properties": {
+                "children": {
+                    "description": "Дочерние узлы",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.HierarchyNode"
+                    }
+                },
+                "data": {
+                    "description": "Дополнительные данные в зависимости от типа",
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "id": {
+                    "description": "ID узла",
+                    "type": "integer",
+                    "example": 1
+                },
+                "name": {
+                    "description": "Название",
+                    "type": "string",
+                    "example": "Engineering Department"
+                },
+                "type": {
+                    "description": "Тип узла: location, department, position, employee",
+                    "type": "string",
+                    "example": "department"
+                }
+            }
+        },
+        "github_com_osi-oss_osi_internal_dto.InviteResponse": {
+            "description": "Полная информация о приглашении в организацию",
+            "type": "object",
+            "properties": {
+                "accepted_at": {
+                    "description": "Дата принятия приглашения\nExample: 2024-01-24T11:00:00Z",
+                    "type": "string",
+                    "example": "2024-01-24T11:00:00Z"
+                },
+                "created_at": {
+                    "description": "Дата отправки приглашения\nExample: 2024-01-24T10:30:00Z",
+                    "type": "string",
+                    "example": "2024-01-24T10:30:00Z"
+                },
+                "declined_at": {
+                    "description": "Дата отклонения приглашения",
+                    "type": "string"
+                },
+                "id": {
+                    "description": "Уникальный идентификатор приглашения\nExample: 1",
+                    "type": "integer",
+                    "example": 1
+                },
+                "invited_by_user": {
+                    "description": "Информация о том кто пригласил (опционально)",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.UserResponse"
+                        }
+                    ]
+                },
+                "invited_by_user_id": {
+                    "description": "ID пользователя, создавшего приглашение\nExample: 1",
+                    "type": "integer",
+                    "example": 1
+                },
+                "invited_email": {
+                    "description": "Email приглашённого пользователя\nExample: john@example.com",
+                    "type": "string",
+                    "example": "john@example.com"
+                },
+                "invited_user_id": {
+                    "description": "ID приглашённого пользователя (может быть null для неregistered пользователей)\nExample: 10",
+                    "type": "integer",
+                    "example": 10
+                },
+                "organization": {
+                    "description": "Информация об организации (опционально)",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.OrganizationResponse"
+                        }
+                    ]
+                },
+                "organization_id": {
+                    "description": "ID организации\nExample: 5",
+                    "type": "integer",
+                    "example": 5
+                },
+                "position": {
+                    "description": "Информация о должности (опционально)",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.PositionResponse"
+                        }
+                    ]
+                },
+                "position_id": {
+                    "description": "ID должности\nExample: 42",
+                    "type": "integer",
+                    "example": 42
+                },
+                "status": {
+                    "description": "Статус приглашения: pending, accepted, declined\nExample: pending",
+                    "type": "string",
+                    "enum": [
+                        "pending",
+                        "accepted",
+                        "declined"
+                    ],
+                    "example": "pending"
                 }
             }
         },
@@ -2353,6 +3519,100 @@ const docTemplate = `{
                     "description": "Сообщение о результате операции\nExample: operation completed successfully",
                     "type": "string",
                     "example": "operation completed successfully"
+                }
+            }
+        },
+        "github_com_osi-oss_osi_internal_dto.MyOrganizationInfo": {
+            "description": "Организация где пользователь работает",
+            "type": "object",
+            "properties": {
+                "employee_id": {
+                    "description": "Мой ID сотрудника в организации",
+                    "type": "integer",
+                    "example": 42
+                },
+                "end_date": {
+                    "description": "Дата окончания работы (если уже уволен)",
+                    "type": "string"
+                },
+                "id": {
+                    "description": "ID организации",
+                    "type": "integer",
+                    "example": 1
+                },
+                "is_founder": {
+                    "description": "Основатель ли я",
+                    "type": "boolean",
+                    "example": false
+                },
+                "my_status": {
+                    "description": "Мой статус в организации (active, invited, inactive)",
+                    "type": "string",
+                    "example": "active"
+                },
+                "name": {
+                    "description": "Название организации",
+                    "type": "string",
+                    "example": "Acme Corporation"
+                },
+                "start_date": {
+                    "description": "Дата начала работы",
+                    "type": "string",
+                    "example": "2024-01-15T10:00:00Z"
+                },
+                "status": {
+                    "description": "Статус организации",
+                    "type": "string",
+                    "example": "draft"
+                }
+            }
+        },
+        "github_com_osi-oss_osi_internal_dto.OrganizationHierarchyResponse": {
+            "description": "Вся структура организации: локации, отделы, должности, сотрудники",
+            "type": "object",
+            "properties": {
+                "locations": {
+                    "description": "Корневые элементы (локации)",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.HierarchyNode"
+                    }
+                },
+                "organization_id": {
+                    "description": "ID организации",
+                    "type": "integer",
+                    "example": 1
+                },
+                "organization_name": {
+                    "description": "Название организации",
+                    "type": "string",
+                    "example": "Acme Corp"
+                },
+                "stats": {
+                    "description": "Общая статистика",
+                    "type": "object",
+                    "properties": {
+                        "active_employees": {
+                            "type": "integer",
+                            "example": 40
+                        },
+                        "total_departments": {
+                            "type": "integer",
+                            "example": 12
+                        },
+                        "total_employees": {
+                            "type": "integer",
+                            "example": 42
+                        },
+                        "total_locations": {
+                            "type": "integer",
+                            "example": 3
+                        },
+                        "total_positions": {
+                            "type": "integer",
+                            "example": 87
+                        }
+                    }
                 }
             }
         },
@@ -2448,6 +3708,60 @@ const docTemplate = `{
                     "description": "Пароль пользователя\nExample: SecurePass123",
                     "type": "string",
                     "example": "SecurePass123"
+                }
+            }
+        },
+        "github_com_osi-oss_osi_internal_dto.PermissionGrantResponse": {
+            "description": "Данные о выданном праве",
+            "type": "object",
+            "properties": {
+                "employee_id": {
+                    "description": "ID сотрудника (если право выдано сотруднику)\nExample: 15",
+                    "type": "integer",
+                    "example": 15
+                },
+                "id": {
+                    "description": "ID записи о праве\nExample: 1",
+                    "type": "integer",
+                    "example": 1
+                },
+                "permission_code": {
+                    "description": "Код разрешения\nExample: members.view",
+                    "type": "string",
+                    "example": "members.view"
+                },
+                "permission_description": {
+                    "description": "Описание разрешения\nExample: Просмотр списка сотрудников",
+                    "type": "string",
+                    "example": "Просмотр списка сотрудников"
+                },
+                "position_id": {
+                    "description": "ID должности (если право выдано должности)\nExample: 10",
+                    "type": "integer",
+                    "example": 10
+                },
+                "scope_id": {
+                    "description": "ID области действия\nExample: 5",
+                    "type": "integer",
+                    "example": 5
+                },
+                "scope_type": {
+                    "description": "Тип области действия\nExample: department",
+                    "type": "string",
+                    "example": "department"
+                }
+            }
+        },
+        "github_com_osi-oss_osi_internal_dto.PermissionGrantsListResponse": {
+            "description": "Список всех прав должности или сотрудника",
+            "type": "object",
+            "properties": {
+                "grants": {
+                    "description": "Массив прав",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.PermissionGrantResponse"
+                    }
                 }
             }
         },
@@ -2575,6 +3889,45 @@ const docTemplate = `{
                     "description": "Сообщение о результате\nExample: Verification code sent to your email",
                     "type": "string",
                     "example": "Verification code sent to your email"
+                }
+            }
+        },
+        "github_com_osi-oss_osi_internal_dto.RevokePermissionRequest": {
+            "description": "Данные для отзыва права",
+            "type": "object",
+            "required": [
+                "permission_code",
+                "scope_type"
+            ],
+            "properties": {
+                "employee_id": {
+                    "description": "ID сотрудника (если отзываем у сотрудника)\nExample: 15",
+                    "type": "integer",
+                    "example": 15
+                },
+                "permission_code": {
+                    "description": "Код разрешения\nExample: members.view",
+                    "type": "string",
+                    "example": "members.view"
+                },
+                "position_id": {
+                    "description": "ID должности (если отзываем у должности)\nExample: 10",
+                    "type": "integer",
+                    "example": 10
+                },
+                "scope_id": {
+                    "description": "ID области действия\nExample: 5",
+                    "type": "integer",
+                    "example": 5
+                },
+                "scope_type": {
+                    "description": "Тип области действия\nExample: department",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_models.ScopeType"
+                        }
+                    ],
+                    "example": "department"
                 }
             }
         },
@@ -2786,6 +4139,21 @@ const docTemplate = `{
                     "example": "user@example.com"
                 }
             }
+        },
+        "github_com_osi-oss_osi_internal_models.ScopeType": {
+            "type": "string",
+            "enum": [
+                "organization",
+                "location",
+                "department",
+                "position"
+            ],
+            "x-enum-varnames": [
+                "ScopeOrganization",
+                "ScopeLocation",
+                "ScopeDepartment",
+                "ScopePosition"
+            ]
         }
     },
     "securityDefinitions": {

@@ -2,11 +2,15 @@ package server
 
 import (
 	"log/slog"
+	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gin-gonic/gin/binding"
 	"github.com/osi-oss/osi/internal/config"
 	"github.com/osi-oss/osi/internal/controllers"
 	"github.com/osi-oss/osi/internal/db"
+	"github.com/osi-oss/osi/internal/dto"
 	"github.com/osi-oss/osi/internal/logger"
 	"github.com/osi-oss/osi/internal/middleware"
 	"github.com/osi-oss/osi/internal/models"
@@ -45,6 +49,7 @@ func Start(cfg *config.Config) {
 	permissionRepo := repository.NewPermissionRepository(dbConn)
 	permissionGrantRepo := repository.NewPermissionGrantRepository(dbConn)
 	employeeRepo := repository.NewEmployeeRepository(dbConn)
+	inviteRepo := repository.NewInviteRepository(dbConn)
 
 	// Создание email сервиса
 	emailService := services.NewEmailService(
@@ -79,15 +84,17 @@ func Start(cfg *config.Config) {
 	// Создание сервиса позиций (без permissionSvc)
 	positionService := services.NewPositionService(positionRepo)
 
-	// Создание сервиса членов организации (без permissionSvc)
-	memberService := services.NewMemberService(orgRepo, userRepo)
-
-	// Создание сервиса сотрудников (без permissionSvc)
-	employeeService := services.NewEmployeeService(employeeRepo, orgRepo, positionRepo)
-
-	// TODO: Create controllers for memberService and employeeService
-	_ = memberService
-	_ = employeeService
+	// Создание сервиса приглашений
+	inviteService := services.NewInviteService(
+		inviteRepo,
+		orgRepo,
+		positionRepo,
+		userRepo,
+		employeeRepo,
+		permissionService,
+		emailService,
+		logger.Log,
+	)
 
 	// Создание middleware
 	permMiddleware := middleware.NewPermissionMiddleware(permissionService)
@@ -98,6 +105,9 @@ func Start(cfg *config.Config) {
 	locationController := controllers.NewLocationController(locationService)
 	departmentController := controllers.NewDepartmentController(departmentService)
 	positionController := controllers.NewPositionController(positionService)
+	inviteController := controllers.NewInviteController(inviteService)
+	permissionController := controllers.NewPermissionController(permissionService)
+	employeeController := controllers.NewEmployeeController(orgService)
 
 	logger.Info("✅ Services initialized", slog.String("port", cfg.AppPort))
 
@@ -164,59 +174,187 @@ func Start(cfg *config.Config) {
 				permMiddleware.RequireOrgAccess,
 				orgController.DeleteOrganization)
 
-			// Локации
+			// Локации (with hierarchical permission checking)
 			protected.POST("/organizations/:orgId/locations",
-				permMiddleware.RequirePermission("locations.create"),
+				permMiddleware.RequireScopedPermissionHierarchy(
+					"locations.create",
+					models.ScopeOrganization,
+					extractOrganizationContext,
+				),
 				locationController.CreateLocation)
 			protected.GET("/organizations/:orgId/locations",
-				permMiddleware.RequireOrgAccess,
+				permMiddleware.RequireScopedPermissionHierarchy(
+					"readHierarchy",
+					models.ScopeOrganization,
+					extractOrganizationContext,
+				),
 				locationController.GetOrganizationLocations)
 			protected.GET("/organizations/:orgId/locations/:locId",
-				permMiddleware.RequireOrgAccess,
+				permMiddleware.RequireScopedPermissionHierarchy(
+					"readHierarchy",
+					models.ScopeLocation,
+					extractLocationContext,
+				),
 				locationController.GetLocation)
 			protected.PUT("/organizations/:orgId/locations/:locId",
-				permMiddleware.RequirePermission("locations.update"),
+				permMiddleware.RequireScopedPermissionHierarchy(
+					"locations.update",
+					models.ScopeLocation,
+					extractLocationContext,
+				),
 				locationController.UpdateLocation)
 			protected.DELETE("/organizations/:orgId/locations/:locId",
-				permMiddleware.RequirePermission("locations.delete"),
+				permMiddleware.RequireScopedPermissionHierarchy(
+					"locations.delete",
+					models.ScopeLocation,
+					extractLocationContext,
+				),
 				locationController.DeleteLocation)
 
-			// Отделы
+			// Отделы (with hierarchical permission checking)
 			protected.POST("/organizations/:orgId/locations/:locId/departments",
-				permMiddleware.RequirePermission("departments.create"),
+				permMiddleware.RequireScopedPermissionHierarchy(
+					"departments.create",
+					models.ScopeDepartment,
+					extractDepartmentCreationContext,
+				),
 				departmentController.CreateDepartment)
 			protected.GET("/organizations/:orgId/locations/:locId/departments",
-				permMiddleware.RequireOrgAccess,
+				permMiddleware.RequireScopedPermissionHierarchy(
+					"readHierarchy",
+					models.ScopeLocation,
+					extractLocationContext,
+				),
 				departmentController.GetLocationDepartments)
 			protected.GET("/organizations/:orgId/locations/:locId/departments/:deptId",
-				permMiddleware.RequireOrgAccess,
+				permMiddleware.RequireScopedPermissionHierarchy(
+					"readHierarchy",
+					models.ScopeDepartment,
+					extractDepartmentContext,
+				),
 				departmentController.GetDepartment)
 			protected.PUT("/organizations/:orgId/locations/:locId/departments/:deptId",
-				permMiddleware.RequirePermission("departments.update"),
+				permMiddleware.RequireScopedPermissionHierarchy(
+					"departments.update",
+					models.ScopeDepartment,
+					extractDepartmentContext,
+				),
 				departmentController.UpdateDepartment)
 			protected.DELETE("/organizations/:orgId/locations/:locId/departments/:deptId",
-				permMiddleware.RequirePermission("departments.delete"),
+				permMiddleware.RequireScopedPermissionHierarchy(
+					"departments.delete",
+					models.ScopeDepartment,
+					extractDepartmentContext,
+				),
 				departmentController.DeleteDepartment)
 
-			// Позиции
+			// Позиции (with hierarchical permission checking)
 			protected.POST("/organizations/:orgId/positions",
-				permMiddleware.RequirePermission("positions.create"),
+				permMiddleware.RequireScopedPermissionHierarchy(
+					"positions.create",
+					models.ScopeOrganization,
+					extractOrganizationContext,
+				),
 				positionController.CreatePosition)
 			protected.GET("/organizations/:orgId/positions",
-				permMiddleware.RequireOrgAccess,
+				permMiddleware.RequireScopedPermissionHierarchy(
+					"readHierarchy",
+					models.ScopeOrganization,
+					extractOrganizationContext,
+				),
 				positionController.GetOrganizationPositions)
 			protected.GET("/organizations/:orgId/locations/:locId/departments/:deptId/positions",
-				permMiddleware.RequireOrgAccess,
+				permMiddleware.RequireScopedPermissionHierarchy(
+					"readHierarchy",
+					models.ScopeDepartment,
+					extractDepartmentContext,
+				),
 				positionController.GetDepartmentPositions)
 			protected.GET("/organizations/:orgId/positions/:posId",
-				permMiddleware.RequireOrgAccess,
+				permMiddleware.RequireScopedPermissionHierarchy(
+					"readHierarchy",
+					models.ScopeOrganization,
+					extractOrganizationContext,
+				),
 				positionController.GetPosition)
 			protected.PUT("/organizations/:orgId/positions/:posId",
-				permMiddleware.RequirePermission("positions.update"),
+				permMiddleware.RequireScopedPermissionHierarchy(
+					"positions.update",
+					models.ScopeOrganization,
+					extractOrganizationContext,
+				),
 				positionController.UpdatePosition)
 			protected.DELETE("/organizations/:orgId/positions/:posId",
-				permMiddleware.RequirePermission("positions.delete"),
+				permMiddleware.RequireScopedPermissionHierarchy(
+					"positions.delete",
+					models.ScopeOrganization,
+					extractOrganizationContext,
+				),
 				positionController.DeletePosition)
+
+			// Приглашения
+			protected.POST("/organizations/:orgId/invites",
+				permMiddleware.RequireScopedPermissionHierarchy(
+					"invites.create",
+					models.ScopePosition,
+					extractInviteContext,
+				),
+				inviteController.CreateInvite)
+
+			protected.GET("/invites/my",
+				inviteController.GetMyInvites)
+			protected.POST("/invites/:inviteId/accept",
+				inviteController.AcceptInvite)
+			protected.POST("/invites/:inviteId/decline",
+				inviteController.DeclineInvite)
+			protected.DELETE("/invites/:inviteId",
+				inviteController.CancelInvite)
+			protected.GET("/organizations/:orgId/invites",
+				permMiddleware.RequireOrgAccess,
+				inviteController.GetOrganizationInvites)
+
+			// Сотрудники и иерархия организации
+			protected.GET("/employees/my-organizations",
+				employeeController.GetMyOrganizations)
+			protected.GET("/organizations/:orgId/employees",
+				permMiddleware.RequireOrgAccess,
+				employeeController.GetOrganizationEmployees)
+			protected.GET("/organizations/:orgId/hierarchy",
+				permMiddleware.RequireOrgAccess,
+				employeeController.GetOrganizationHierarchy)
+
+			// Управление правами
+			protected.GET("/organizations/:orgId/permissions",
+				permMiddleware.RequireOrgAccess,
+				permissionController.GetAllPermissions)
+
+			// Выдача прав (требует permissions.grant)
+			protected.POST("/organizations/:orgId/permissions/grant",
+				permMiddleware.RequireOrgAccess,
+				permissionController.GrantPermission)
+
+			// Отзыв прав (требует permissions.revoke)
+			protected.POST("/organizations/:orgId/permissions/revoke",
+				permMiddleware.RequireOrgAccess,
+				permissionController.RevokePermission)
+
+			// Просмотр прав должности (требует permissions.view)
+			protected.GET("/organizations/:orgId/positions/:posId/permissions",
+				permMiddleware.RequireScopedPermissionHierarchy(
+					"permissions.view",
+					models.ScopeOrganization,
+					extractOrganizationContext,
+				),
+				permissionController.GetPositionPermissions)
+
+			// Просмотр прав сотрудника (требует permissions.view)
+			protected.GET("/organizations/:orgId/employees/:empId/permissions",
+				permMiddleware.RequireScopedPermissionHierarchy(
+					"permissions.view",
+					models.ScopeOrganization,
+					extractOrganizationContext,
+				),
+				permissionController.GetEmployeePermissions)
 		}
 	}
 
@@ -225,4 +363,64 @@ func Start(cfg *config.Config) {
 		logger.Error("Server failed to start", err)
 		panic(err)
 	}
+}
+
+// Helper functions to extract permission context from URL parameters
+
+// extractOrganizationContext extracts organization-level context
+func extractOrganizationContext(c *gin.Context) *models.PermissionContext {
+	orgID, _ := strconv.ParseInt(c.Param("orgId"), 10, 64)
+	return &models.PermissionContext{
+		OrgID: &orgID,
+	}
+}
+
+// extractLocationContext extracts location-level context
+func extractLocationContext(c *gin.Context) *models.PermissionContext {
+	permCtx := extractOrganizationContext(c)
+	locID, _ := strconv.ParseInt(c.Param("locId"), 10, 64)
+	permCtx.LocationID = &locID
+	return permCtx
+}
+
+// extractDepartmentContext extracts department-level context (includes location)
+func extractDepartmentContext(c *gin.Context) *models.PermissionContext {
+	permCtx := extractLocationContext(c)
+	deptID, _ := strconv.ParseInt(c.Param("deptId"), 10, 64)
+	permCtx.DepartmentID = &deptID
+	return permCtx
+}
+
+func extractDepartmentCreationContext(c *gin.Context) *models.PermissionContext {
+	permCtx := extractLocationContext(c)
+
+	var req dto.CreateDepartmentRequest
+	if err := c.ShouldBindBodyWithJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return permCtx
+	}
+
+	permCtx.DepartmentID = req.ParentID
+	return permCtx
+}
+
+// extractDepartmentContext extracts department-level context (includes location)
+func extractPositionContext(c *gin.Context) *models.PermissionContext {
+	permCtx := extractDepartmentContext(c)
+	posID, _ := strconv.ParseInt(c.Param("posId"), 10, 64)
+	permCtx.DepartmentID = &posID
+	return permCtx
+}
+
+func extractInviteContext(c *gin.Context) *models.PermissionContext {
+	permCtx := extractOrganizationContext(c)
+
+	var req dto.CreateInviteRequest
+	if err := c.ShouldBindBodyWith(&req, binding.JSON); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return permCtx
+	}
+
+	permCtx.PositionID = &req.PositionID
+	return permCtx
 }

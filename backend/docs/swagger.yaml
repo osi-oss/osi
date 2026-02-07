@@ -1,5 +1,15 @@
 basePath: /api
 definitions:
+  github_com_osi-oss_osi_internal_dto.AcceptInviteResponse:
+    description: Результат принятия приглашения
+    properties:
+      message:
+        description: |-
+          Сообщение об успехе
+          Example: Invite accepted successfully
+        example: Invite accepted successfully
+        type: string
+    type: object
   github_com_osi-oss_osi_internal_dto.AuthResponse:
     description: Результат успешной аутентификации
     properties:
@@ -96,6 +106,25 @@ definitions:
         type: integer
     required:
     - name
+    type: object
+  github_com_osi-oss_osi_internal_dto.CreateInviteRequest:
+    description: Приглашение пользователя на должность в организацию
+    properties:
+      email:
+        description: |-
+          Email приглашаемого пользователя
+          Example: john@example.com
+        example: john@example.com
+        type: string
+      position_id:
+        description: |-
+          ID должности
+          Example: 42
+        example: 42
+        type: integer
+    required:
+    - email
+    - position_id
     type: object
   github_com_osi-oss_osi_internal_dto.CreateLocationRequest:
     description: Данные для создания новой локации (офиса, филиала, склада и т.д.)
@@ -210,6 +239,16 @@ definitions:
     required:
     - name
     type: object
+  github_com_osi-oss_osi_internal_dto.DeclineInviteResponse:
+    description: Результат отклонения приглашения
+    properties:
+      message:
+        description: |-
+          Сообщение об успехе
+          Example: Invite declined successfully
+        example: Invite declined successfully
+        type: string
+    type: object
   github_com_osi-oss_osi_internal_dto.DepartmentResponse:
     description: Полная информация об отделе
     properties:
@@ -262,6 +301,45 @@ definitions:
           $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.DepartmentResponse'
         type: array
     type: object
+  github_com_osi-oss_osi_internal_dto.EmployeeDetailResponse:
+    description: Подробная информация о сотруднике в организации
+    properties:
+      end_date:
+        description: Дата окончания работы
+        type: string
+      id:
+        description: ID сотрудника
+        example: 1
+        type: integer
+      is_intern:
+        description: Является ли стажёром
+        example: false
+        type: boolean
+      joined_at:
+        description: Дата присоединения к организации
+        example: "2024-01-15T10:00:00Z"
+        type: string
+      position_id:
+        description: ID позиции
+        example: 5
+        type: integer
+      position_name:
+        description: Название позиции
+        example: Software Engineer
+        type: string
+      start_date:
+        description: Дата начала работы
+        example: "2024-01-15T10:00:00Z"
+        type: string
+      status:
+        description: Статус сотрудника
+        example: active
+        type: string
+      user:
+        allOf:
+        - $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.UserResponse'
+        description: Информация о пользователе
+    type: object
   github_com_osi-oss_osi_internal_dto.ErrorResponse:
     description: Стандартный формат ответа при ошибке
     properties:
@@ -270,6 +348,146 @@ definitions:
           Сообщение об ошибке
           Example: invalid email or code
         example: invalid email or code
+        type: string
+    type: object
+  github_com_osi-oss_osi_internal_dto.GrantPermissionRequest:
+    description: Данные для выдачи права должности или сотруднику
+    properties:
+      employee_id:
+        description: |-
+          ID сотрудника (если выдаём право сотруднику)
+          Example: 15
+        example: 15
+        type: integer
+      permission_code:
+        description: |-
+          Код разрешения (например: "members.view")
+          Example: members.view
+        example: members.view
+        type: string
+      position_id:
+        description: |-
+          ID должности (если выдаём право должности)
+          Example: 10
+        example: 10
+        type: integer
+      scope_id:
+        description: |-
+          ID области действия (null = вся организация)
+          Example: 5
+        example: 5
+        type: integer
+      scope_type:
+        allOf:
+        - $ref: '#/definitions/github_com_osi-oss_osi_internal_models.ScopeType'
+        description: |-
+          Тип области действия: organization, location, department, position
+          Example: department
+        example: department
+    required:
+    - permission_code
+    - scope_type
+    type: object
+  github_com_osi-oss_osi_internal_dto.HierarchyNode:
+    description: Узел в иерархии (локация, отдел, позиция, сотрудник)
+    properties:
+      children:
+        description: Дочерние узлы
+        items:
+          $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.HierarchyNode'
+        type: array
+      data:
+        additionalProperties: true
+        description: Дополнительные данные в зависимости от типа
+        type: object
+      id:
+        description: ID узла
+        example: 1
+        type: integer
+      name:
+        description: Название
+        example: Engineering Department
+        type: string
+      type:
+        description: 'Тип узла: location, department, position, employee'
+        example: department
+        type: string
+    type: object
+  github_com_osi-oss_osi_internal_dto.InviteResponse:
+    description: Полная информация о приглашении в организацию
+    properties:
+      accepted_at:
+        description: |-
+          Дата принятия приглашения
+          Example: 2024-01-24T11:00:00Z
+        example: "2024-01-24T11:00:00Z"
+        type: string
+      created_at:
+        description: |-
+          Дата отправки приглашения
+          Example: 2024-01-24T10:30:00Z
+        example: "2024-01-24T10:30:00Z"
+        type: string
+      declined_at:
+        description: Дата отклонения приглашения
+        type: string
+      id:
+        description: |-
+          Уникальный идентификатор приглашения
+          Example: 1
+        example: 1
+        type: integer
+      invited_by_user:
+        allOf:
+        - $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.UserResponse'
+        description: Информация о том кто пригласил (опционально)
+      invited_by_user_id:
+        description: |-
+          ID пользователя, создавшего приглашение
+          Example: 1
+        example: 1
+        type: integer
+      invited_email:
+        description: |-
+          Email приглашённого пользователя
+          Example: john@example.com
+        example: john@example.com
+        type: string
+      invited_user_id:
+        description: |-
+          ID приглашённого пользователя (может быть null для неregistered пользователей)
+          Example: 10
+        example: 10
+        type: integer
+      organization:
+        allOf:
+        - $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.OrganizationResponse'
+        description: Информация об организации (опционально)
+      organization_id:
+        description: |-
+          ID организации
+          Example: 5
+        example: 5
+        type: integer
+      position:
+        allOf:
+        - $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.PositionResponse'
+        description: Информация о должности (опционально)
+      position_id:
+        description: |-
+          ID должности
+          Example: 42
+        example: 42
+        type: integer
+      status:
+        description: |-
+          Статус приглашения: pending, accepted, declined
+          Example: pending
+        enum:
+        - pending
+        - accepted
+        - declined
+        example: pending
         type: string
     type: object
   github_com_osi-oss_osi_internal_dto.LocationResponse:
@@ -352,6 +570,77 @@ definitions:
           Example: operation completed successfully
         example: operation completed successfully
         type: string
+    type: object
+  github_com_osi-oss_osi_internal_dto.MyOrganizationInfo:
+    description: Организация где пользователь работает
+    properties:
+      employee_id:
+        description: Мой ID сотрудника в организации
+        example: 42
+        type: integer
+      end_date:
+        description: Дата окончания работы (если уже уволен)
+        type: string
+      id:
+        description: ID организации
+        example: 1
+        type: integer
+      is_founder:
+        description: Основатель ли я
+        example: false
+        type: boolean
+      my_status:
+        description: Мой статус в организации (active, invited, inactive)
+        example: active
+        type: string
+      name:
+        description: Название организации
+        example: Acme Corporation
+        type: string
+      start_date:
+        description: Дата начала работы
+        example: "2024-01-15T10:00:00Z"
+        type: string
+      status:
+        description: Статус организации
+        example: draft
+        type: string
+    type: object
+  github_com_osi-oss_osi_internal_dto.OrganizationHierarchyResponse:
+    description: 'Вся структура организации: локации, отделы, должности, сотрудники'
+    properties:
+      locations:
+        description: Корневые элементы (локации)
+        items:
+          $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.HierarchyNode'
+        type: array
+      organization_id:
+        description: ID организации
+        example: 1
+        type: integer
+      organization_name:
+        description: Название организации
+        example: Acme Corp
+        type: string
+      stats:
+        description: Общая статистика
+        properties:
+          active_employees:
+            example: 40
+            type: integer
+          total_departments:
+            example: 12
+            type: integer
+          total_employees:
+            example: 42
+            type: integer
+          total_locations:
+            example: 3
+            type: integer
+          total_positions:
+            example: 87
+            type: integer
+        type: object
     type: object
   github_com_osi-oss_osi_internal_dto.OrganizationResponse:
     description: Полная информация об организации
@@ -449,6 +738,61 @@ definitions:
     required:
     - email
     - password
+    type: object
+  github_com_osi-oss_osi_internal_dto.PermissionGrantResponse:
+    description: Данные о выданном праве
+    properties:
+      employee_id:
+        description: |-
+          ID сотрудника (если право выдано сотруднику)
+          Example: 15
+        example: 15
+        type: integer
+      id:
+        description: |-
+          ID записи о праве
+          Example: 1
+        example: 1
+        type: integer
+      permission_code:
+        description: |-
+          Код разрешения
+          Example: members.view
+        example: members.view
+        type: string
+      permission_description:
+        description: |-
+          Описание разрешения
+          Example: Просмотр списка сотрудников
+        example: Просмотр списка сотрудников
+        type: string
+      position_id:
+        description: |-
+          ID должности (если право выдано должности)
+          Example: 10
+        example: 10
+        type: integer
+      scope_id:
+        description: |-
+          ID области действия
+          Example: 5
+        example: 5
+        type: integer
+      scope_type:
+        description: |-
+          Тип области действия
+          Example: department
+        example: department
+        type: string
+    type: object
+  github_com_osi-oss_osi_internal_dto.PermissionGrantsListResponse:
+    description: Список всех прав должности или сотрудника
+    properties:
+      grants:
+        description: Массив прав
+        items:
+          $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.PermissionGrantResponse'
+        type: array
     type: object
   github_com_osi-oss_osi_internal_dto.PositionResponse:
     description: Полная информация о должности
@@ -570,6 +914,44 @@ definitions:
           Example: Verification code sent to your email
         example: Verification code sent to your email
         type: string
+    type: object
+  github_com_osi-oss_osi_internal_dto.RevokePermissionRequest:
+    description: Данные для отзыва права
+    properties:
+      employee_id:
+        description: |-
+          ID сотрудника (если отзываем у сотрудника)
+          Example: 15
+        example: 15
+        type: integer
+      permission_code:
+        description: |-
+          Код разрешения
+          Example: members.view
+        example: members.view
+        type: string
+      position_id:
+        description: |-
+          ID должности (если отзываем у должности)
+          Example: 10
+        example: 10
+        type: integer
+      scope_id:
+        description: |-
+          ID области действия
+          Example: 5
+        example: 5
+        type: integer
+      scope_type:
+        allOf:
+        - $ref: '#/definitions/github_com_osi-oss_osi_internal_models.ScopeType'
+        description: |-
+          Тип области действия
+          Example: department
+        example: department
+    required:
+    - permission_code
+    - scope_type
     type: object
   github_com_osi-oss_osi_internal_dto.SetPasswordRequest:
     description: Установка пароля для быстрого входа (опционально)
@@ -792,6 +1174,18 @@ definitions:
     - code
     - email
     type: object
+  github_com_osi-oss_osi_internal_models.ScopeType:
+    enum:
+    - organization
+    - location
+    - department
+    - position
+    type: string
+    x-enum-varnames:
+    - ScopeOrganization
+    - ScopeLocation
+    - ScopeDepartment
+    - ScopePosition
 host: localhost:8080
 info:
   contact:
@@ -963,6 +1357,190 @@ paths:
       summary: Проверка кода и получение токена
       tags:
       - Аутентификация
+  /employees/my-organizations:
+    get:
+      consumes:
+      - application/json
+      description: |-
+        Возвращает список организаций, где текущий пользователь работает или является основателем.
+        Для каждой организации возвращается статус пользователя и дополнительная информация.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Список организаций
+          schema:
+            items:
+              $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.MyOrganizationInfo'
+            type: array
+        "401":
+          description: Отсутствует или невалидный токен авторизации
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Получить мои организации
+      tags:
+      - Employees
+  /invites/{inviteId}:
+    delete:
+      consumes:
+      - application/json
+      description: |-
+        Отменить выданное приглашение.
+        Может отменить только создатель приглашения или основатель организации.
+      parameters:
+      - description: ID приглашения
+        example: 1
+        in: path
+        minimum: 1
+        name: inviteId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Приглашение отменено
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.AcceptInviteResponse'
+        "400":
+          description: Приглашение не найдено
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "401":
+          description: Отсутствует или невалидный токен авторизации
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "403":
+          description: Нет прав на отмену этого приглашения
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Отменить приглашение
+      tags:
+      - Invites
+  /invites/{inviteId}/accept:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Принять приглашение в организацию на должность.
+        Автоматически добавляет пользователя в организацию и создаёт запись сотрудника.
+      parameters:
+      - description: ID приглашения
+        example: 1
+        in: path
+        minimum: 1
+        name: inviteId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Приглашение принято
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.AcceptInviteResponse'
+        "400":
+          description: Приглашение не найдено или уже обработано
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "401":
+          description: Отсутствует или невалидный токен авторизации
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "403":
+          description: Нет прав на принятие этого приглашения
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Принять приглашение
+      tags:
+      - Invites
+  /invites/{inviteId}/decline:
+    post:
+      consumes:
+      - application/json
+      description: Отклонить приглашение в организацию.
+      parameters:
+      - description: ID приглашения
+        example: 1
+        in: path
+        minimum: 1
+        name: inviteId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Приглашение отклонено
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.DeclineInviteResponse'
+        "400":
+          description: Приглашение не найдено или уже обработано
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "401":
+          description: Отсутствует или невалидный токен авторизации
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "403":
+          description: Нет прав на отклонение этого приглашения
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Отклонить приглашение
+      tags:
+      - Invites
+  /invites/my:
+    get:
+      consumes:
+      - application/json
+      description: Возвращает все pending приглашения, отправленные на email текущего
+        пользователя.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Список приглашений
+          schema:
+            items:
+              $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.InviteResponse'
+            type: array
+        "401":
+          description: Отсутствует или невалидный токен авторизации
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Получить мои приглашения
+      tags:
+      - Invites
   /organizations:
     get:
       consumes:
@@ -1179,6 +1757,250 @@ paths:
       summary: Обновление данных организации
       tags:
       - Организации
+  /organizations/{orgId}/employees:
+    get:
+      consumes:
+      - application/json
+      description: |-
+        Возвращает список всех сотрудников организации с подробной информацией.
+        Доступно только для членов организации.
+      parameters:
+      - description: ID организации
+        example: 1
+        in: path
+        minimum: 1
+        name: orgId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Список сотрудников
+          schema:
+            items:
+              $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.EmployeeDetailResponse'
+            type: array
+        "400":
+          description: Неверный формат ID организации
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "401":
+          description: Отсутствует или невалидный токен авторизации
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "403":
+          description: Нет доступа к организации
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "404":
+          description: Организация не найдена
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Получить всех сотрудников организации
+      tags:
+      - Employees
+  /organizations/{orgId}/employees/{empId}/permissions:
+    get:
+      consumes:
+      - application/json
+      description: |-
+        Возвращает список всех индивидуальных прав сотрудника.
+        Требует право "permissions.view".
+      parameters:
+      - description: ID организации
+        example: 1
+        in: path
+        minimum: 1
+        name: orgId
+        required: true
+        type: integer
+      - description: ID сотрудника
+        example: 1
+        in: path
+        minimum: 1
+        name: empId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Список прав сотрудника
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.PermissionGrantsListResponse'
+        "400":
+          description: Неверный формат ID
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "401":
+          description: Требуется авторизация
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "403":
+          description: Нет права на просмотр прав
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Получить права сотрудника
+      tags:
+      - Права
+  /organizations/{orgId}/hierarchy:
+    get:
+      consumes:
+      - application/json
+      description: |-
+        Возвращает полную иерархию организации: локации, отделы, должности, сотрудники.
+        Доступно только для членов организации.
+      parameters:
+      - description: ID организации
+        example: 1
+        in: path
+        minimum: 1
+        name: orgId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Иерархия организации
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.OrganizationHierarchyResponse'
+        "400":
+          description: Неверный формат ID организации
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "401":
+          description: Отсутствует или невалидный токен авторизации
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "403":
+          description: Нет доступа к организации
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "404":
+          description: Организация не найдена
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Получить иерархию организации
+      tags:
+      - Employees
+  /organizations/{orgId}/invites:
+    get:
+      consumes:
+      - application/json
+      description: |-
+        Возвращает все приглашения организации.
+        Доступно только основателям/администраторам организации.
+      parameters:
+      - description: ID организации
+        example: 1
+        in: path
+        minimum: 1
+        name: orgId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Список приглашений
+          schema:
+            items:
+              $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.InviteResponse'
+            type: array
+        "400":
+          description: Неверный формат ID организации
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "401":
+          description: Отсутствует или невалидный токен авторизации
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "403":
+          description: Нет прав на просмотр приглашений
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Получить приглашения организации
+      tags:
+      - Invites
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Пригласить пользователя на должность в организацию по email.
+        Требует право "invites.create" на уровне организации или отдела, где находится позиция.
+        Если пользователь с таким email не существует, он будет автоматически создан со статусом pending_email.
+      parameters:
+      - description: ID организации
+        example: 1
+        in: path
+        minimum: 1
+        name: orgId
+        required: true
+        type: integer
+      - description: Данные приглашения
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.CreateInviteRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Приглашение успешно создано
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.InviteResponse'
+        "400":
+          description: Ошибка валидации
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "401":
+          description: Отсутствует или невалидный токен авторизации
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "403":
+          description: Нет прав на создание приглашения
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "404":
+          description: Организация или должность не найдена
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Создать приглашение в организацию
+      tags:
+      - Invites
   /organizations/{orgId}/locations:
     get:
       consumes:
@@ -1784,6 +2606,155 @@ paths:
       summary: Список должностей отдела
       tags:
       - Должности
+  /organizations/{orgId}/permissions:
+    get:
+      consumes:
+      - application/json
+      description: |-
+        Возвращает список всех прав в системе.
+        Требует доступ к организации.
+      parameters:
+      - description: ID организации
+        example: 1
+        in: path
+        minimum: 1
+        name: orgId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Список всех прав
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.PermissionGrantsListResponse'
+        "400":
+          description: Неверный формат ID
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "401":
+          description: Требуется авторизация
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Получить все доступные права
+      tags:
+      - Права
+  /organizations/{orgId}/permissions/grant:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Выдаёт право должности или сотруднику.
+        Требует право "permissions.grant" в соответствующем scope.
+        Можно выдать только те права, которые есть у самого выдающего.
+        Основатели могут выдавать любые права.
+      parameters:
+      - description: ID организации
+        example: 1
+        in: path
+        minimum: 1
+        name: orgId
+        required: true
+        type: integer
+      - description: Данные для выдачи права
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.GrantPermissionRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Право успешно выдано
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.MessageResponse'
+        "400":
+          description: Ошибка валидации
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "401":
+          description: Требуется авторизация
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "403":
+          description: Нет права на выдачу прав или попытка выдать право, которого
+            нет у самого пользователя
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "404":
+          description: Разрешение не найдено
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Выдача права
+      tags:
+      - Права
+  /organizations/{orgId}/permissions/revoke:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Отзывает право у должности или сотрудника.
+        Требует право "permissions.revoke" в соответствующем scope.
+        Основатели могут отзывать любые права.
+      parameters:
+      - description: ID организации
+        example: 1
+        in: path
+        minimum: 1
+        name: orgId
+        required: true
+        type: integer
+      - description: Данные для отзыва права
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.RevokePermissionRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Право успешно отозвано
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.MessageResponse'
+        "400":
+          description: Ошибка валидации
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "401":
+          description: Требуется авторизация
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "403":
+          description: Нет права на отзыв прав
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "404":
+          description: Разрешение не найдено
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Отзыв права
+      tags:
+      - Права
   /organizations/{orgId}/positions:
     get:
       consumes:
@@ -2042,6 +3013,56 @@ paths:
       summary: Обновление должности
       tags:
       - Должности
+  /organizations/{orgId}/positions/{posId}/permissions:
+    get:
+      consumes:
+      - application/json
+      description: |-
+        Возвращает список всех прав, выданных должности.
+        Требует право "permissions.view".
+      parameters:
+      - description: ID организации
+        example: 1
+        in: path
+        minimum: 1
+        name: orgId
+        required: true
+        type: integer
+      - description: ID должности
+        example: 1
+        in: path
+        minimum: 1
+        name: posId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Список прав должности
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.PermissionGrantsListResponse'
+        "400":
+          description: Неверный формат ID
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "401":
+          description: Требуется авторизация
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "403":
+          description: Нет права на просмотр прав
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Получить права должности
+      tags:
+      - Права
   /profile:
     get:
       consumes:
