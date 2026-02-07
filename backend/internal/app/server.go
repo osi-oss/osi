@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gin-gonic/gin/binding"
 	"github.com/osi-oss/osi/internal/config"
 	"github.com/osi-oss/osi/internal/controllers"
 	"github.com/osi-oss/osi/internal/db"
@@ -83,9 +84,6 @@ func Start(cfg *config.Config) {
 	// Создание сервиса позиций (без permissionSvc)
 	positionService := services.NewPositionService(positionRepo)
 
-	// Создание сервиса сотрудников (без permissionSvc)
-	employeeService := services.NewEmployeeService(employeeRepo, orgRepo, positionRepo)
-
 	// Создание сервиса приглашений
 	inviteService := services.NewInviteService(
 		inviteRepo,
@@ -98,9 +96,6 @@ func Start(cfg *config.Config) {
 		logger.Log,
 	)
 
-	// TODO: Create controllers for employeeService
-	_ = employeeService
-
 	// Создание middleware
 	permMiddleware := middleware.NewPermissionMiddleware(permissionService)
 
@@ -112,6 +107,7 @@ func Start(cfg *config.Config) {
 	positionController := controllers.NewPositionController(positionService)
 	inviteController := controllers.NewInviteController(inviteService)
 	permissionController := controllers.NewPermissionController(permissionService)
+	employeeController := controllers.NewEmployeeController(orgService)
 
 	logger.Info("✅ Services initialized", slog.String("port", cfg.AppPort))
 
@@ -317,6 +313,16 @@ func Start(cfg *config.Config) {
 				permMiddleware.RequireOrgAccess,
 				inviteController.GetOrganizationInvites)
 
+			// Сотрудники и иерархия организации
+			protected.GET("/employees/my-organizations",
+				employeeController.GetMyOrganizations)
+			protected.GET("/organizations/:orgId/employees",
+				permMiddleware.RequireOrgAccess,
+				employeeController.GetOrganizationEmployees)
+			protected.GET("/organizations/:orgId/hierarchy",
+				permMiddleware.RequireOrgAccess,
+				employeeController.GetOrganizationHierarchy)
+
 			// Управление правами
 			protected.GET("/organizations/:orgId/permissions",
 				permMiddleware.RequireOrgAccess,
@@ -407,10 +413,10 @@ func extractPositionContext(c *gin.Context) *models.PermissionContext {
 }
 
 func extractInviteContext(c *gin.Context) *models.PermissionContext {
-	permCtx := extractPositionContext(c)
+	permCtx := extractOrganizationContext(c)
 
 	var req dto.CreateInviteRequest
-	if err := c.ShouldBindBodyWithJSON(&req); err != nil {
+	if err := c.ShouldBindBodyWith(&req, binding.JSON); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return permCtx
 	}

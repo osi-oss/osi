@@ -652,3 +652,123 @@ func ToEmployeePermissionGrantResponses(grants []models.EmployeePermissionGrant)
 	}
 	return result
 }
+
+// MyOrganizationInfo информация об организации в контексте текущего пользователя
+// @Description Организация где пользователь работает
+type MyOrganizationInfo struct {
+	// ID организации
+	ID int64 `json:"id" example:"1"`
+	// Название организации
+	Name string `json:"name" example:"Acme Corporation"`
+	// Статус организации
+	Status string `json:"status" example:"draft"`
+	// Мой статус в организации (active, invited, inactive)
+	MyStatus string `json:"my_status" example:"active"`
+	// Мой ID сотрудника в организации
+	EmployeeID int64 `json:"employee_id" example:"42"`
+	// Дата начала работы
+	StartDate *time.Time `json:"start_date" example:"2024-01-15T10:00:00Z"`
+	// Дата окончания работы (если уже уволен)
+	EndDate *time.Time `json:"end_date"`
+	// Основатель ли я
+	IsFounder bool `json:"is_founder" example:"false"`
+}
+
+// EmployeeDetailResponse полная информация о сотруднике
+// @Description Подробная информация о сотруднике в организации
+type EmployeeDetailResponse struct {
+	// ID сотрудника
+	ID int64 `json:"id" example:"1"`
+	// Информация о пользователе
+	User UserResponse `json:"user"`
+	// ID позиции
+	PositionID int64 `json:"position_id" example:"5"`
+	// Название позиции
+	PositionName string `json:"position_name" example:"Software Engineer"`
+	// Статус сотрудника
+	Status string `json:"status" example:"active"`
+	// Является ли стажёром
+	IsIntern bool `json:"is_intern" example:"false"`
+	// Дата начала работы
+	StartDate *time.Time `json:"start_date" example:"2024-01-15T10:00:00Z"`
+	// Дата окончания работы
+	EndDate *time.Time `json:"end_date"`
+	// Дата присоединения к организации
+	JoinedAt *time.Time `json:"joined_at" example:"2024-01-15T10:00:00Z"`
+}
+
+// HierarchyNode ноль иерархии организации
+// @Description Узел в иерархии (локация, отдел, позиция, сотрудник)
+type HierarchyNode struct {
+	// Тип узла: location, department, position, employee
+	Type string `json:"type" example:"department"`
+	// ID узла
+	ID int64 `json:"id" example:"1"`
+	// Название
+	Name string `json:"name" example:"Engineering Department"`
+	// Дополнительные данные в зависимости от типа
+	Data map[string]interface{} `json:"data,omitempty"`
+	// Дочерние узлы
+	Children []HierarchyNode `json:"children,omitempty"`
+}
+
+// OrganizationHierarchyResponse полная иерархия организации
+// @Description Вся структура организации: локации, отделы, должности, сотрудники
+type OrganizationHierarchyResponse struct {
+	// ID организации
+	OrganizationID int64 `json:"organization_id" example:"1"`
+	// Название организации
+	OrganizationName string `json:"organization_name" example:"Acme Corp"`
+	// Корневые элементы (локации)
+	Locations []HierarchyNode `json:"locations"`
+	// Общая статистика
+	Stats struct {
+		TotalEmployees   int `json:"total_employees" example:"42"`
+		TotalLocations   int `json:"total_locations" example:"3"`
+		TotalDepartments int `json:"total_departments" example:"12"`
+		TotalPositions   int `json:"total_positions" example:"87"`
+		ActiveEmployees  int `json:"active_employees" example:"40"`
+	} `json:"stats"`
+}
+
+// OrganizationEmployeesListResponse список сотрудников организации
+// @Description Список всех сотрудников с фильтрацией
+type OrganizationEmployeesListResponse struct {
+	// Общее количество
+	Total int64 `json:"total" example:"42"`
+	// Количество активных
+	Active int64 `json:"active" example:"40"`
+	// Количество неактивных
+	Inactive int64 `json:"inactive" example:"2"`
+	// Сотрудники
+	Employees []EmployeeDetailResponse `json:"employees"`
+}
+
+// ToMyOrganizationInfo преобразует Organization + Employee в MyOrganizationInfo
+func ToMyOrganizationInfo(org *models.Organization, emp *models.Employee, isFounder bool) *MyOrganizationInfo {
+	return &MyOrganizationInfo{
+		ID:         org.ID,
+		Name:       org.Name,
+		Status:     string(org.Status),
+		MyStatus:   string(emp.Status),
+		EmployeeID: emp.ID,
+		StartDate:  emp.StartDate,
+		EndDate:    emp.EndDate,
+		IsFounder:  isFounder,
+	}
+}
+
+// ToEmployeeDetailResponse преобразует Employee в EmployeeDetailResponse
+func ToEmployeeDetailResponse(emp *models.Employee) *EmployeeDetailResponse {
+	return &EmployeeDetailResponse{
+		ID:           emp.ID,
+		User:         ToUserResponse(&emp.User),
+		PositionID:   emp.PositionID,
+		PositionName: emp.Position.Name,
+		Status:       string(emp.Status),
+		IsIntern:     emp.IsIntern,
+		StartDate:    emp.StartDate,
+		EndDate:      emp.EndDate,
+		JoinedAt:     emp.JoinedAt,
+	}
+}

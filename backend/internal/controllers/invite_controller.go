@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gin-gonic/gin/binding"
 	"github.com/osi-oss/osi/internal/dto"
 	"github.com/osi-oss/osi/internal/helpers"
 	"github.com/osi-oss/osi/internal/services"
@@ -52,7 +53,7 @@ func (ctrl *InviteController) CreateInvite(c *gin.Context) {
 	}
 
 	var req dto.CreateInviteRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	if err := c.ShouldBindBodyWith(&req, binding.JSON); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -78,13 +79,10 @@ func (ctrl *InviteController) CreateInvite(c *gin.Context) {
 // @Failure      500 {object} dto.ErrorResponse "Внутренняя ошибка сервера"
 // @Router       /invites/my [get]
 func (ctrl *InviteController) GetMyInvites(c *gin.Context) {
-	// Получаем email текущего пользователя из контекста (должен быть там из auth middleware)
-	userEmail, ok := c.Get("user_email")
+	// Получаем email текущего пользователя из контекста (установлено auth middleware)
+	userEmail, ok := c.Get("email")
 	if !ok {
-		// Попытаемся получить из claims токена через GetUserID
-		// В реальности email должен быть доступен из claims
-		// Для простоты используем userID как индентификатор
-		helpers.RespondError(c, nil)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "email not found in context"})
 		return
 	}
 

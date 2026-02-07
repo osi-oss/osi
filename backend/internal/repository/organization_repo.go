@@ -106,3 +106,109 @@ func (r *OrganizationRepository) GetFounderByUserAndOrgID(userID int64, orgID in
 		First(&founder).Error
 	return &founder, err
 }
+
+// GetEmployeesByOrganization получает всех сотрудников организации
+func (r *OrganizationRepository) GetEmployeesByOrganization(orgID int64) ([]models.Employee, error) {
+	var employees []models.Employee
+	err := r.db.
+		Preload("User").
+		Preload("Position").
+		Where("organization_id = ?", orgID).
+		Find(&employees).Error
+	return employees, err
+}
+
+// GetLocationsByOrganization получает все локации организации
+func (r *OrganizationRepository) GetLocationsByOrganization(orgID int64) ([]models.Location, error) {
+	var locations []models.Location
+	err := r.db.
+		Where("organization_id = ?", orgID).
+		Find(&locations).Error
+	return locations, err
+}
+
+// GetDepartmentsByLocationID получает все отделы локации
+func (r *OrganizationRepository) GetDepartmentsByLocationID(locID int64) ([]models.Department, error) {
+	var departments []models.Department
+	err := r.db.
+		Where("location_id = ?", locID).
+		Find(&departments).Error
+	return departments, err
+}
+
+// GetPositionsByDepartmentID получает все должности отдела
+func (r *OrganizationRepository) GetPositionsByDepartmentID(deptID int64) ([]models.Position, error) {
+	var positions []models.Position
+	err := r.db.
+		Where("department_id = ?", deptID).
+		Find(&positions).Error
+	return positions, err
+}
+
+// GetEmployeesByPositionID получает всех сотрудников на должность
+func (r *OrganizationRepository) GetEmployeesByPositionID(posID int64) ([]models.Employee, error) {
+	var employees []models.Employee
+	err := r.db.
+		Preload("User").
+		Where("position_id = ?", posID).
+		Find(&employees).Error
+	return employees, err
+}
+
+// CountEmployeesInOrganization подсчитывает всех сотрудников организации
+func (r *OrganizationRepository) CountEmployeesInOrganization(orgID int64) (int64, error) {
+	var count int64
+	err := r.db.Model(&models.Employee{}).Where("organization_id = ?", orgID).Count(&count).Error
+	return count, err
+}
+
+// CountActiveEmployeesInOrganization подсчитывает активных сотрудников
+func (r *OrganizationRepository) CountActiveEmployeesInOrganization(orgID int64) (int64, error) {
+	var count int64
+	err := r.db.Model(&models.Employee{}).
+		Where("organization_id = ? AND status = ? AND end_date IS NULL", orgID, models.MemberActive).
+		Count(&count).Error
+	return count, err
+}
+
+// CountDepartmentsInOrganization подсчитывает все отделы организации
+func (r *OrganizationRepository) CountDepartmentsInOrganization(orgID int64) (int64, error) {
+	var count int64
+	err := r.db.
+		Model(&models.Department{}).
+		Joins("JOIN locations ON locations.id = departments.location_id").
+		Where("locations.organization_id = ?", orgID).
+		Count(&count).Error
+	return count, err
+}
+
+// CountPositionsInOrganization подсчитывает все должности организации
+func (r *OrganizationRepository) CountPositionsInOrganization(orgID int64) (int64, error) {
+	var count int64
+	err := r.db.Model(&models.Position{}).Where("organization_id = ?", orgID).Count(&count).Error
+	return count, err
+}
+
+// GetFounderOrganizations получает организации где пользователь - основатель
+func (r *OrganizationRepository) GetFounderOrganizations(userID int64) ([]models.Organization, error) {
+	var organizations []models.Organization
+	err := r.db.
+		Joins("JOIN organization_founders ON organizations.id = organization_founders.organization_id").
+		Where("organization_founders.user_id = ?", userID).
+		Preload("Founders").
+		Preload("Employees", func(db *gorm.DB) *gorm.DB {
+			return db.Where("user_id = ?", userID)
+		}).
+		Find(&organizations).Error
+	return organizations, err
+}
+
+// GetOrganizationsByUserID получает все организации пользователя (как сотрудник)
+func (r *OrganizationRepository) GetOrganizationsByUserID(userID int64) ([]models.Employee, error) {
+	var employees []models.Employee
+	err := r.db.
+		Preload("Organization").
+		Where("user_id = ?", userID).
+		Find(&employees).Error
+	return employees, err
+}
