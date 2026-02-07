@@ -301,6 +301,45 @@ definitions:
           $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.DepartmentResponse'
         type: array
     type: object
+  github_com_osi-oss_osi_internal_dto.EmployeeDetailResponse:
+    description: Подробная информация о сотруднике в организации
+    properties:
+      end_date:
+        description: Дата окончания работы
+        type: string
+      id:
+        description: ID сотрудника
+        example: 1
+        type: integer
+      is_intern:
+        description: Является ли стажёром
+        example: false
+        type: boolean
+      joined_at:
+        description: Дата присоединения к организации
+        example: "2024-01-15T10:00:00Z"
+        type: string
+      position_id:
+        description: ID позиции
+        example: 5
+        type: integer
+      position_name:
+        description: Название позиции
+        example: Software Engineer
+        type: string
+      start_date:
+        description: Дата начала работы
+        example: "2024-01-15T10:00:00Z"
+        type: string
+      status:
+        description: Статус сотрудника
+        example: active
+        type: string
+      user:
+        allOf:
+        - $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.UserResponse'
+        description: Информация о пользователе
+    type: object
   github_com_osi-oss_osi_internal_dto.ErrorResponse:
     description: Стандартный формат ответа при ошибке
     properties:
@@ -348,6 +387,31 @@ definitions:
     required:
     - permission_code
     - scope_type
+    type: object
+  github_com_osi-oss_osi_internal_dto.HierarchyNode:
+    description: Узел в иерархии (локация, отдел, позиция, сотрудник)
+    properties:
+      children:
+        description: Дочерние узлы
+        items:
+          $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.HierarchyNode'
+        type: array
+      data:
+        additionalProperties: true
+        description: Дополнительные данные в зависимости от типа
+        type: object
+      id:
+        description: ID узла
+        example: 1
+        type: integer
+      name:
+        description: Название
+        example: Engineering Department
+        type: string
+      type:
+        description: 'Тип узла: location, department, position, employee'
+        example: department
+        type: string
     type: object
   github_com_osi-oss_osi_internal_dto.InviteResponse:
     description: Полная информация о приглашении в организацию
@@ -506,6 +570,77 @@ definitions:
           Example: operation completed successfully
         example: operation completed successfully
         type: string
+    type: object
+  github_com_osi-oss_osi_internal_dto.MyOrganizationInfo:
+    description: Организация где пользователь работает
+    properties:
+      employee_id:
+        description: Мой ID сотрудника в организации
+        example: 42
+        type: integer
+      end_date:
+        description: Дата окончания работы (если уже уволен)
+        type: string
+      id:
+        description: ID организации
+        example: 1
+        type: integer
+      is_founder:
+        description: Основатель ли я
+        example: false
+        type: boolean
+      my_status:
+        description: Мой статус в организации (active, invited, inactive)
+        example: active
+        type: string
+      name:
+        description: Название организации
+        example: Acme Corporation
+        type: string
+      start_date:
+        description: Дата начала работы
+        example: "2024-01-15T10:00:00Z"
+        type: string
+      status:
+        description: Статус организации
+        example: draft
+        type: string
+    type: object
+  github_com_osi-oss_osi_internal_dto.OrganizationHierarchyResponse:
+    description: 'Вся структура организации: локации, отделы, должности, сотрудники'
+    properties:
+      locations:
+        description: Корневые элементы (локации)
+        items:
+          $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.HierarchyNode'
+        type: array
+      organization_id:
+        description: ID организации
+        example: 1
+        type: integer
+      organization_name:
+        description: Название организации
+        example: Acme Corp
+        type: string
+      stats:
+        description: Общая статистика
+        properties:
+          active_employees:
+            example: 40
+            type: integer
+          total_departments:
+            example: 12
+            type: integer
+          total_employees:
+            example: 42
+            type: integer
+          total_locations:
+            example: 3
+            type: integer
+          total_positions:
+            example: 87
+            type: integer
+        type: object
     type: object
   github_com_osi-oss_osi_internal_dto.OrganizationResponse:
     description: Полная информация об организации
@@ -1222,6 +1357,35 @@ paths:
       summary: Проверка кода и получение токена
       tags:
       - Аутентификация
+  /employees/my-organizations:
+    get:
+      consumes:
+      - application/json
+      description: |-
+        Возвращает список организаций, где текущий пользователь работает или является основателем.
+        Для каждой организации возвращается статус пользователя и дополнительная информация.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Список организаций
+          schema:
+            items:
+              $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.MyOrganizationInfo'
+            type: array
+        "401":
+          description: Отсутствует или невалидный токен авторизации
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Получить мои организации
+      tags:
+      - Employees
   /invites/{inviteId}:
     delete:
       consumes:
@@ -1593,6 +1757,55 @@ paths:
       summary: Обновление данных организации
       tags:
       - Организации
+  /organizations/{orgId}/employees:
+    get:
+      consumes:
+      - application/json
+      description: |-
+        Возвращает список всех сотрудников организации с подробной информацией.
+        Доступно только для членов организации.
+      parameters:
+      - description: ID организации
+        example: 1
+        in: path
+        minimum: 1
+        name: orgId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Список сотрудников
+          schema:
+            items:
+              $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.EmployeeDetailResponse'
+            type: array
+        "400":
+          description: Неверный формат ID организации
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "401":
+          description: Отсутствует или невалидный токен авторизации
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "403":
+          description: Нет доступа к организации
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "404":
+          description: Организация не найдена
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Получить всех сотрудников организации
+      tags:
+      - Employees
   /organizations/{orgId}/employees/{empId}/permissions:
     get:
       consumes:
@@ -1643,6 +1856,53 @@ paths:
       summary: Получить права сотрудника
       tags:
       - Права
+  /organizations/{orgId}/hierarchy:
+    get:
+      consumes:
+      - application/json
+      description: |-
+        Возвращает полную иерархию организации: локации, отделы, должности, сотрудники.
+        Доступно только для членов организации.
+      parameters:
+      - description: ID организации
+        example: 1
+        in: path
+        minimum: 1
+        name: orgId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Иерархия организации
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.OrganizationHierarchyResponse'
+        "400":
+          description: Неверный формат ID организации
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "401":
+          description: Отсутствует или невалидный токен авторизации
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "403":
+          description: Нет доступа к организации
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "404":
+          description: Организация не найдена
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Получить иерархию организации
+      tags:
+      - Employees
   /organizations/{orgId}/invites:
     get:
       consumes:

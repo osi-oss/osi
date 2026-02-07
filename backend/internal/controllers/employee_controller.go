@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/osi-oss/osi/internal/dto"
 	"github.com/osi-oss/osi/internal/helpers"
 	"github.com/osi-oss/osi/internal/services"
 )

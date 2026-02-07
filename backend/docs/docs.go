@@ -253,6 +253,49 @@ const docTemplate = `{
                 }
             }
         },
+        "/employees/my-organizations": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Возвращает список организаций, где текущий пользователь работает или является основателем.\nДля каждой организации возвращается статус пользователя и дополнительная информация.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Employees"
+                ],
+                "summary": "Получить мои организации",
+                "responses": {
+                    "200": {
+                        "description": "Список организаций",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.MyOrganizationInfo"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Отсутствует или невалидный токен авторизации",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/invites/my": {
             "get": {
                 "security": [
@@ -792,6 +835,78 @@ const docTemplate = `{
                 }
             }
         },
+        "/organizations/{orgId}/employees": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Возвращает список всех сотрудников организации с подробной информацией.\nДоступно только для членов организации.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Employees"
+                ],
+                "summary": "Получить всех сотрудников организации",
+                "parameters": [
+                    {
+                        "minimum": 1,
+                        "type": "integer",
+                        "example": 1,
+                        "description": "ID организации",
+                        "name": "orgId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Список сотрудников",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.EmployeeDetailResponse"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Неверный формат ID организации",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Отсутствует или невалидный токен авторизации",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Нет доступа к организации",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Организация не найдена",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/organizations/{orgId}/employees/{empId}/permissions": {
             "get": {
                 "security": [
@@ -851,6 +966,75 @@ const docTemplate = `{
                     },
                     "403": {
                         "description": "Нет права на просмотр прав",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/organizations/{orgId}/hierarchy": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Возвращает полную иерархию организации: локации, отделы, должности, сотрудники.\nДоступно только для членов организации.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Employees"
+                ],
+                "summary": "Получить иерархию организации",
+                "parameters": [
+                    {
+                        "minimum": 1,
+                        "type": "integer",
+                        "example": 1,
+                        "description": "ID организации",
+                        "name": "orgId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Иерархия организации",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.OrganizationHierarchyResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Неверный формат ID организации",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Отсутствует или невалидный токен авторизации",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Нет доступа к организации",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Организация не найдена",
                         "schema": {
                             "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.ErrorResponse"
                         }
@@ -3038,6 +3222,59 @@ const docTemplate = `{
                 }
             }
         },
+        "github_com_osi-oss_osi_internal_dto.EmployeeDetailResponse": {
+            "description": "Подробная информация о сотруднике в организации",
+            "type": "object",
+            "properties": {
+                "end_date": {
+                    "description": "Дата окончания работы",
+                    "type": "string"
+                },
+                "id": {
+                    "description": "ID сотрудника",
+                    "type": "integer",
+                    "example": 1
+                },
+                "is_intern": {
+                    "description": "Является ли стажёром",
+                    "type": "boolean",
+                    "example": false
+                },
+                "joined_at": {
+                    "description": "Дата присоединения к организации",
+                    "type": "string",
+                    "example": "2024-01-15T10:00:00Z"
+                },
+                "position_id": {
+                    "description": "ID позиции",
+                    "type": "integer",
+                    "example": 5
+                },
+                "position_name": {
+                    "description": "Название позиции",
+                    "type": "string",
+                    "example": "Software Engineer"
+                },
+                "start_date": {
+                    "description": "Дата начала работы",
+                    "type": "string",
+                    "example": "2024-01-15T10:00:00Z"
+                },
+                "status": {
+                    "description": "Статус сотрудника",
+                    "type": "string",
+                    "example": "active"
+                },
+                "user": {
+                    "description": "Информация о пользователе",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.UserResponse"
+                        }
+                    ]
+                }
+            }
+        },
         "github_com_osi-oss_osi_internal_dto.ErrorResponse": {
             "description": "Стандартный формат ответа при ошибке",
             "type": "object",
@@ -3084,6 +3321,39 @@ const docTemplate = `{
                             "$ref": "#/definitions/github_com_osi-oss_osi_internal_models.ScopeType"
                         }
                     ],
+                    "example": "department"
+                }
+            }
+        },
+        "github_com_osi-oss_osi_internal_dto.HierarchyNode": {
+            "description": "Узел в иерархии (локация, отдел, позиция, сотрудник)",
+            "type": "object",
+            "properties": {
+                "children": {
+                    "description": "Дочерние узлы",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.HierarchyNode"
+                    }
+                },
+                "data": {
+                    "description": "Дополнительные данные в зависимости от типа",
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "id": {
+                    "description": "ID узла",
+                    "type": "integer",
+                    "example": 1
+                },
+                "name": {
+                    "description": "Название",
+                    "type": "string",
+                    "example": "Engineering Department"
+                },
+                "type": {
+                    "description": "Тип узла: location, department, position, employee",
+                    "type": "string",
                     "example": "department"
                 }
             }
@@ -3249,6 +3519,100 @@ const docTemplate = `{
                     "description": "Сообщение о результате операции\nExample: operation completed successfully",
                     "type": "string",
                     "example": "operation completed successfully"
+                }
+            }
+        },
+        "github_com_osi-oss_osi_internal_dto.MyOrganizationInfo": {
+            "description": "Организация где пользователь работает",
+            "type": "object",
+            "properties": {
+                "employee_id": {
+                    "description": "Мой ID сотрудника в организации",
+                    "type": "integer",
+                    "example": 42
+                },
+                "end_date": {
+                    "description": "Дата окончания работы (если уже уволен)",
+                    "type": "string"
+                },
+                "id": {
+                    "description": "ID организации",
+                    "type": "integer",
+                    "example": 1
+                },
+                "is_founder": {
+                    "description": "Основатель ли я",
+                    "type": "boolean",
+                    "example": false
+                },
+                "my_status": {
+                    "description": "Мой статус в организации (active, invited, inactive)",
+                    "type": "string",
+                    "example": "active"
+                },
+                "name": {
+                    "description": "Название организации",
+                    "type": "string",
+                    "example": "Acme Corporation"
+                },
+                "start_date": {
+                    "description": "Дата начала работы",
+                    "type": "string",
+                    "example": "2024-01-15T10:00:00Z"
+                },
+                "status": {
+                    "description": "Статус организации",
+                    "type": "string",
+                    "example": "draft"
+                }
+            }
+        },
+        "github_com_osi-oss_osi_internal_dto.OrganizationHierarchyResponse": {
+            "description": "Вся структура организации: локации, отделы, должности, сотрудники",
+            "type": "object",
+            "properties": {
+                "locations": {
+                    "description": "Корневые элементы (локации)",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_osi-oss_osi_internal_dto.HierarchyNode"
+                    }
+                },
+                "organization_id": {
+                    "description": "ID организации",
+                    "type": "integer",
+                    "example": 1
+                },
+                "organization_name": {
+                    "description": "Название организации",
+                    "type": "string",
+                    "example": "Acme Corp"
+                },
+                "stats": {
+                    "description": "Общая статистика",
+                    "type": "object",
+                    "properties": {
+                        "active_employees": {
+                            "type": "integer",
+                            "example": 40
+                        },
+                        "total_departments": {
+                            "type": "integer",
+                            "example": 12
+                        },
+                        "total_employees": {
+                            "type": "integer",
+                            "example": 42
+                        },
+                        "total_locations": {
+                            "type": "integer",
+                            "example": 3
+                        },
+                        "total_positions": {
+                            "type": "integer",
+                            "example": 87
+                        }
+                    }
                 }
             }
         },
