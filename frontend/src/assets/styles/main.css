@@ -1,0 +1,41 @@
+@import "tailwindcss";
+
+/* Tailwind v4 theme configuration */
+@theme {
+    --color-primary: #000000;
+    --color-primary-hover: #1a1a1a;
+    --color-secondary: #9CA3AF;
+    --color-secondary-hover: #6B7280;
+    --color-background: #FFFFFF;
+    --color-gray-light: #F3F4F6;
+    --color-gray-border: #E5E7EB;
+
+    --radius-button: 12px;
+    --radius-input: 12px;
+    --radius-card: 16px;
+
+    --font-family-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+}
+
+@layer base {
+    body {
+        background-color: white;
+        color: #111827;
+        font-family: var(--font-family-sans);
+        -webkit-font-smoothing: antialiased;
+    }
+
+    * {
+        box-sizing: border-box;
+    }
+}
+
+@layer utilities {
+    .safe-top {
+        padding-top: env(safe-area-inset-top);
+    }
+
+    .safe-bottom {
+        padding-bottom: env(safe-area-inset-bottom);
+    }
+}
