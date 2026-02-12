@@ -27,11 +27,11 @@ const select = (item: ToggleItem) => {
 </script>
 
 <template>
-  <div class="relative flex p-1 bg-gray-200 rounded-2xl">
+  <div class="relative flex p-1 bg-gray-100 rounded-[12px]">
 
     <!-- SLIDER -->
     <div
-      class="absolute top-1 bottom-1 w-[calc(50%-4px)] bg-white rounded-xl shadow-sm transition-transform duration-300 ease-out"
+      class="absolute top-1 bottom-1 w-[calc(50%-4px)] bg-white rounded-[10px] shadow-sm border border-gray-200 transition-transform duration-300 ease-out"
       :style="{
         transform: `translateX(${activeIndex * 100}%)`
       }"
@@ -39,14 +39,14 @@ const select = (item: ToggleItem) => {
 
     <!-- BUTTONS -->
     <button
-      v-for="(item, index) in items"
+      v-for="item in items"
       :key="item.value"
       @click="select(item)"
       class="relative flex-1 py-3 text-sm font-medium transition-colors duration-200"
       :class="[
         modelValue === item.value
           ? 'text-black'
-          : 'text-gray-500',
+          : 'text-gray-400',
         item.disabled && 'opacity-50 cursor-not-allowed'
       ]"
     >

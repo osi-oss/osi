@@ -116,7 +116,7 @@ func Start(cfg *config.Config) {
 	r.SetTrustedProxies([]string{"127.0.0.1"})
 
 	// Добавляем middleware
-	// r.Use(middleware.CORS())
+	r.Use(middleware.CORS())
 	r.Use(middleware.SecurityMiddleware())
 	r.Use(middleware.ValidateJSON())
 

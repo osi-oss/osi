@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, nextTick, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores'
 import Button from '@/components/ui/Button.vue'
@@ -10,18 +10,21 @@ const authStore = useAuthStore()
 
 const email = ref('')
 const code = ref<string[]>(['', '', '', ''])
+const inputRefs = ref<(HTMLInputElement | null)[]>([])
 const countdown = ref(20)
 const canResend = ref(false)
+let verifying = false
 
 onMounted(() => {
   email.value = (route.query.email as string) || ''
   startCountdown()
+  nextTick(() => inputRefs.value[0]?.focus())
 })
 
 const startCountdown = () => {
   canResend.value = false
   countdown.value = 20
-  
+
   const timer = setInterval(() => {
     countdown.value--
     if (countdown.value <= 0) {
@@ -31,31 +34,69 @@ const startCountdown = () => {
   }, 1000)
 }
 
-const isCodeComplete = computed(() => {
-  return code.value.every(c => c !== '')
-})
+const isCodeComplete = computed(() => code.value.every(c => c !== ''))
 
 watch(code, () => {
-  if (isCodeComplete.value) {
+  if (isCodeComplete.value && !verifying) {
     handleVerify()
   }
 }, { deep: true })
 
-const handleDigitInput = (digit: string) => {
-  const emptyIndex = code.value.findIndex(c => c === '')
-  if (emptyIndex !== -1) {
-    code.value[emptyIndex] = digit
+const setRef = (el: any, i: number) => {
+  inputRefs.value[i] = el as HTMLInputElement
+}
+
+const handleInput = (index: number, event: Event) => {
+  const target = event.target as HTMLInputElement
+  const val = target.value.replace(/\D/g, '')
+
+  if (val.length > 1) {
+    // Handle paste of multiple digits
+    const digits = val.slice(0, 4).split('')
+    digits.forEach((d, i) => {
+      if (index + i < 4) code.value[index + i] = d
+    })
+    const focusIdx = Math.min(index + digits.length, 3)
+    nextTick(() => inputRefs.value[focusIdx]?.focus())
+    return
+  }
+
+  code.value[index] = val
+  if (val && index < 3) {
+    nextTick(() => inputRefs.value[index + 1]?.focus())
   }
 }
 
-const handleBackspace = () => {
-  const lastFilledIndex = code.value.map((c, i) => c !== '' ? i : -1).filter(i => i !== -1).pop()
-  if (lastFilledIndex !== undefined) {
-    code.value[lastFilledIndex] = ''
+const handleKeydown = (index: number, event: KeyboardEvent) => {
+  if (event.key === 'Backspace') {
+    if (!code.value[index] && index > 0) {
+      code.value[index - 1] = ''
+      nextTick(() => inputRefs.value[index - 1]?.focus())
+    } else {
+      code.value[index] = ''
+    }
+    return
   }
+  // Allow navigation & control keys, block non-digit characters
+  const allowed = ['Tab', 'ArrowLeft', 'ArrowRight', 'Delete', 'Enter']
+  if (!allowed.includes(event.key) && !/^\d$/.test(event.key)) {
+    event.preventDefault()
+  }
+}
+
+const handlePaste = (event: ClipboardEvent) => {
+  event.preventDefault()
+  const text = event.clipboardData?.getData('text') || ''
+  const digits = text.replace(/\D/g, '').slice(0, 4).split('')
+  digits.forEach((d, i) => {
+    if (i < 4) code.value[i] = d
+  })
+  const focusIdx = Math.min(digits.length, 3)
+  nextTick(() => inputRefs.value[focusIdx]?.focus())
 }
 
 const handleVerify = async () => {
+  verifying = true
   try {
     const codeString = code.value.join('')
     const response = await authStore.verifyCode({
@@ -70,14 +111,16 @@ const handleVerify = async () => {
     }
   } catch (error) {
     console.error('Verify error:', error)
-    // Очищаем код при ошибке
     code.value = ['', '', '', '']
+    nextTick(() => inputRefs.value[0]?.focus())
+  } finally {
+    verifying = false
   }
 }
 
 const handleResend = async () => {
   if (!canResend.value) return
-  
+
   try {
     await authStore.requestCode({ email: email.value })
     startCountdown()
@@ -87,11 +130,11 @@ const handleResend = async () => {
 }
 
 const handleChangeEmail = () => {
-  router.push({ name: 'Login' })
+  router.back()
 }
 
 const goBack = () => {
-  router.push({ name: 'Login' })
+  router.back()
 }
 </script>
 
@@ -101,7 +144,7 @@ const goBack = () => {
     <div class="flex items-center mb-12">
       <button
         @click="goBack"
-        class="p-2 -ml-2 hover:bg-gray-100 rounded-lg transition"
+        class="relative z-10 p-2 -ml-2 hover:bg-gray-100 rounded-lg transition"
       >
         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
@@ -121,19 +164,32 @@ const goBack = () => {
       </p>
     </div>
 
-    <!-- Code display -->
-    <div class="flex justify-center gap-3 mb-8">
-      <div
+    <!-- Code inputs -->
+    <div class="flex justify-center gap-3 mb-8" @paste="handlePaste">
+      <input
         v-for="(digit, index) in code"
         :key="index"
+        :ref="(el) => setRef(el, index)"
+        type="text"
+        inputmode="numeric"
+        maxlength="1"
+        :value="digit"
+        @input="handleInput(index, $event)"
+        @keydown="handleKeydown(index, $event)"
         :class="[
-          'w-16 h-20 flex items-center justify-center text-3xl font-semibold rounded-button',
-          'border-2 transition bg-white',
-          digit ? 'border-gray-300' : index === code.findIndex(c => c === '') ? 'border-blue-500' : 'border-gray-300'
+          'w-16 h-20 text-center text-3xl font-semibold rounded-[12px]',
+          'border-2 transition bg-white focus:outline-none',
+          digit ? 'border-gray-300' : index === code.findIndex(c => c === '') ? 'border-black' : 'border-gray-200'
         ]"
-      >
-        {{ digit || '—' }}
-      </div>
+      />
+    </div>
+
+    <!-- Loading indicator -->
+    <div v-if="authStore.isLoading" class="flex justify-center mb-6">
+      <svg class="animate-spin h-6 w-6 text-black" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+      </svg>
     </div>
 
     <!-- Resend timer -->
@@ -160,42 +216,6 @@ const goBack = () => {
     >
       Изменить почту
     </Button>
-
-    <!-- Spacer -->
-    <div class="flex-1"></div>
-
-    <!-- Numeric keypad -->
-    <div class="grid grid-cols-3 gap-3 max-w-sm mx-auto w-full">
-      <button
-        v-for="digit in ['1', '2', '3', '4', '5', '6', '7', '8', '9']"
-        :key="digit"
-        @click="handleDigitInput(digit)"
-        class="aspect-square bg-white hover:bg-gray-50 active:bg-gray-100 rounded-button flex items-center justify-center text-2xl font-semibold transition shadow-sm border border-gray-200"
-      >
-        {{ digit }}
-      </button>
-      
-      <!-- Empty cell -->
-      <div></div>
-      
-      <!-- 0 -->
-      <button
-        @click="handleDigitInput('0')"
-        class="aspect-square bg-white hover:bg-gray-50 active:bg-gray-100 rounded-button flex items-center justify-center text-2xl font-semibold transition shadow-sm border border-gray-200"
-      >
-        0
-      </button>
-      
-      <!-- Backspace -->
-      <button
-        @click="handleBackspace"
-        class="aspect-square bg-white hover:bg-gray-50 active:bg-gray-100 rounded-button flex items-center justify-center transition shadow-sm border border-gray-200"
-      >
-        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2M3 12l6.414 6.414a2 2 0 001.414.586H19a2 2 0 002-2V7a2 2 0 00-2-2h-8.172a2 2 0 00-1.414.586L3 12z" />
-        </svg>
-      </button>
-    </div>
 
     <!-- Error message -->
     <p v-if="authStore.error" class="mt-4 text-sm text-red-600 text-center">

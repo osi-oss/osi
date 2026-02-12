@@ -45,7 +45,7 @@ router.beforeEach((to, _from, next) => {
 
     // Проверяем авторизацию
     if (to.meta.requiresAuth) {
-        if (!authStore.isAuthenticated) {
+        if (!authStore.isAuthenticated || !authStore.checkAuth()) {
             return next({ name: 'Login', query: { redirect: to.fullPath } })
         }
 

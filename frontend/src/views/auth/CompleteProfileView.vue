@@ -42,7 +42,7 @@ const goBack = () => {
     <div class="flex items-center mb-12">
       <button
         @click="goBack"
-        class="p-2 -ml-2 hover:bg-gray-100 rounded-lg transition"
+        class="relative z-10 p-2 -ml-2 hover:bg-gray-100 rounded-lg transition"
       >
         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />

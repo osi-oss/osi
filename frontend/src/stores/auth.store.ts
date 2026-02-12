@@ -127,6 +127,8 @@ export const useAuthStore = defineStore('auth', () => {
         return false
     }
 
+    checkAuth()
+
     return {
         // State
         token,

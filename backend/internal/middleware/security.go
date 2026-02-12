@@ -34,7 +34,7 @@ func SecurityMiddleware() gin.HandlerFunc {
 		}
 
 		// Проверяем заголовки на подозрительное содержимое
-		suspiciousHeaders := []string{"User-Agent", "Referer", "X-Forwarded-For"}
+		suspiciousHeaders := []string{"Referer", "X-Forwarded-For"}
 		for _, header := range suspiciousHeaders {
 			value := c.GetHeader(header)
 			if validators.ContainsSQLInjection(value) || validators.ContainsXSS(value) {
