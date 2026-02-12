@@ -355,7 +355,7 @@ func (s *AuthService) generateJWT(user *models.User) (string, error) {
 // generateAuthCode генерирует 4-символьный код
 // Исключены похожие символы: 0, O, 1, I, L
 func generateAuthCode() string {
-	const chars = "23456789ABCDEFGHJKMNPQRSTUVWXYZ"
+	const chars = "1234567890"
 	code := make([]byte, 4)
 	randomBytes := make([]byte, 4)
 	_, _ = rand.Read(randomBytes)
